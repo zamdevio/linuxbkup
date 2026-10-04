@@ -6,7 +6,7 @@ Surface: root **`linuxbkup`** bin. Env: `LINUXBKUP_*`.
 
 1. Parse global flags — `lib/core/common.sh` (+ `lib/core/profile.sh` ask>yes)
 2. Terminal UI — `lib/core/terminal/{style,links,control,progress,notify}.sh`
-3. Safety — `lib/core/safety.sh`
+3. Safety + interrupt — `lib/core/safety.sh` + `lib/core/interrupt.sh`
 4. Help/version — `lib/core/help.sh`
 5. Platform (when needed) — `lib/core/platform/` via commands
 6. Dispatch — `lib/cmd/<name>.sh` via `linuxbkup_cmd_<name>`
@@ -48,3 +48,40 @@ Long-only (less frequent / dangerous): `--no-secrets`, `--secrets-plain`, `--no-
 Default copy honors per-directory `.gitignore` (rsync dir-merge) plus regenerable strip (`node_modules`, `.next`, caches, …).
 
 Ask UI: `lib/ask/select.sh` (numbered + optional fzf).
+
+## Signals — central interrupt API
+
+**Keep** the Ctrl+C pause→menu system. One module owns it: `lib/core/interrupt.sh` (+ traps in `lib/core/safety.sh`).
+
+| Helper | Role |
+|--------|------|
+| `linuxbkup_op_begin` / `op_item` / `op_end` | Mark current step/item for the menu |
+| `linuxbkup_interrupt_resolve` | **Central:** pending? → menu if needed → apply → set `LINUXBKUP_INTERRUPT_RESULT` |
+| `linuxbkup_interrupt_shield` | Defer INT around short critical `$()` (e.g. dest resolve) |
+| `linuxbkup_tty_restore` | `tput cnorm` + unhide cursor on EXIT |
+
+Ops (`copy`, `checksum`, `pack`, `classify`, …) only: `op_begin` → work → `if linuxbkup_interrupt_resolve; then case RESULT…`. Do **not** call menu/apply by hand or wrap apply in `$()`.
+
+## Ctrl+C (SIGINT)
+
+Never silent “Continuing…”. Trap stops children (rsync/du/workers), then menu:
+
+| Choice | Behavior |
+|--------|----------|
+| `r` | Retry last op (overwrite partial / re-scan) |
+| `s` | Skip current item (copy only) |
+| `c` | Continue — or same as retry when partial results are unsafe (classify/checksum/pack/copy) |
+| `q` | Quit (keep staging) |
+| `x` | Quit + remove staging |
+
+`rsync` rc=20 is interrupt, never soft-skip. Classify/plan scans discard partial path lists and re-scan. Second Ctrl+C in the menu force-quits. Same handlers for `backup`, `restore`, `verify`, `plan`, `inspect`.
+
+**Ctrl+Z (SIGTSTP):** real job-control suspend (not kill). Enables `set -m` (monitor mode) and `STOP`s the **process group** so bash doesn’t stay wedged in `wait` while `rsync` is `T`. Parks the live line, shows the cursor, returns you to the shell. Resume: `fg` (or `bg`). Graceful abort stays on **Ctrl+C**.
+
+## Live progress / cursor
+
+- Progress paints on **stderr** with `\r` + erase-line (same pattern as i18nprune).
+- Durable logs/`ui_*` **park** the live row first so scrollback stays clean.
+- User Enter mid-bar may leave a blank row; the next update clears and repaints.
+- Cursor hidden during the bar; always restored on end / interrupt / process exit.
+- Command body runs under `set +e` so a handled Ctrl+C (status 130) does not abort after “Continuing…”.

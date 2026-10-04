@@ -57,6 +57,15 @@ linuxbkup -y backup --include /home/user/extra-pattern
 
 Full `$HOME` shallow scan classifies known / secret / skip / unexpected. Unexpected auto-includes with `-y` or non-TTY.
 
+## Signals (TTY)
+
+| Key | Behavior |
+|-----|----------|
+| **Ctrl+C** | Pause → menu: retry / skip / continue / quit (keep staging) / quit+cleanup |
+| **Ctrl+Z** | Suspend the whole job (`fg` / `bg` to resume) |
+
+`rsync` exit 20 is treated as interrupt, not a soft-skip. Progress paints on stderr; the cursor is always restored on exit.
+
 ## Logging
 
 | Flag | Role |

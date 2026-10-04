@@ -6,7 +6,7 @@ Keep this free of sprint language and `maintainer/` links.
 
 ## Available
 
-- [`cli.md`](./cli.md) — commands, deps, path filters
+- [`cli.md`](./cli.md) — commands, deps, path filters, Ctrl+C / Ctrl+Z
 
 ## Planned topics
 

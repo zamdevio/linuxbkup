@@ -20,12 +20,12 @@ Home/config from **full-home classification**. Decisions: `--ask` interactive (u
 
 Backup prints shared **environment snapshot** (`lib/env/snapshot.sh`) after preflight. `-k/--keep-stage` / `-S/--stage-dir` control staging lifecycle.
 
+Long steps (`classify`, `copy`, `checksum`, `pack`, …) use `linuxbkup_op_begin` + `linuxbkup_interrupt_resolve` (see [`cli.md`](./cli.md)). Copy goes through `backup_handle_interrupt` after `backup_rsync_run`.
+
 ## Stub / missing
 
-- `restore` — not Near-full
+- `restore` — stub (op state only; no real extract yet)
 - Restore decrypt for `secrets.tar.age` (phase 04.5)
-- `schema.json` + decisions log (phase 05)
-- Space preflight (phase 05)
 - Multi-PM capture beyond APT (after 08.8 snapshot UI)
 
 ## Redesign target

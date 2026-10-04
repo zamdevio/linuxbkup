@@ -32,8 +32,8 @@ What has actually landed (not aspirational). Binary: **`linuxbkup`**. Env: **`LI
 | Phase 10 | Standing PM/tools path research (mise installs strip; open forever until done) |
 | UX | Strip `.tmp` / mise `installs|downloads`; keep mise state/config |
 | UX | `-w/--workers` (default 4) parallel checksums/du/verify + zstd -T + ETA |
-| UX | Ctrl+C confirm / Ctrl+Z suspend+`fg` guidance (TTY-aware) |
 | UX | Lean op compat probes (`lib/tools/compat.sh`) after presence checks |
+| UX | Central interrupt API (`lib/core/interrupt.sh`): Ctrl+C menu + `interrupt_resolve`; rsync rc=20; live stderr progress park/redraw; Ctrl+Z process-group suspend (`set -m`); `tput cnorm` on EXIT |
 
 ## Not shipped yet (redesign track)
 
