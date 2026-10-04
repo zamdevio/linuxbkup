@@ -1,0 +1,14 @@
+SUMMARY=Discovers files (e.g. shallow .env / credentials scans).
+APT=findutils
+DNF=findutils
+YUM=findutils
+PACMAN=findutils
+APK=findutils
+BREW=findutils
+HOW_APT=sudo apt update && sudo apt install -y findutils
+HOW_DNF=sudo dnf install -y findutils
+HOW_YUM=sudo yum install -y findutils
+HOW_PACMAN=sudo pacman -S --needed findutils
+HOW_APK=sudo apk add findutils
+HOW_BREW=brew install findutils
+NOTE=Usually preinstalled.

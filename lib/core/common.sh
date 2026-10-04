@@ -8,49 +8,26 @@ WSLBKUP_YES=0
 WSLBKUP_DRY_RUN=0
 WSLBKUP_VERBOSE=0
 WSLBKUP_QUIET=0
+WSLBKUP_NO_COLOR=0
+WSLBKUP_NO_LINKS=0
 WSLBKUP_OUTPUT=""
 WSLBKUP_FORCE_OVERWRITE=0
 WSLBKUP_NO_SECRETS=0
 WSLBKUP_SECRETS_PLAIN=0
 WSLBKUP_USER=""
+WSLBKUP_NO_DEFAULTS=0
+WSLBKUP_LIST_FULL=0
+WSLBKUP_LIST_TOP=""
+WSLBKUP_INCLUDE_REGEXES=()
+WSLBKUP_EXCLUDE_REGEXES=()
 WSLBKUP_POSITIONAL=()
 
-wslbkup_usage() {
-  cat <<'EOF'
-wslbkup — safe, reconstructable WSL backup / restore
-
-Usage:
-  wslbkup [global options] <command> [args]
-
-Commands:
-  inspect              Scan environment (distro, users, capabilities, sizes)
-  backup               Create an intelligent backup archive
-  restore <backup>     Reconstruct from a backup
-  verify <backup>      Verify archive integrity / manifests
-  list <backup>        List backup contents (high level)
-  help                 Show this help
-  version              Print version
-
-Global options:
-  -y, --yes            Accept safe defaults (NOT destructive overwrite)
-  --dry-run            Plan only; make no modifications
-  -v, --verbose        More detail
-  -q, --quiet          Less non-essential output
-  -o, --output <path>  Backup output path (default: Windows Downloads/wslbkup/)
-  --user <name>        Target /home/<name> (default: current user)
-  --force-overwrite    Allow overwriting conflicting files on restore
-  --no-secrets         Exclude secrets from backup
-  --secrets-plain      Include secrets unencrypted (explicit; warned)
-  -h, --help           Show help
-  -V, --version        Show version
-
-Principle:
-  Back up what cannot be regenerated. Record recipes for what can.
-EOF
-}
+# Help/version live in lib/core/help.sh (styled).
 
 wslbkup_parse_globals() {
   WSLBKUP_POSITIONAL=()
+  WSLBKUP_INCLUDE_REGEXES=()
+  WSLBKUP_EXCLUDE_REGEXES=()
   while [[ $# -gt 0 ]]; do
     case "$1" in
       -y|--yes)
@@ -69,13 +46,21 @@ wslbkup_parse_globals() {
         WSLBKUP_QUIET=1
         shift
         ;;
+      --no-color)
+        WSLBKUP_NO_COLOR=1
+        shift
+        ;;
+      --no-links)
+        WSLBKUP_NO_LINKS=1
+        shift
+        ;;
       -o|--output)
-        [[ $# -ge 2 ]] || { echo "wslbkup: --output requires a path" >&2; exit 2; }
+        [[ $# -ge 2 ]] || { log_fatal "--output requires a path"; exit 2; }
         WSLBKUP_OUTPUT="$2"
         shift 2
         ;;
       --user)
-        [[ $# -ge 2 ]] || { echo "wslbkup: --user requires a name" >&2; exit 2; }
+        [[ $# -ge 2 ]] || { log_fatal "--user requires a name"; exit 2; }
         WSLBKUP_USER="$2"
         shift 2
         ;;
@@ -91,8 +76,31 @@ wslbkup_parse_globals() {
         WSLBKUP_SECRETS_PLAIN=1
         shift
         ;;
+      --no-defaults)
+        WSLBKUP_NO_DEFAULTS=1
+        shift
+        ;;
+      --include)
+        [[ $# -ge 2 ]] || { log_fatal "--include requires a regex or path"; exit 2; }
+        WSLBKUP_INCLUDE_REGEXES+=("$2")
+        shift 2
+        ;;
+      --exclude)
+        [[ $# -ge 2 ]] || { log_fatal "--exclude requires a regex"; exit 2; }
+        WSLBKUP_EXCLUDE_REGEXES+=("$2")
+        shift 2
+        ;;
+      -F|--full)
+        WSLBKUP_LIST_FULL=1
+        shift
+        ;;
+      -T|--top)
+        [[ $# -ge 2 ]] || { log_fatal "--top requires a number"; exit 2; }
+        [[ "$2" =~ ^[0-9]+$ ]] || { log_fatal "--top must be an integer"; exit 2; }
+        WSLBKUP_LIST_TOP="$2"
+        shift 2
+        ;;
       -h|--help|-V|--version)
-        # Leave for top-level command dispatch when they appear as "command"
         WSLBKUP_POSITIONAL+=("$1")
         shift
         ;;
@@ -102,7 +110,7 @@ wslbkup_parse_globals() {
         break
         ;;
       -*)
-        echo "wslbkup: unknown option: $1" >&2
+        log_fatal "unknown option: $1"
         exit 2
         ;;
       *)

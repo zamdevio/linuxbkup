@@ -7,18 +7,28 @@ wslbkup                 # argv dispatch, sources lib/core + lib/cmd
 lib/
   core/                 # shared plumbing
     common.sh           # globals, flag parse, usage
-    logging.sh          # OK / WARN / SKIP / FATAL / INFO / DEBUG
     safety.sh           # confirm, force-overwrite, secrets/--yes gates
+    context.sh          # per-command banner + tool gates
+    terminal/
+      style.sh          # ANSI + log_* + ui_*
+      links.sh          # OSC 8 file:// / URL hyperlinks
+      control.sh        # CSI/OSC helpers (cursor, reset, …)
   cmd/                  # one file per command (clean names)
     inspect.sh
     backup.sh
     restore.sh
     verify.sh
     list.sh
-  # later, same style — group by concern, not flat prefixes:
-  #   fs/  archive/  manifest/  secrets/  windows/
-modules/                # apt, python, node, rust, go, ruby, services, docker, …
-rules/                  # regenerable / include / secrets patterns
+    deps.sh
+  env/                  # distro, users, capabilities
+  fs/                   # du / size scans
+  windows/              # Downloads path resolution
+  classify/             # uses constraints (no hardcoded lists)
+  constraints/          # built-in path lists + list policy
+  tools/                # require + How-To from guides/
+  # later: archive/  manifest/  secrets/
+guides/tools/           # per-tool install guides (*.guide)
+modules/                # apt, python, node, … (phased)
 tests/
 docs/
 maintainer/             # control plane only

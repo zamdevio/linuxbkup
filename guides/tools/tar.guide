@@ -1,0 +1,14 @@
+SUMMARY=Creates and extracts backup archives.
+APT=tar
+DNF=tar
+YUM=tar
+PACMAN=tar
+APK=tar
+BREW=gnu-tar
+HOW_APT=sudo apt update && sudo apt install -y tar
+HOW_DNF=sudo dnf install -y tar
+HOW_YUM=sudo yum install -y tar
+HOW_PACMAN=sudo pacman -S --needed tar
+HOW_APK=sudo apk add tar
+HOW_BREW=brew install gnu-tar
+NOTE=Required for backup/restore (Phase 2+).

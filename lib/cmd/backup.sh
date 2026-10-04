@@ -1,10 +1,19 @@
 # shellcheck shell=bash
 
 wslbkup_cmd_backup() {
-  log_info "wslbkup ${WSLBKUP_VERSION} — backup"
-  if [[ "${WSLBKUP_DRY_RUN:-0}" -eq 1 ]]; then
-    log_info "dry-run enabled (no archive will be written once implemented)"
+  if cmd_want_help "$@"; then
+    wslbkup_cmd_help backup
+    return 0
   fi
+
+  # shellcheck source=lib/core/context.sh
+  source "${WSLBKUP_ROOT}/lib/core/context.sh"
+
+  cmd_context_begin backup \
+    --desc "Create an intelligent backup archive (not fully implemented yet)." \
+    --required tar zstd rsync du sha256sum \
+    --optional age
+
   wslbkup_phase_stub "2" "Backup"
-  log_info "Planned: scan → report → user decisions → manifests + tar.zst to Windows Downloads by default."
+  log_info "Planned: scan → report → decisions → manifests + tar.zst → Windows Downloads."
 }

@@ -1,0 +1,14 @@
+SUMMARY=Encrypts the secrets subset of a backup with a passphrase.
+APT=age
+DNF=age
+YUM=age
+PACMAN=age
+APK=age
+BREW=age
+HOW_APT=sudo apt update && sudo apt install -y age
+HOW_DNF=sudo dnf install -y age
+HOW_YUM=sudo yum install -y age
+HOW_PACMAN=sudo pacman -S --needed age
+HOW_APK=sudo apk add age
+HOW_BREW=brew install age
+NOTE=Optional until you back up secrets (Phase 3). On older Ubuntu, use the upstream release if the package is missing.

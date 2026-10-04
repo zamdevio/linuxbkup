@@ -4,6 +4,10 @@ End-user documentation for the WSL backup/restore CLI.
 
 Keep this free of sprint language and `maintainer/` links.
 
+## Available
+
+- [`cli.md`](./cli.md) — commands, deps, path filters
+
 ## Planned topics
 
 - Install / PATH

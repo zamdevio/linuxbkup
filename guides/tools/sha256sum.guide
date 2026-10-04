@@ -1,0 +1,14 @@
+SUMMARY=Checksums for backup integrity verification.
+APT=coreutils
+DNF=coreutils
+YUM=coreutils
+PACMAN=coreutils
+APK=coreutils
+BREW=coreutils
+HOW_APT=sudo apt update && sudo apt install -y coreutils
+HOW_DNF=sudo dnf install -y coreutils
+HOW_YUM=sudo yum install -y coreutils
+HOW_PACMAN=sudo pacman -S --needed coreutils
+HOW_APK=sudo apk add coreutils
+HOW_BREW=brew install coreutils
+NOTE=Part of coreutils on most Linux systems.

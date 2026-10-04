@@ -6,7 +6,7 @@ Safe, reconstructable, **Bash-first** backup and restore for WSL Linux distribut
 
 ## Status
 
-Early development. Phase 0 skeleton is in place (`inspect` / `backup` / `restore` / `verify` / `list` dispatch + safety rails). Real scan/backup/restore land in later phases.
+Early development. Phase 1 `inspect` is live. Backup/restore land in later phases.
 
 ## Quick start
 
@@ -32,14 +32,26 @@ ln -sf "$PWD/wslbkup" ~/.local/bin/wslbkup
 ## Layout
 
 ```text
-wslbkup          CLI entry
-lib/core/        common, logging, safety
-lib/cmd/         inspect, backup, restore, verify, list
-modules/         apt, python, node, … (phased)
-rules/           classification patterns
-tests/           smoke tests
-docs/            end-user docs
-maintainer/      agent control plane
+wslbkup             CLI entry
+lib/core/           common, safety, context
+lib/core/terminal/  style, OSC 8 links, control
+lib/cmd/            inspect, backup, restore, verify, list, deps
+lib/constraints/    built-in path lists + list policy
+lib/tools/          checks + catalog + install helpers
+guides/tools/       install How-To per tool
+lib/env/ fs/ windows/ classify/
+modules/            apt, python, node, … (phased)
+tests/              smoke tests
+docs/               end-user docs
+maintainer/         agent control plane
+```
+
+Useful flags: `--include` / `--exclude` (regex), `--no-defaults`, `-F/--full`, `-T/--top <n>`, `--no-color`, `--no-links`.
+
+```bash
+wslbkup deps                 # status
+wslbkup deps install         # install missing core tools
+wslbkup -y deps install age  # one optional tool
 ```
 
 See [`AGENT.md`](./AGENT.md) for contributor/agent entry.

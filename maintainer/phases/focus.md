@@ -8,22 +8,23 @@
 
 | Priority | Vertical | Notes |
 |----------|----------|-------|
-| 1 | Phase 0 skeleton | Done this round: dispatch, logging, safety, stubs |
-| 2 | Phase 1 inspect | Distro/users/capabilities, du report, Downloads path preview |
-| 3 | Maintainer docs | Architecture/systems aligned with Bash pivot |
+| 1 | Phase 2 backup core | APT manifests + allowlisted home/config + tar.zst → Downloads |
+| 2 | Deps / inspect polish | Live — only touch if something breaks |
+| 3 | — | slot free |
 
 ## Queued — do not start
 
 | # | Item | Why parked |
 |---|------|------------|
-| 1 | Phase 2 backup core | Needs inspect first |
-| 2 | Phase 3 secrets/age | Needs backup staging |
-| 3 | Phase 4 restore | Needs archive format |
-| 4 | Phase 5 language modules | After restore foundation |
-| 5 | Phase 6 systemd + /etc | After language modules |
-| 6 | Phase 7 Docker + polish | Last |
+| 1 | Phase 3 secrets/age | Needs backup staging |
+| 2 | Phase 4 restore | Needs archive format |
+| 3 | Phase 5 language modules | After restore foundation |
+| 4 | Phase 6 systemd + /etc | After language modules |
+| 5 | Phase 7 Docker + polish | Last |
 
 ## Next task
 
-1. Implement Phase 1 `inspect` for real (not stub).
-2. Keep Focus slots ≤ 3; promote Phase 2 only after inspect is usable.
+1. Phase 2: real `backup` — staging dir, APT manual packages, home/config allowlist, large-item triage, `tar`+`zstd` to Windows Downloads, checksums.
+2. Keep `inspect` / `deps` stable while backup lands.
+
+Full tracker: [`roadmap.md`](./roadmap.md).

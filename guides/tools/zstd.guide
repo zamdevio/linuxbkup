@@ -1,0 +1,14 @@
+SUMMARY=Compresses backup archives (tar.zst).
+APT=zstd
+DNF=zstd
+YUM=zstd
+PACMAN=zstd
+APK=zstd
+BREW=zstd
+HOW_APT=sudo apt update && sudo apt install -y zstd
+HOW_DNF=sudo dnf install -y zstd
+HOW_YUM=sudo yum install -y zstd
+HOW_PACMAN=sudo pacman -S --needed zstd
+HOW_APK=sudo apk add zstd
+HOW_BREW=brew install zstd
+NOTE=Required for default backup format.

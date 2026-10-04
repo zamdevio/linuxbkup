@@ -1,0 +1,14 @@
+SUMMARY=Efficient file copy into backup staging / restore.
+APT=rsync
+DNF=rsync
+YUM=rsync
+PACMAN=rsync
+APK=rsync
+BREW=rsync
+HOW_APT=sudo apt update && sudo apt install -y rsync
+HOW_DNF=sudo dnf install -y rsync
+HOW_YUM=sudo yum install -y rsync
+HOW_PACMAN=sudo pacman -S --needed rsync
+HOW_APK=sudo apk add rsync
+HOW_BREW=brew install rsync
+NOTE=Required for backup/restore file transfer (Phase 2+).

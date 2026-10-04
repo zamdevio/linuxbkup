@@ -13,10 +13,17 @@ Scaffolded via `@zamdevio/scaffolder` (`cli` preset), then **pivoted to Bash** (
 | Path | Role |
 |------|------|
 | `wslbkup` | CLI entry (bin) |
-| `lib/core/` | Shared plumbing (common, logging, safety) |
+| `lib/core/` | Shared plumbing (common, safety, context) |
+| `lib/core/terminal/` | style (logging/UI), OSC 8 links, control seqs |
 | `lib/cmd/` | One script per CLI command |
+| `lib/env/` | Distro, users, capability probes |
+| `lib/fs/` | Size / `du` scans |
+| `lib/windows/` | Windows path / Downloads defaults |
+| `lib/classify/` | Classification (reads constraints) |
+| `lib/constraints/` | Built-in path lists + `--full`/`--top` policy |
+| `lib/tools/` | Tool checks + install How-To |
+| `guides/tools/` | Per-tool `.guide` install snippets |
 | `modules/` | Package-manager / subsystem modules (phased) |
-| `rules/` | Include / regenerable / secrets pattern rules |
 | `tests/` | Smoke / regression scripts |
 | `docs/` | End-user docs |
 | `maintainer/` | Control plane (phases, systems, agents, shipped, temp) |
