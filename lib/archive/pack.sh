@@ -4,7 +4,7 @@
 archive_pack_tar_zst() {
   local stage="$1"
   local dest="$2"
-  local dest_dir
+  local dest_dir size
 
   dest_dir="$(dirname "${dest}")"
   if [[ "${WSLBKUP_DRY_RUN:-0}" -eq 1 ]]; then
@@ -12,17 +12,34 @@ archive_pack_tar_zst() {
     return 0
   fi
 
-  mkdir -p "${dest_dir}"
+  log_info "ensuring destination directory…"
+  if ! mkdir -p "${dest_dir}"; then
+    log_fatal "cannot create destination directory: ${dest_dir}"
+    return 1
+  fi
+  if [[ ! -w "${dest_dir}" ]]; then
+    log_fatal "destination directory not writable: ${dest_dir}"
+    return 1
+  fi
+
   if [[ -e "${dest}" ]]; then
     safety_require_force_overwrite "${dest}" || return 1
   fi
 
-  # Create archive from stage contents
-  tar -C "${stage}" -cf - . | zstd -T0 -q -o "${dest}"
+  log_info "packing tar.zst (this can take a while)…"
+  if ! tar -C "${stage}" -cf - . | zstd -T0 -q -o "${dest}"; then
+    log_fatal "tar|zstd failed writing ${dest}"
+    rm -f "${dest}" 2>/dev/null || true
+    return 1
+  fi
+
+  if [[ ! -f "${dest}" ]]; then
+    log_fatal "archive missing after pack: ${dest}"
+    return 1
+  fi
+
   log_ok "archive written"
   ui_kv_path "Archive" "${dest}"
-
-  local size
   size="$(du -sh "${dest}" 2>/dev/null | awk '{print $1}')"
   ui_kv "Size" "${size:-?}"
 }

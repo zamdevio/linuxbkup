@@ -10,7 +10,6 @@ backup_stage_create() {
 backup_stage_cleanup() {
   local stage="${1:-}"
   [[ -n "${stage}" && -d "${stage}" ]] || return 0
-  # Only remove our temp staging under /tmp
   case "${stage}" in
     /tmp/wslbkup.*|"${TMPDIR:-/tmp}"/wslbkup.*)
       rm -rf "${stage}"
@@ -55,7 +54,7 @@ backup_write_metadata() {
   log_ok "metadata written"
 }
 
-# INDEX (plain, human-readable) describing what was staged.
+# INDEX — do NOT sort the entire tree (that stalls on large homes).
 backup_write_index() {
   local stage="$1"
   local index="${stage}/INDEX"
@@ -64,11 +63,13 @@ backup_write_index() {
     return 0
   fi
 
+  log_info "writing INDEX…"
   {
     printf 'wslbkup backup index\n'
     printf 'version=%s\n' "${WSLBKUP_VERSION}"
     printf 'created=%s\n' "$(date -Iseconds)"
-    printf '\ncontents:\n'
-    find "${stage}" -mindepth 1 -printf '%P\n' 2>/dev/null | sort | head -n 500
+    printf '\ncontents (first 500 paths, unsorted sample):\n'
+    find "${stage}" -mindepth 1 -printf '%P\n' 2>/dev/null | head -n 500
   } >"${index}"
+  log_ok "INDEX written"
 }
