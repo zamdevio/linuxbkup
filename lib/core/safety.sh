@@ -53,11 +53,15 @@ safety_secrets_mode_for_yes() {
     printf '%s\n' "plain"
     return 0
   fi
+  if [[ -n "${LINUXBKUP_SECRETS_PASS_FILE:-}" && -r "${LINUXBKUP_SECRETS_PASS_FILE}" ]]; then
+    LINUXBKUP_SECRETS_PASS="$(<"${LINUXBKUP_SECRETS_PASS_FILE}")"
+    export LINUXBKUP_SECRETS_PASS
+  fi
   if [[ -n "${LINUXBKUP_SECRETS_PASS:-}" ]]; then
     printf '%s\n' "encrypt"
     return 0
   fi
-  log_fatal "--yes backup with secrets requires LINUXBKUP_SECRETS_PASS, --no-secrets, or --secrets-plain"
+  log_fatal "--yes backup with secrets requires LINUXBKUP_SECRETS_PASS(_FILE), --no-secrets, or --secrets-plain"
   return 1
 }
 

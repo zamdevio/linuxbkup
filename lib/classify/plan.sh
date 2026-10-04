@@ -13,11 +13,21 @@ source "${LINUXBKUP_ROOT}/lib/fs/sizes.sh"
 _classify_plan_push_row() {
   local -n _arr="$1"
   local size="$2" action="$3" path="$4" reason="$5"
-  local bytes=0 line
-  bytes="$(fs_parse_size_to_bytes "${size}" 2>/dev/null || printf '0')"
-  [[ "${bytes}" =~ ^[0-9]+$ ]] || bytes=0
+  local bytes=0 human line
+  # size field is integer bytes from _classify_size (or legacy human / "?")
+  if [[ "${size}" =~ ^[0-9]+$ ]]; then
+    bytes="${size}"
+  else
+    bytes="$(fs_parse_size_to_bytes "${size}" 2>/dev/null || printf '0')"
+    [[ "${bytes}" =~ ^[0-9]+$ ]] || bytes=0
+  fi
   CLASSIFY_LAST_BYTES="${bytes}"
-  line="$(printf '  %8s  %-10s  %s  (%s)' "${size}" "${action}" "$(term_path_link "${path}")" "${reason}")"
+  if [[ "${bytes}" -gt 0 ]]; then
+    human="$(fs_bytes_human "${bytes}")"
+  else
+    human="${size:-?}"
+  fi
+  line="$(printf '  %8s  %-10s  %s  (%s)' "${human}" "${action}" "$(term_path_link "${path}")" "${reason}")"
   _arr+=("$(printf '%s\t%s' "${bytes}" "${line}")")
 }
 

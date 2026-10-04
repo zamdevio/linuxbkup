@@ -124,7 +124,12 @@ backup_secrets_encrypt_stage() {
     return 0
   fi
 
-  mode="$(backup_secrets_resolve_mode)" || return 1
+  # Prefer mode resolved at preflight (fail-fast); otherwise resolve now.
+  mode="${LINUXBKUP_SECRETS_MODE:-}"
+  if [[ -z "${mode}" || "${mode}" == "none" ]]; then
+    # Secrets appeared after preflight (e.g. --mark-secret / nested .env)
+    mode="$(backup_secrets_resolve_mode)" || return 1
+  fi
   case "${mode}" in
     exclude)
       rm -rf "${sec}"

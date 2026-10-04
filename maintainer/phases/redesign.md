@@ -33,6 +33,7 @@ After these phase docs are agreed and implementation lands, fold outcomes into [
 | [06-docs-content.md](./06-docs-content.md) | `docs/*.md` ready for VitePress |
 | [07-vitepress.md](./07-vitepress.md) | `apps/docs` → https://linuxbkup.pages.dev |
 | [08-terminal-ux.md](./08-terminal-ux.md) | Progress, OSC links, notify, flag-aware tips |
+| [09-ux-failfast.md](./09-ux-failfast.md) | Fail-fast preflight, honest sizes, no late fatal after long copy |
 
 ## Discovery → backup (target)
 

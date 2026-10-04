@@ -6,7 +6,7 @@ alwaysApply: true
 # Entry
 
 Read root `AGENT.md` first, then `maintainer/phases/focus.md`.
-For redesign work also read `maintainer/phases/redesign.md` and the Focus phase doc (`00`–`07`).
+For redesign work also read `maintainer/phases/redesign.md` and the Focus phase doc (`00`–`09`).
 `maintainer/temp/` is scratch (gitignored).
 
 This repo is **Bash-first** (binary `linuxbkup`; `lib/`, `modules/`). Do not reintroduce a Node/pnpm CLI for the core product unless the user asks. VitePress under `apps/docs` is docs-only (phase 07).

@@ -14,7 +14,11 @@
 | Profiles / ask | `lib/core/profile.sh` + `lib/ask/select.sh` |
 | Failure UX | Staging kept if pack fails; INDEX write ignores `find\|head` SIGPIPE |
 
-Home/config from **full-home classification**. Decisions: `--ask` interactive (unexpected + large); `--yes` uses profile large defaults; non-TTY ≈ `--yes`. Regenerables skipped (rsync filter stack + expanded language/framework globs). Per-directory `.gitignore` honored unless `--no-gitignore`. Backup prints shared **environment snapshot** (`lib/env/snapshot.sh`) before staging. `-k/--keep-stage` / `-S/--stage-dir` control staging lifecycle.
+Home/config from **full-home classification**. Decisions: `--ask` interactive (unexpected + large); `--yes` uses profile large defaults; non-TTY ≈ `--yes`. Regenerables skipped (rsync filter stack + expanded language/framework/PM globs + `*.pyc` etc.). Per-directory `.gitignore` honored unless `--no-gitignore`.
+
+**Fail-fast (phase 09):** secrets mode + disk floor checked in Preflight **before** snapshot/copy; passphrase required under `--yes` before any heavy work. Estimates use byte-accurate filtered `du` (not summed `du -sh` labels). Space gate (`lib/backup/preflight.sh`) re-checks with estimate+10% before rsync confirm.
+
+Backup prints shared **environment snapshot** (`lib/env/snapshot.sh`) after preflight. `-k/--keep-stage` / `-S/--stage-dir` control staging lifecycle.
 
 ## Stub / missing
 

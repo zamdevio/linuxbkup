@@ -33,8 +33,8 @@ Restore on another machine:
 
 ## Slices
 
-- [ ] **05.1** Platform free-space helper (`lib/core/platform/fs_space.sh`)
-- [ ] **05.2** Backup preflight gate
+- [x] **05.1** Platform free-space helper (`lib/core/platform/fs_space.sh`)
+- [x] **05.2** Backup preflight gate (`lib/backup/preflight.sh` — floor + est+10%)
 - [ ] **05.3** Write `schema.json` + decisions during stage
 - [ ] **05.4** `verify` checks schema presence/version
 - [ ] **05.5** Document schema fields in `docs/` (phase 06)

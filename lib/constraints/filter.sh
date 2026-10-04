@@ -77,6 +77,10 @@ constraints_du_exclude_args() {
     [[ -z "${g}" ]] && continue
     _out+=(--exclude="${g}")
   done
+  for g in "${CONSTRAINTS_FILE_EXCLUDE_GLOBS[@]+"${CONSTRAINTS_FILE_EXCLUDE_GLOBS[@]}"}"; do
+    [[ -z "${g}" ]] && continue
+    _out+=(--exclude="${g}")
+  done
   for re in "${LINUXBKUP_EXCLUDE_REGEXES[@]+"${LINUXBKUP_EXCLUDE_REGEXES[@]}"}"; do
     [[ -z "${re}" ]] && continue
     # Basename-like or simple path — skip full EREs

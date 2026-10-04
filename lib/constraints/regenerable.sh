@@ -1,13 +1,13 @@
 # shellcheck shell=bash
-# Paths / EREs treated as potentially regeneratable.
+# Paths / EREs / globs treated as regeneratable (strip from du + rsync).
 #
-# These names are *recognition signals* for strip/skip (du/rsync/classify) —
-# not a substitute for profile/ask decisions on top-level unexpected paths.
-# Prefer size + flags + ask for “should we back this up?”; use this list so
-# known caches inside included trees (Projects/, .local/share/, …) are not dumped.
+# Doctrine: back up source of truth; skip install caches, build outputs, and
+# language/tool temp trees. Per-directory .gitignore is also honored at rsync
+# time (unless --no-gitignore). Keep expanding as real hosts show waste.
 #
-# Keep in sync with common language/framework ignore conventions. Per-directory
-# .gitignore is also honored at rsync time (unless --no-gitignore).
+# Categories covered (non-exhaustive): JS/TS, Python, Rust, Go, JVM, .NET,
+# Ruby, PHP, Elixir, Dart/Flutter, Terraform/Pulumi/CDK, Cloudflare/wrangler,
+# IDE/remote-server caches, Linux PM caches under home.
 
 # Concrete path templates (expanded under home / absolute)
 CONSTRAINTS_REGENERABLE_TARGETS=(
@@ -23,12 +23,32 @@ CONSTRAINTS_REGENERABLE_TARGETS=(
   .local/share/mise
   .local/share/flatpak
   .local/share/containers
+  .local/share/NuGet
+  .local/share/JetBrains
+  .local/lib
   .bun/install/cache
+  .nuget/packages
+  .composer/cache
+  .cache/pip
+  .cache/pypoetry
+  .cache/pre-commit
+  .cache/typescript
+  .cache/yarn
+  .cache/HuggingFace
+  .cache/whisper
+  .cache/torch
+  .cache/mesa_shader_cache
+  .cursor-server
+  .vscode-server
+  .vscode-remote
   go
   go/pkg
   go/bin
   go/pkg/mod
   /var/cache/apt
+  /var/cache/dnf
+  /var/cache/yum
+  /var/cache/pacman
 )
 
 # Regex patterns (ERE) for matching discovered paths
@@ -46,7 +66,15 @@ CONSTRAINTS_REGENERABLE_REGEXES=(
   '/\.sass-cache(/|$)'
   '/\.eslintcache(/|$)'
   '/\.stylelintcache(/|$)'
-  '/\.ruff_cache(/|$)'
+  '/\.wrangler(/|$)'
+  '/\.mf(/|$)'
+  '/\.miniflare(/|$)'
+  '/\.serverless(/|$)'
+  '/\.aws-sam(/|$)'
+  '/cdk\.out(/|$)'
+  '/\.pulumi(/|$)'
+  '/\.docusaurus(/|$)'
+  '/storybook-static(/|$)'
   '/\.nox(/|$)'
   '/\.venv(/|$)'
   '/venv(/|$)'
@@ -56,8 +84,12 @@ CONSTRAINTS_REGENERABLE_REGEXES=(
   '/\.tox(/|$)'
   '/\.mypy_cache(/|$)'
   '/\.pytest_cache(/|$)'
-  '/\.ipynb_checkpoints(/|$)'
   '/\.ruff_cache(/|$)'
+  '/\.hypothesis(/|$)'
+  '/\.pytype(/|$)'
+  '/\.pyre(/|$)'
+  '/\.ipynb_checkpoints(/|$)'
+  '/\.pdm-build(/|$)'
   '/htmlcov(/|$)'
   '/\.nyc_output(/|$)'
   '/\.coverage(/|$)'
@@ -71,6 +103,7 @@ CONSTRAINTS_REGENERABLE_REGEXES=(
   '/\.npm(/|$)'
   '/\.pnpm-store(/|$)'
   '/\.local/share/pnpm(/|$)'
+  '/\.local/lib(/|$)'
   '/\.yarn/cache(/|$)'
   '/\.yarn/unplugged(/|$)'
   '/\.bun/install/cache(/|$)'
@@ -84,7 +117,13 @@ CONSTRAINTS_REGENERABLE_REGEXES=(
   '/\.local/share/Trash(/|$)'
   '/\.local/share/uv(/|$)'
   '/\.local/share/mise(/|$)'
+  '/\.local/share/NuGet(/|$)'
+  '/\.nuget/packages(/|$)'
+  '/\.composer/cache(/|$)'
   '/var/cache/apt(/|$)'
+  '/var/cache/dnf(/|$)'
+  '/var/cache/yum(/|$)'
+  '/var/cache/pacman(/|$)'
   '/\.gradle(/|$)'
   '/\.m2/repository(/|$)'
   '/vendor/bundle(/|$)'
@@ -104,11 +143,14 @@ CONSTRAINTS_REGENERABLE_REGEXES=(
   '/\.vs(/|$)'
   '/\.jekyll-cache(/|$)'
   '/_site(/|$)'
+  '/\.cursor-server(/|$)'
+  '/\.vscode-server(/|$)'
+  '/\.vscode-remote(/|$)'
+  '/\.net(/|$)'
+  '\.egg-info(/|$)'
 )
 
 # Basename / path-component globs for GNU du --exclude= and rsync --exclude
-# (keep in sync with regenerable intent; used by filter stack)
-# Prefer directory basenames that are almost never "source of truth".
 CONSTRAINTS_DU_EXCLUDE_GLOBS=(
   node_modules
   .next
@@ -123,7 +165,15 @@ CONSTRAINTS_DU_EXCLUDE_GLOBS=(
   .sass-cache
   .eslintcache
   .stylelintcache
-  .ruff_cache
+  .wrangler
+  .mf
+  .miniflare
+  .serverless
+  .aws-sam
+  cdk.out
+  .pulumi
+  .docusaurus
+  storybook-static
   .nox
   .venv
   venv
@@ -133,7 +183,12 @@ CONSTRAINTS_DU_EXCLUDE_GLOBS=(
   .tox
   .mypy_cache
   .pytest_cache
+  .ruff_cache
+  .hypothesis
+  .pytype
+  .pyre
   .ipynb_checkpoints
+  .pdm-build
   htmlcov
   .nyc_output
   target
@@ -161,7 +216,26 @@ CONSTRAINTS_DU_EXCLUDE_GLOBS=(
   Trash
   .jekyll-cache
   _site
-  # Store basenames under ~/.local/share (and rare package dirs)
   pnpm
   .rustup
+  .nuget
+  .cursor-server
+  .vscode-server
+  .vscode-remote
+  .net
+)
+
+# File / glob patterns for rsync + GNU du (not bare basenames)
+CONSTRAINTS_FILE_EXCLUDE_GLOBS=(
+  '*.pyc'
+  '*.pyo'
+  '*.tsbuildinfo'
+  '*.egg-info'
+  '.DS_Store'
+  'Thumbs.db'
+  '*.class'
+  '*.o'
+  '*.a'
+  'core'
+  'core.[0-9]*'
 )

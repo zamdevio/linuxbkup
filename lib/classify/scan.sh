@@ -34,17 +34,23 @@ classify_basename_in_list() {
   return 1
 }
 
+# Print filter-aware size for TSV: integer bytes (or "?" if quick/unavailable).
+# Callers humanize for display via fs_bytes_human — keeps plan/backup estimates accurate.
 _classify_size() {
   local path="$1" mode="${2:-filtered}"
+  local bytes
   if [[ "${LINUXBKUP_INSPECT_QUICK:-0}" -eq 1 ]]; then
     printf '%s\n' "?"
     return 0
   fi
-  if declare -F fs_du_sh >/dev/null 2>&1; then
-    fs_du_sh "${path}" "${mode}" 2>/dev/null | awk -F'\t' '{print $1}'
-  else
-    printf '%s\n' "?"
+  if declare -F fs_du_bytes >/dev/null 2>&1; then
+    bytes="$(fs_du_bytes "${path}" "${mode}" 2>/dev/null || true)"
+    if [[ "${bytes}" =~ ^[0-9]+$ ]]; then
+      printf '%s\n' "${bytes}"
+      return 0
+    fi
   fi
+  printf '%s\n' "?"
 }
 
 # Classify a single path. Prints one TSV row when applicable.

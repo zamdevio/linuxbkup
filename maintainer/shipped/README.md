@@ -25,6 +25,9 @@ What has actually landed (not aspirational). Binary: **`linuxbkup`**. Env: **`LI
 | Phase 08.8–08.9 | Shared `lib/env/snapshot.sh`; backup prints capability snapshot before stage |
 | UX | Short aliases (`-k`/`-S`/`-i`/`-e`/`-a`/`-p`/`-m`/`-j`/`-f`/…); help one flag per row |
 | UX | Honor per-dir `.gitignore` (rsync); `--no-gitignore`; expanded regenerable strip |
+| Phase 09.1–09.3/09.6 | Fail-fast secrets preflight before copy; byte-accurate estimates; stage-vs-est warn |
+| Phase 05.1–05.2 | Space floor + estimate+10% gate (`lib/backup/preflight.sh`) |
+| UX | Regenerables: Python/JS/wrangler/PM/IDE caches + `*.pyc`; smoke on `~/Bots` |
 
 ## Not shipped yet (redesign track)
 

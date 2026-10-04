@@ -24,6 +24,8 @@ linuxbkup_cmd_backup() {
   source "${LINUXBKUP_ROOT}/lib/backup/home.sh"
   # shellcheck source=lib/backup/secrets_crypt.sh
   source "${LINUXBKUP_ROOT}/lib/backup/secrets_crypt.sh"
+  # shellcheck source=lib/backup/preflight.sh
+  source "${LINUXBKUP_ROOT}/lib/backup/preflight.sh"
   # shellcheck source=modules/apt.sh
   source "${LINUXBKUP_ROOT}/modules/apt.sh"
   # shellcheck source=lib/archive/checksums.sh
@@ -66,7 +68,27 @@ linuxbkup_cmd_backup() {
   [[ "${LINUXBKUP_NO_GITIGNORE:-0}" -eq 1 ]] && ui_kv "Gitignore" "off (--no-gitignore)"
   printf '\n'
 
-  # 08.8 — detect (shared snapshot) before staging / manifests
+  # 09.1 — fail-fast before snapshot / staging / copy (never wait then die on passphrase)
+  ui_section "Preflight"
+  if ! backup_secrets_preflight "${home}"; then
+    return 1
+  fi
+  local stage_parent
+  if [[ -n "${LINUXBKUP_STAGE_DIR:-}" ]]; then
+    stage_parent="${LINUXBKUP_STAGE_DIR}"
+  else
+    stage_parent="${TMPDIR:-/tmp}"
+  fi
+  LINUXBKUP_BACKUP_DEST="${dest}"
+  # Early floor check (full estimate runs again inside copy with real sizes)
+  if [[ "${LINUXBKUP_DRY_RUN:-0}" -ne 1 ]]; then
+    if ! backup_space_preflight "${dest}" "${stage_parent}" 0; then
+      return 1
+    fi
+  fi
+  printf '\n'
+
+  # 08.8 — detect (shared snapshot) after preflight clears
   env_print_snapshot backup
 
   if [[ "${LINUXBKUP_DRY_RUN:-0}" -ne 1 ]]; then

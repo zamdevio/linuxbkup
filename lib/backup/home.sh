@@ -67,6 +67,10 @@ backup_plan_excludes() {
     # Match directory at any depth (node_modules, .next, pnpm, …)
     BACKUP_RSYNC_EXCLUDES+=(--exclude "${g}/" --exclude "${g}")
   done
+  for g in "${CONSTRAINTS_FILE_EXCLUDE_GLOBS[@]+"${CONSTRAINTS_FILE_EXCLUDE_GLOBS[@]}"}"; do
+    [[ -z "${g}" ]] && continue
+    BACKUP_RSYNC_EXCLUDES+=(--exclude "${g}")
+  done
   # Path-shaped regenerables (keep .cargo/config.toml; strip stores/caches only)
   BACKUP_RSYNC_EXCLUDES+=(
     --exclude '.cargo/registry/'
@@ -80,10 +84,19 @@ backup_plan_excludes() {
     --exclude '.local/share/uv/'
     --exclude '.local/share/mise/'
     --exclude '.local/share/pipx/'
+    --exclude '.local/share/NuGet/'
+    --exclude '.local/share/JetBrains/'
+    --exclude '.local/lib/'
     --exclude '.yarn/cache/'
     --exclude '.yarn/unplugged/'
     --exclude '.pnpm-store/'
     --exclude '.bun/install/cache/'
+    --exclude '.nuget/packages/'
+    --exclude '.composer/cache/'
+    --exclude '.cursor-server/'
+    --exclude '.vscode-server/'
+    --exclude '.vscode-remote/'
+    --exclude '.net/'
   )
 }
 
@@ -116,27 +129,45 @@ backup_check_max_size() {
   return 0
 }
 
-# Resolve human/bytes for a classify size field + path.
+# Path → bytes cache for one backup_copy_home run (avoid double du).
+declare -A BACKUP_SIZE_CACHE=()
+
+# Resolve human/bytes for a path. Byte-accurate filtered du when possible
+# (never sum rounded du -sh labels — that under-counted stage by ~15%).
+# Cached per path within a backup run.
 backup_resolve_size() {
-  local path="$1" size="$2"
+  local path="$1" size="${2:-}"
   local bytes=0 human mode
-  human="${size:-?}"
   if [[ "${LINUXBKUP_INSPECT_QUICK:-0}" -eq 1 ]]; then
-    bytes=0
-  elif [[ -n "${size}" && "${size}" != "?" ]]; then
-    bytes="$(fs_parse_size_to_bytes "${size}" 2>/dev/null || printf '0')"
-    human="${size}"
-  else
-    mode="filtered"
-    constraints_is_regenerable_path "${path}" && mode="raw"
-    if bytes="$(fs_du_bytes "${path}" "${mode}" 2>/dev/null)"; then
-      human="$(fs_bytes_human "${bytes}")"
-    else
-      bytes=0
-      human="?"
-    fi
+    printf '0\t?\n'
+    return 0
   fi
-  [[ "${bytes}" =~ ^[0-9]+$ ]] || bytes=0
+  if [[ -n "${BACKUP_SIZE_CACHE[${path}]+x}" ]]; then
+    bytes="${BACKUP_SIZE_CACHE[${path}]}"
+    human="$(fs_bytes_human "${bytes}")"
+    printf '%s\t%s\n' "${bytes}" "${human}"
+    return 0
+  fi
+  # Prefer integer bytes from classify TSV (already filter-aware du -sb)
+  if [[ "${size}" =~ ^[0-9]+$ ]]; then
+    bytes="${size}"
+    human="$(fs_bytes_human "${bytes}")"
+    BACKUP_SIZE_CACHE["${path}"]="${bytes}"
+    printf '%s\t%s\n' "${bytes}" "${human}"
+    return 0
+  fi
+  mode="filtered"
+  constraints_is_regenerable_path "${path}" && mode="raw"
+  if bytes="$(fs_du_bytes "${path}" "${mode}" 2>/dev/null)"; then
+    [[ "${bytes}" =~ ^[0-9]+$ ]] || bytes=0
+    human="$(fs_bytes_human "${bytes}")"
+  else
+    bytes="$(fs_parse_size_to_bytes "${size}" 2>/dev/null || printf '0')"
+    [[ "${bytes}" =~ ^[0-9]+$ ]] || bytes=0
+    human="${size:-?}"
+    [[ "${human}" == "?" && "${bytes}" -gt 0 ]] && human="$(fs_bytes_human "${bytes}")"
+  fi
+  BACKUP_SIZE_CACHE["${path}"]="${bytes}"
   printf '%s\t%s\n' "${bytes}" "${human}"
 }
 
@@ -147,10 +178,12 @@ backup_copy_home() {
   local count=0 skipped=0
   local shown=0 limit
   local p class action size reason
-  local i total bytes human est=0 esth maxh
+  local i total bytes human est=0 esth maxh used usedh delta pct
   local row line suggested need_ask=0
   local is_unexp is_lg display_class
   local -A include_set=()
+  BACKUP_ESTIMATE_BYTES=0
+  BACKUP_SIZE_CACHE=()
 
   # shellcheck source=lib/classify/plan.sh
   source "${LINUXBKUP_ROOT}/lib/classify/plan.sh"
@@ -277,15 +310,30 @@ backup_copy_home() {
     return 0
   fi
 
+  BACKUP_ESTIMATE_BYTES="${est}"
   if [[ "${est}" -gt 0 ]]; then
     esth="$(fs_bytes_human "${est}")"
-    ui_item note "estimated include size ~${esth} (filter-aware, largest first)"
+    ui_item note "estimated include size ${esth} (byte-accurate, filter-aware, largest first)"
   fi
   if [[ -n "${LINUXBKUP_MAX_SIZE_BYTES:-}" && "${LINUXBKUP_MAX_SIZE_BYTES}" -gt 0 ]]; then
     maxh="$(fs_bytes_human "${LINUXBKUP_MAX_SIZE_BYTES}")"
     ui_kv "Max stage" "${maxh}"
     if [[ "${est}" -gt 0 && "${est}" -gt "${LINUXBKUP_MAX_SIZE_BYTES}" ]]; then
-      log_fatal "estimated include ~${esth} exceeds --max-size ${maxh}"
+      log_fatal "estimated include ${esth} exceeds --max-size ${maxh}"
+      return 1
+    fi
+  fi
+
+  # Space gate with real estimate (stage parent + dest) before confirm/copy
+  if [[ "${LINUXBKUP_DRY_RUN:-0}" -ne 1 ]] && declare -F backup_space_preflight >/dev/null 2>&1; then
+    local stage_parent dest_for_space
+    stage_parent="$(dirname "${stage}")"
+    [[ -n "${LINUXBKUP_STAGE_DIR:-}" ]] && stage_parent="${LINUXBKUP_STAGE_DIR}"
+    dest_for_space="${LINUXBKUP_OUTPUT:-${dest:-${stage}}}"
+    if [[ -n "${LINUXBKUP_BACKUP_DEST:-}" ]]; then
+      dest_for_space="${LINUXBKUP_BACKUP_DEST}"
+    fi
+    if ! backup_space_preflight "${dest_for_space}" "${stage_parent}" "${est}"; then
       return 1
     fi
   fi
@@ -424,6 +472,22 @@ backup_copy_home() {
   trap 'log_fatal "interrupted during backup"; exit 130' INT TERM
   log_ok "copied ${count} paths (${skipped} skipped, ${LINUXBKUP_PERM_SKIPS:-0} soft-skips)"
   if [[ -d "${stage}" ]]; then
-    ui_kv "Stage used" "$(fs_bytes_human "$(fs_dir_bytes "${stage}")")"
+    used="$(fs_dir_bytes "${stage}")"
+    usedh="$(fs_bytes_human "${used}")"
+    ui_kv "Stage used" "${usedh}"
+    if [[ "${BACKUP_ESTIMATE_BYTES:-0}" -gt 0 && "${used}" =~ ^[0-9]+$ ]]; then
+      esth="$(fs_bytes_human "${BACKUP_ESTIMATE_BYTES}")"
+      ui_kv "Estimate was" "${esth}"
+      if [[ "${used}" -gt "${BACKUP_ESTIMATE_BYTES}" ]]; then
+        delta=$((used - BACKUP_ESTIMATE_BYTES))
+      else
+        delta=$((BACKUP_ESTIMATE_BYTES - used))
+      fi
+      pct=$((delta * 100 / BACKUP_ESTIMATE_BYTES))
+      # metadata/packages/secrets layout can add a little; warn only on real drift
+      if [[ "${pct}" -ge 5 && "${delta}" -ge $((50 * 1024 * 1024)) ]]; then
+        log_warn "stage vs estimate differs by $(fs_bytes_human "${delta}") (~${pct}%) — check filters / regenerables"
+      fi
+    fi
   fi
 }

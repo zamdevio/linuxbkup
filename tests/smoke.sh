@@ -453,6 +453,77 @@ else
   bad "backup dry-run prints environment snapshot"
 fi
 
+# 09.1 secrets fail-fast before copy (--yes, secrets present, no pass)
+# shellcheck source=/dev/null
+source "${ROOT}/lib/backup/preflight.sh"
+sec_home="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-smoke-secpre.XXXXXX")"
+mkdir -p "${sec_home}/.ssh"
+printf 'k\n' >"${sec_home}/.ssh/id_test"
+LINUXBKUP_HOME="${sec_home}"
+LINUXBKUP_YES=1
+LINUXBKUP_NO_SECRETS=0
+LINUXBKUP_SECRETS_PLAIN=0
+unset LINUXBKUP_SECRETS_PASS LINUXBKUP_SECRETS_PASS_FILE LINUXBKUP_SECRETS_MODE
+pre_err="$(backup_secrets_preflight "${sec_home}" 2>&1)" && pre_rc=0 || pre_rc=$?
+if [[ "${pre_rc}" -ne 0 && "${pre_err}" == *"fail-fast"* ]]; then
+  ok "secrets preflight fails fast under --yes without pass"
+else
+  bad "secrets preflight fails fast under --yes without pass"
+fi
+# CLI path: must die before staging created
+cli_sec_err="$("${CLI}" --no-color -y backup 2>&1)" && cli_sec_rc=0 || cli_sec_rc=$?
+if [[ "${cli_sec_rc}" -ne 0 && "${cli_sec_err}" == *"fail-fast"* && "${cli_sec_err}" != *"Copying into staging"* ]]; then
+  ok "backup -y without pass fatals before copy"
+else
+  bad "backup -y without pass fatals before copy"
+fi
+rm -rf "${sec_home}"
+unset LINUXBKUP_HOME LINUXBKUP_YES LINUXBKUP_SECRETS_MODE
+
+# Regenerable filter: Python venv + __pycache__ + .pyc
+# shellcheck source=/dev/null
+source "${ROOT}/lib/fs/sizes.sh"
+py_tree="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-smoke-py.XXXXXX")"
+mkdir -p "${py_tree}/app" "${py_tree}/venv/lib/python3.12/site-packages/x" "${py_tree}/app/__pycache__"
+dd if=/dev/zero of="${py_tree}/venv/lib/python3.12/site-packages/x/big.bin" bs=1024 count=800 status=none 2>/dev/null \
+  || dd if=/dev/zero of="${py_tree}/venv/lib/python3.12/site-packages/x/big.bin" bs=1024 count=800 2>/dev/null
+printf 'code\n' >"${py_tree}/app/main.py"
+printf 'cache\n' >"${py_tree}/app/__pycache__/main.cpython-312.pyc"
+printf 'loose\n' >"${py_tree}/app/orphan.pyc"
+raw_py="$(fs_dir_bytes "${py_tree}")"
+filt_py="$(fs_du_bytes "${py_tree}" filtered)"
+if [[ "${filt_py}" -lt "${raw_py}" && "${filt_py}" -lt 5000 ]]; then
+  ok "python filter strips venv/__pycache__/.pyc (raw=${raw_py} filt=${filt_py})"
+else
+  bad "python filter strips venv/__pycache__/.pyc (raw=${raw_py} filt=${filt_py})"
+fi
+# Optional live tree: ~/Bots when present
+if [[ -d "${HOME}/Bots" ]]; then
+  bots_raw="$(fs_dir_bytes "${HOME}/Bots")"
+  bots_filt="$(fs_du_bytes "${HOME}/Bots" filtered)"
+  if [[ "${bots_filt}" -lt "${bots_raw}" ]]; then
+    ok "~/Bots filtered smaller than raw (${bots_filt} < ${bots_raw})"
+  else
+    bad "~/Bots filtered smaller than raw (${bots_filt} < ${bots_raw})"
+  fi
+fi
+rm -rf "${py_tree}"
+
+# File exclude globs present
+if [[ "${CONSTRAINTS_FILE_EXCLUDE_GLOBS[*]}" == *'*.pyc'* && "${CONSTRAINTS_DU_EXCLUDE_GLOBS[*]}" == *'__pycache__'* \
+  && "${CONSTRAINTS_DU_EXCLUDE_GLOBS[*]}" == *'.wrangler'* ]]; then
+  ok "regenerable lists include pycache/pyc/wrangler"
+else
+  bad "regenerable lists include pycache/pyc/wrangler"
+fi
+
+# 05.2 space helper loadable
+if declare -F backup_space_preflight >/dev/null && declare -F platform_fs_avail_bytes >/dev/null; then
+  ok "space preflight helpers loadable"
+else
+  bad "space preflight helpers loadable"
+fi
+
 rm -rf "${fake_home}"
 
 exit "${fail}"

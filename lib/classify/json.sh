@@ -14,7 +14,7 @@ _json_escape() {
 # Emit JSON object to stdout. Args: home
 classify_print_plan_json() {
   local home="$1"
-  local path class action size reason
+  local path class action size reason size_h size_b
   local n_un=0 n_in=0 n_sk=0 n_se=0 n_ask=0
   local -a entries=()
   local first=1
@@ -31,12 +31,31 @@ classify_print_plan_json() {
       include) n_in=$((n_in + 1)) ;;
     esac
     [[ "${action}" == "ask" ]] && n_ask=$((n_ask + 1))
-    entries+=("$(printf '{"path":"%s","class":"%s","action":"%s","size":"%s","reason":"%s"}' \
-      "$(_json_escape "${path}")" \
-      "$(_json_escape "${class}")" \
-      "$(_json_escape "${action}")" \
-      "$(_json_escape "${size}")" \
-      "$(_json_escape "${reason}")")")
+    # size column is bytes; expose human in JSON for readability + size_bytes
+    size_h="${size}"
+    size_b=""
+    if [[ "${size}" =~ ^[0-9]+$ ]]; then
+      size_b="${size}"
+      if declare -F fs_bytes_human >/dev/null 2>&1; then
+        size_h="$(fs_bytes_human "${size}")"
+      fi
+    fi
+    if [[ -n "${size_b}" ]]; then
+      entries+=("$(printf '{"path":"%s","class":"%s","action":"%s","size":"%s","size_bytes":%s,"reason":"%s"}' \
+        "$(_json_escape "${path}")" \
+        "$(_json_escape "${class}")" \
+        "$(_json_escape "${action}")" \
+        "$(_json_escape "${size_h}")" \
+        "${size_b}" \
+        "$(_json_escape "${reason}")")")
+    else
+      entries+=("$(printf '{"path":"%s","class":"%s","action":"%s","size":"%s","reason":"%s"}' \
+        "$(_json_escape "${path}")" \
+        "$(_json_escape "${class}")" \
+        "$(_json_escape "${action}")" \
+        "$(_json_escape "${size_h}")" \
+        "$(_json_escape "${reason}")")")
+    fi
   done < <(classify_scan_home "${home}")
 
   printf '{\n'

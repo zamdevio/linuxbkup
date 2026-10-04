@@ -8,20 +8,19 @@
 
 | Priority | Vertical | Notes |
 |----------|----------|-------|
-| 1 | — | slot free (08.8–08.9 + gitignore/aliases shipped) |
-| 2 | — | slot free |
+| 1 | Phase 05.3–05.6 | `schema.json` + decisions.tsv (space gate done) |
+| 2 | Phase 09.4–09.5 | Richer preflight banner + step labels |
 | 3 | — | slot free |
 
 ## Queued — do not start
 
 | # | Item | Why parked |
 |---|------|------------|
-| 1 | Phase 08.10 | Structured backup step logs |
-| 2 | Phase 05 space + schema | Next vertical candidate |
-| 3 | Phases 06–07 docs site | Later |
-| 4 | Phase 04.5 restore decrypt | With restore Focus |
-| 5 | Full multi-PM capture modules | After snapshot UI (done) |
+| 1 | Phase 08.10 | Structured backup step logs (overlap with 09.5) |
+| 2 | Phases 06–07 docs site | Later |
+| 3 | Phase 04.5 restore decrypt | With restore Focus |
+| 4 | Full multi-PM capture modules | After schema |
 
-**Locked:** Rich backup capability UI planned in [`08-terminal-ux.md`](./08-terminal-ux.md) (08.8–08.10) — probe once, show like inspect, then prepare manifests (APT today).
+**Locked:** Fail-fast UX doctrine in [`09-ux-failfast.md`](./09-ux-failfast.md). Rich backup capability UI in [`08-terminal-ux.md`](./08-terminal-ux.md).
 
 Umbrella: [`redesign.md`](./redesign.md).

@@ -29,10 +29,11 @@ Clean `linuxbkup` / `LINUXBKUP_*` identity (phase 00).
 | 02 | [Home scan + classify](./02-home-scan-classify.md) | **done** |
 | 03 | [Profiles, ask, flags](./03-profiles-ask-flags.md) | **done** |
 | 04 | [Reclaim + secrets](./04-reclaim-secrets.md) | **done** (encrypt side; restore decrypt stubbed) |
-| 05 | [Space + schema](./05-space-schema.md) | planned |
+| 05 | [Space + schema](./05-space-schema.md) | **in progress** (space gate; schema later) |
 | 06 | [Docs content](./06-docs-content.md) | planned |
 | 07 | [VitePress → pages.dev](./07-vitepress.md) | planned |
-| 08 | [Terminal UX](./08-terminal-ux.md) | **done** (progress, stage size, rich lists, `--max-size`) |
+| 08 | [Terminal UX](./08-terminal-ux.md) | **done** (08.8–08.9 snapshot; 08.10 queued) |
+| 09 | [UX fail-fast](./09-ux-failfast.md) | **in progress** (secrets preflight, size honesty) |
 
 Later product phases (after redesign foundation): restore polish, language modules, systemd/`/etc`, Docker — re-queue in focus when ready.
 
