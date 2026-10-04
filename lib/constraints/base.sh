@@ -14,6 +14,8 @@ source "${LINUXBKUP_ROOT}/lib/constraints/filter.sh"
 source "${LINUXBKUP_ROOT}/lib/constraints/important.sh"
 # shellcheck source=lib/constraints/secrets.sh
 source "${LINUXBKUP_ROOT}/lib/constraints/secrets.sh"
+# shellcheck source=lib/constraints/rules.sh
+source "${LINUXBKUP_ROOT}/lib/constraints/rules.sh"
 
 constraints_expand_template() {
   local home="$1" template="$2"

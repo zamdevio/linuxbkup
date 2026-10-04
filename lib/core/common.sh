@@ -18,6 +18,8 @@ LINUXBKUP_USER=""
 LINUXBKUP_NO_DEFAULTS=0
 LINUXBKUP_LIST_FULL=0
 LINUXBKUP_LIST_TOP=""
+LINUXBKUP_PRINT_PLAN=0
+LINUXBKUP_JSON=0
 LINUXBKUP_INCLUDE_REGEXES=()
 LINUXBKUP_EXCLUDE_REGEXES=()
 LINUXBKUP_POSITIONAL=()
@@ -92,6 +94,14 @@ linuxbkup_parse_globals() {
         ;;
       -F|--full)
         LINUXBKUP_LIST_FULL=1
+        shift
+        ;;
+      --print-plan)
+        LINUXBKUP_PRINT_PLAN=1
+        shift
+        ;;
+      --json)
+        LINUXBKUP_JSON=1
         shift
         ;;
       -T|--top)

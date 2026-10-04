@@ -1,23 +1,13 @@
 # shellcheck shell=bash
-# Copy allowlisted home/config paths into staging.
+# Copy classified home/config paths into staging (full-home plan).
 
-# shellcheck source=lib/constraints/backup_paths.sh
-source "${LINUXBKUP_ROOT}/lib/constraints/backup_paths.sh"
+# shellcheck source=lib/classify/scan.sh
+source "${LINUXBKUP_ROOT}/lib/classify/scan.sh"
 
-# Build effective backup path list for a home.
+# Build effective backup path list from classification plan.
 backup_home_paths() {
   local home="$1"
-  local p
-  CONSTRAINTS_BACKUP_ALL=("${CONSTRAINTS_BACKUP_DOTFILES[@]}" "${CONSTRAINTS_BACKUP_DIRS[@]}")
-  constraints_build_paths "${home}" CONSTRAINTS_BACKUP_ALL
-
-  for p in "${CONSTRAINTS_BACKUP_ETC[@]+"${CONSTRAINTS_BACKUP_ETC[@]}"}"; do
-    [[ -e "${p}" ]] || continue
-    if constraints_matches_any_regex "${p}" LINUXBKUP_EXCLUDE_REGEXES; then
-      continue
-    fi
-    printf '%s\n' "${p}"
-  done
+  classify_plan_include_paths "${home}"
 }
 
 # Rsync excludes for regeneratable trees — driven by CONSTRAINTS_DU_EXCLUDE_GLOBS.
@@ -28,7 +18,6 @@ backup_plan_excludes() {
     [[ -z "${g}" ]] && continue
     BACKUP_RSYNC_EXCLUDES+=(--exclude "${g}/")
   done
-  # Extra path-shaped regenerables rsync should skip
   BACKUP_RSYNC_EXCLUDES+=(
     --exclude '.cargo/registry/'
     --exclude '.cargo/git/'
@@ -42,16 +31,58 @@ backup_plan_excludes() {
 backup_copy_home() {
   local home="$1" stage="$2"
   local path rel dest
-  local -a paths=()
+  local -a paths=() unexpected_ask=()
   local count=0 skipped=0
   local shown=0 limit
+  local p class action size reason
+
+  # shellcheck source=lib/fs/sizes.sh
+  source "${LINUXBKUP_ROOT}/lib/fs/sizes.sh"
+  # shellcheck source=lib/classify/plan.sh
+  source "${LINUXBKUP_ROOT}/lib/classify/plan.sh"
+
+  # Sizes are informational; skip du unless -v
+  if [[ "${LINUXBKUP_VERBOSE:-0}" -ne 1 ]]; then
+    LINUXBKUP_INSPECT_QUICK=1
+  fi
+
+  classify_print_plan "${home}"
+  printf '\n'
+
+  if [[ "${LINUXBKUP_PRINT_PLAN:-0}" -eq 1 ]]; then
+    log_ok "print-plan only — no copy"
+    return 0
+  fi
+
+  # Collect ask-class unexpected for interactive confirm
+  while IFS=$'\t' read -r p class action size reason; do
+    [[ -z "${p:-}" ]] && continue
+    if [[ "${class}" == "unexpected" && "${action}" == "ask" ]]; then
+      unexpected_ask+=("${p}")
+    fi
+  done < <(classify_scan_home "${home}")
+
+  if [[ "${#unexpected_ask[@]}" -gt 0 ]]; then
+    ui_section "Unexpected paths (decide)"
+    for path in "${unexpected_ask[@]}"; do
+      ui_item note "$(term_path_link "${path}")"
+    done
+    printf '\n'
+    if safety_confirm "Include these unexpected paths in the backup?" "y"; then
+      LINUXBKUP_CLASSIFY_INCLUDE_ASK=1
+      export LINUXBKUP_CLASSIFY_INCLUDE_ASK
+    else
+      log_info "unexpected paths will be skipped"
+      LINUXBKUP_CLASSIFY_INCLUDE_ASK=0
+    fi
+  fi
 
   mapfile -t paths < <(backup_home_paths "${home}")
   backup_plan_excludes
 
-  ui_section "Home / config paths"
+  ui_section "Paths to copy"
   if [[ "${#paths[@]}" -eq 0 ]]; then
-    ui_item warn "no paths matched constraints"
+    ui_item warn "no paths matched classification plan"
     return 0
   fi
 

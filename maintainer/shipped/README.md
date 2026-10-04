@@ -16,13 +16,13 @@ What has actually landed (not aspirational). Binary: **`linuxbkup`**. Env: **`LI
 | Phase 00 | Identity `linuxbkup` + `LINUXBKUP_*`; `lib/core/platform/` (detect, paths, windows, fs_space); native dest `~/Backups/linuxbkup/`; smoke identity gate |
 | UX | Portable backup/important lists (no host-shaped dirnames); filter stack for `du` + rsync; broader inspect capability probes |
 | Phase 01 | `verify` accepts staging dirs or `*.tar.zst`; fixture + smoke |
+| Phase 02 | Full-home shallow scan + classify; unexpected auto-include (`--yes`/non-TTY); `--print-plan` |
 
 ## Not shipped yet (redesign track)
 
 | Item | Phase doc |
 |------|-----------|
-| Full HOME scan + unexpected paths | [02](../phases/02-home-scan-classify.md) |
-| Profiles / ask UI / print-plan / json / stage flags | [03](../phases/03-profiles-ask-flags.md) |
+| Profiles / ask UI / stage flags (richer) | [03](../phases/03-profiles-ask-flags.md) |
 | Reclaim + secrets/`age` | [04](../phases/04-reclaim-secrets.md) |
 | Space preflight + `schema.json` | [05](../phases/05-space-schema.md) |
 | `docs/*` rewrite | [06](../phases/06-docs-content.md) |

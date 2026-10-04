@@ -130,16 +130,14 @@ else
   bad "native backup dir under Backups/linuxbkup"
 fi
 
-# Portable allowlists: no host-shaped project dirnames in shipped defaults
+# Portable rules: no host-shaped project dirnames in shipped defaults
 # shellcheck source=/dev/null
 source "${ROOT}/lib/constraints/base.sh"
-# shellcheck source=/dev/null
-source "${ROOT}/lib/constraints/backup_paths.sh"
-joined="${CONSTRAINTS_BACKUP_DIRS[*]} ${CONSTRAINTS_IMPORTANT_TARGETS[*]}"
+joined="${CONSTRAINTS_RULE_INCLUDE_DIRS[*]} ${CONSTRAINTS_RULE_INCLUDE_FILES[*]} ${CONSTRAINTS_IMPORTANT_TARGETS[*]}"
 if [[ "${joined}" == *Projects* || "${joined}" == *Workers* || "${joined}" == *Tools* ]]; then
-  bad "portable: no host-shaped dirnames in backup/important lists"
+  bad "portable: no host-shaped dirnames in rules/important lists"
 else
-  ok "portable: no host-shaped dirnames in backup/important lists"
+  ok "portable: no host-shaped dirnames in rules/important lists"
 fi
 
 # Filter stack produces du --exclude args
@@ -166,5 +164,33 @@ if [[ -d "${staging_fixture}" && -f "${staging_fixture}/checksums.sha256" ]]; th
 else
   bad "verify staging fixture missing"
 fi
+
+# Phase 02: fake home — unexpected paths auto-included with --yes
+fake_home="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-smoke-home.XXXXXX")"
+mkdir -p "${fake_home}/.config" "${fake_home}/.local/bin" "${fake_home}/.local/custom-dir" "${fake_home}/work"
+printf 'x\n' >"${fake_home}/.bashrc"
+printf 'y\n' >"${fake_home}/.local/custom-dir/f"
+# shellcheck source=/dev/null
+source "${ROOT}/lib/fs/sizes.sh"
+# shellcheck source=/dev/null
+source "${ROOT}/lib/classify/scan.sh"
+plan_out="$(LINUXBKUP_YES=1 LINUXBKUP_INSPECT_QUICK=1 classify_scan_home "${fake_home}")"
+if echo "${plan_out}" | grep -F "${fake_home}/.local/custom-dir" | grep -q $'unexpected\tinclude'; then
+  ok "classify: unexpected .local/custom-dir auto-include with --yes"
+else
+  bad "classify: unexpected .local/custom-dir auto-include with --yes"
+  echo "${plan_out}" | head -30 || true
+fi
+if echo "${plan_out}" | grep -F "${fake_home}/work" | grep -q $'unexpected\tinclude'; then
+  ok "classify: unexpected top-level work auto-include with --yes"
+else
+  bad "classify: unexpected top-level work auto-include with --yes"
+fi
+if "${CLI}" --no-color --no-links --print-plan backup >/dev/null 2>&1; then
+  ok "backup --print-plan exits 0"
+else
+  bad "backup --print-plan exits 0"
+fi
+rm -rf "${fake_home}"
 
 exit "${fail}"

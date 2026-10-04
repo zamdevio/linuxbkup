@@ -50,7 +50,25 @@ linuxbkup_cmd_backup() {
   ui_kv_path "Home" "${home}"
   ui_kv_path "Destination" "${dest}"
   [[ "${LINUXBKUP_DRY_RUN:-0}" -eq 1 ]] && ui_kv "Mode" "dry-run"
+  [[ "${LINUXBKUP_PRINT_PLAN:-0}" -eq 1 ]] && ui_kv "Mode" "print-plan"
   printf '\n'
+
+  # shellcheck source=lib/fs/sizes.sh
+  source "${LINUXBKUP_ROOT}/lib/fs/sizes.sh"
+
+  # Plan/dry-run: skip per-path du unless -v (real homes are huge)
+  if [[ "${LINUXBKUP_VERBOSE:-0}" -ne 1 ]]; then
+    if [[ "${LINUXBKUP_PRINT_PLAN:-0}" -eq 1 || "${LINUXBKUP_DRY_RUN:-0}" -eq 1 ]]; then
+      LINUXBKUP_INSPECT_QUICK=1
+    fi
+  fi
+
+  if [[ "${LINUXBKUP_PRINT_PLAN:-0}" -eq 1 ]]; then
+    backup_copy_home "${home}" "/tmp/linuxbkup.print-plan.placeholder" || true
+    printf '\n'
+    log_ok "print-plan complete"
+    return 0
+  fi
 
   if [[ "${LINUXBKUP_DRY_RUN:-0}" -ne 1 ]]; then
     if ! safety_confirm "Proceed with backup?" "y"; then

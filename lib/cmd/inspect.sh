@@ -34,6 +34,20 @@ linuxbkup_cmd_inspect() {
     home="(unavailable)"
   fi
 
+  if [[ "${LINUXBKUP_PRINT_PLAN:-0}" -eq 1 ]]; then
+    if [[ "${home}" == "(unavailable)" ]]; then
+      log_fatal "home unavailable for ${user}"
+      return 1
+    fi
+    if [[ "${LINUXBKUP_VERBOSE:-0}" -ne 1 ]]; then
+      LINUXBKUP_INSPECT_QUICK=1
+    fi
+    classify_print_summary "${home}"
+    printf '\n'
+    log_ok "print-plan complete"
+    return 0
+  fi
+
   ui_heading "Environment inspection"
 
   env_print_distribution

@@ -1,22 +1,26 @@
-# System — constraints
+# System — constraints + classify
 
-Source of truth for built-in path lists, listing policy, and the **filter stack**. Redesign phase **02** turns include discovery into full-`$HOME` scan + unexpected reporting — see [`../phases/02-home-scan-classify.md`](../phases/02-home-scan-classify.md).
+Built-in **rules**, listing policy, and the **filter stack**. Phase **02** full-`$HOME` scan is live.
 
 | File | Role |
 |------|------|
-| `lib/constraints/base.sh` | Merge defaults + `--include` / `--exclude` / `--no-defaults` |
-| `lib/constraints/filter.sh` | Shared `du`/scan exclude args (regenerable + simple user excludes) |
-| `lib/constraints/list.sh` | `-F/--full`, `-T/--top` (default 10) |
-| `lib/constraints/size_targets.sh` | `du` target templates |
-| `lib/constraints/regenerable.sh` | Regeneratable paths, EREs, `CONSTRAINTS_DU_EXCLUDE_GLOBS` |
-| `lib/constraints/important.sh` | Portable important paths (XDG / shell — no host dirnames) |
+| `lib/constraints/base.sh` | Merge + `--include` / `--exclude` / `--no-defaults` |
+| `lib/constraints/rules.sh` | Portable class rules (include/skip/local/etc) |
+| `lib/constraints/filter.sh` | Shared `du`/scan exclude args |
+| `lib/constraints/list.sh` | `-F/--full`, `-T/--top` |
+| `lib/constraints/size_targets.sh` | Inspect filesystem target templates |
+| `lib/constraints/regenerable.sh` | Regeneratable EREs + `CONSTRAINTS_DU_EXCLUDE_GLOBS` |
+| `lib/constraints/important.sh` | Legacy important templates (inspect-adjacent) |
 | `lib/constraints/secrets.sh` | Sensitive paths (presence only) |
-| `lib/constraints/backup_paths.sh` | Default backup include templates (portable) |
+| `lib/constraints/backup_paths.sh` | Legacy templates (superseded by rules + scan) |
+| `lib/classify/scan.sh` | Shallow home scan → TSV plan rows |
+| `lib/classify/plan.sh` | Human plan printer |
+| `lib/classify/paths.sh` | Inspect entry → same plan |
 
 ## Rules
 
 - User `--exclude` always wins.
-- `--include` adds path templates / regex keeps.
-- `--no-defaults` clears built-ins.
-- **No host-shaped home dirnames** in shipped lists (`Projects` / `Workers` / `Tools` / …). Extra trees: `--include` until phase 02.
-- Sizing (`lib/fs/sizes.sh`) and rsync excludes share regenerable globs from `CONSTRAINTS_DU_EXCLUDE_GLOBS`.
+- Unexpected paths: report always; `--yes` / non-TTY → include; TTY backup asks.
+- **No host-shaped home dirnames** in shipped rules.
+- Sizing / rsync share regenerable globs from `CONSTRAINTS_DU_EXCLUDE_GLOBS`.
+- `--print-plan` / dry-run skip per-path `du` unless `-v`.

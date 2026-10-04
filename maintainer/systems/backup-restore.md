@@ -13,7 +13,7 @@
 | Verify | `lib/cmd/verify.sh` — **archive** (`*.tar.zst`) **or staging directory** with `checksums.sha256` |
 | Failure UX | Staging kept if pack fails; INDEX write hardened (`32b5b11`) |
 
-Home/config defaults are **portable allowlists** (shell/dotfiles, `.config`, `.local/bin`, `.ssh`); full `$HOME` scan is phase **02**. Extra trees: `--include`.
+Home/config comes from **full-home classification** (`lib/classify/` + `lib/constraints/rules.sh`). Unexpected paths auto-include on `--yes`/non-TTY; TTY asks. Regenerables skipped (rsync filter stack).
 
 ## Stub / missing
 

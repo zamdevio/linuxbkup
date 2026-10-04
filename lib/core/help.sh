@@ -43,6 +43,8 @@ linuxbkup_usage() {
   ui_kv "--force-overwrite" "Allow overwriting conflicting files on restore"
   ui_kv "--no-secrets" "Exclude secrets from backup"
   ui_kv "--secrets-plain" "Include secrets unencrypted (explicit)"
+  ui_kv "--print-plan" "Show home classification plan and exit"
+  ui_kv "--json" "With --print-plan / inspect: also emit TSV plan rows"
   printf '\n'
 
   ui_section "Path constraints"
