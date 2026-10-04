@@ -1,33 +1,34 @@
 # shellcheck shell=bash
 # Reclaim regenerable skips back into the backup include set.
+# Pass array *names* as strings — never nest namerefs with the same local name.
 
 # Collect reclaim candidates from classify scan rows.
-# Input nameref: rows path\tclass\taction\tsize\treason
-# Output nameref: decide rows path\thuman\tclass\tsuggested
+# Args: scan_array_name out_array_name
 backup_reclaim_candidates() {
-  local -n _scan="$1"
-  local -n _out="$2"
-  local row p class action size reason bytes human
-  _out=()
-  for row in "${_scan[@]+"${_scan[@]}"}"; do
+  local __scan="$1" __out="$2"
+  local row p class action size reason bytes human line
+  local -a __rows=()
+  eval "${__out}=()"
+  eval "__rows=(\"\${${__scan}[@]+\"\${${__scan}[@]}\"}\")"
+  for row in "${__rows[@]+"${__rows[@]}"}"; do
     [[ -z "${row}" ]] && continue
     IFS=$'\t' read -r p class action size reason <<<"${row}" || true
     [[ "${class}" == "skip" && "${action}" == "skip" ]] || continue
     IFS=$'\t' read -r bytes human <<<"$(backup_resolve_size "${p}" "${size}")" || true
-    _out+=("$(printf '%s\t%s\t%s\t%s' "${p}" "${human}" "regenerable" "skip")")
+    printf -v line '%s\t%s\t%s\t%s' "${p}" "${human}" "regenerable" "skip"
+    eval "${__out}+=(\"\${line}\")"
   done
 }
 
 # Apply --reclaim / --reclaim-all / --ask reclaim step into include_set.
-# Also fills BACKUP_RECLAIMED associative array (path→1).
-# Returns 1 if user aborts.
+# Args: scan_array_name include_assoc_name
+# Fills BACKUP_RECLAIMED. Returns 1 if user aborts.
 backup_apply_reclaim() {
-  local -n _scan="$1"
-  local -n _include="$2"
+  local __scan="$1" __include="$2"
   local -a candidates=() picked=()
   local path row
 
-  backup_reclaim_candidates _scan candidates
+  backup_reclaim_candidates "${__scan}" candidates
   [[ "${#candidates[@]}" -gt 0 ]] || {
     log_verbose "reclaim: no regenerable skips found"
     return 0
@@ -37,7 +38,7 @@ backup_apply_reclaim() {
     log_warn "reclaim-all: including ${#candidates[@]} regenerable path(s) (can be huge)"
     for row in "${candidates[@]}"; do
       path="${row%%$'\t'*}"
-      _include["${path}"]=1
+      eval "${__include}[\"\${path}\"]=1"
       BACKUP_RECLAIMED["${path}"]=1
     done
     return 0
@@ -49,7 +50,7 @@ backup_apply_reclaim() {
       return 1
     fi
     for path in "${picked[@]+"${picked[@]}"}"; do
-      _include["${path}"]=1
+      eval "${__include}[\"\${path}\"]=1"
       BACKUP_RECLAIMED["${path}"]=1
     done
     log_ok "reclaimed ${#picked[@]} regenerable path(s)"

@@ -25,6 +25,25 @@ Surface: root **`linuxbkup`** bin. Env: `LINUXBKUP_*`.
 
 ## Global flags (today)
 
-`--dry-run`, `-y/--yes`, `--ask` (wins over `--yes`), `--profile easy|balanced|strict`, `--keep-stage`, `--stage-dir`, `--max-size`, `--force-overwrite`, `--include` / `--exclude` / `--no-defaults`, `-F`/`-T`, `-o`/`--output`, `-v`/`-d`, `--json`.
+Short aliases on frequent flags (one row each in `--help`):
+
+| Short | Long |
+|-------|------|
+| `-y` | `--yes` |
+| `-a` | `--ask` (wins over `--yes`) |
+| `-p` | `--profile` easy\|balanced\|strict |
+| `-n` | `--dry-run` |
+| `-k` | `--keep-stage` |
+| `-S` | `--stage-dir` |
+| `-m` | `--max-size` |
+| `-r` / `-R` | `--reclaim` / `--reclaim-all` |
+| `-i` / `-e` | `--include` / `--exclude` |
+| `-j` | `--json` |
+| `-f` | `--force-overwrite` |
+| `-o` `-u` `-v` `-d` `-q` `-F` `-T` | output / user / verbose / debug / quiet / full / top |
+
+Long-only (less frequent / dangerous): `--no-secrets`, `--secrets-plain`, `--no-defaults`, `--no-gitignore` (`--no-gitignores`), `--mark-secret`, `--no-color`, `--no-links`.
+
+Default copy honors per-directory `.gitignore` (rsync dir-merge) plus regenerable strip (`node_modules`, `.next`, caches, …).
 
 Ask UI: `lib/ask/select.sh` (numbered + optional fzf).

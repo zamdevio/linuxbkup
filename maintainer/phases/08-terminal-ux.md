@@ -68,8 +68,8 @@ Default-skip regenerable `~/go`; `/tmp` is **not** in default inspect size targe
 - [x] **08.5** `systems/terminal.md` + smoke that progress helpers are loadable
 - [x] **08.6** Live stage bytes on progress; `--max-size`; lists large→small with size/class
 - [x] **08.7** Skip `~/go` by default; drop `/tmp` from default size scan
-- [ ] **08.8** Shared environment snapshot helper (probe once → print + return data)
-- [ ] **08.9** `backup` prints inspect-class capability sections before staging; note capture coverage
+- [x] **08.8** Shared environment snapshot helper (`lib/env/snapshot.sh`)
+- [x] **08.9** `backup` prints inspect-class capability sections before staging; note capture coverage
 - [ ] **08.10** Structured log events for major backup steps (detect → decide → stage → checksum → pack)
 
 ## Acceptance

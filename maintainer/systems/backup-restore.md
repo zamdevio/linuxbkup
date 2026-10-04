@@ -14,7 +14,7 @@
 | Profiles / ask | `lib/core/profile.sh` + `lib/ask/select.sh` |
 | Failure UX | Staging kept if pack fails; INDEX write ignores `find\|head` SIGPIPE |
 
-Home/config from **full-home classification**. Decisions: `--ask` interactive (unexpected + large); `--yes` uses profile large defaults; non-TTY ≈ `--yes`. Regenerables skipped (rsync filter stack). `--keep-stage` / `--stage-dir` control staging lifecycle.
+Home/config from **full-home classification**. Decisions: `--ask` interactive (unexpected + large); `--yes` uses profile large defaults; non-TTY ≈ `--yes`. Regenerables skipped (rsync filter stack + expanded language/framework globs). Per-directory `.gitignore` honored unless `--no-gitignore`. Backup prints shared **environment snapshot** (`lib/env/snapshot.sh`) before staging. `-k/--keep-stage` / `-S/--stage-dir` control staging lifecycle.
 
 ## Stub / missing
 

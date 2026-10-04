@@ -64,24 +64,38 @@ backup_plan_excludes() {
   BACKUP_RSYNC_EXCLUDES=()
   for g in "${CONSTRAINTS_DU_EXCLUDE_GLOBS[@]+"${CONSTRAINTS_DU_EXCLUDE_GLOBS[@]}"}"; do
     [[ -z "${g}" ]] && continue
-    BACKUP_RSYNC_EXCLUDES+=(--exclude "${g}/")
+    # Match directory at any depth (node_modules, .next, pnpm, …)
+    BACKUP_RSYNC_EXCLUDES+=(--exclude "${g}/" --exclude "${g}")
   done
+  # Path-shaped regenerables (keep .cargo/config.toml; strip stores/caches only)
   BACKUP_RSYNC_EXCLUDES+=(
     --exclude '.cargo/registry/'
     --exclude '.cargo/git/'
+    --exclude '.rustup/'
     --exclude 'go/pkg/mod/'
     --exclude 'go/pkg/'
     --exclude 'go/bin/'
     --exclude '.local/share/Trash/'
+    --exclude '.local/share/pnpm/'
+    --exclude '.local/share/uv/'
+    --exclude '.local/share/mise/'
+    --exclude '.local/share/pipx/'
     --exclude '.yarn/cache/'
+    --exclude '.yarn/unplugged/'
     --exclude '.pnpm-store/'
+    --exclude '.bun/install/cache/'
   )
 }
 
-# Base rsync args (+ regenerable excludes). Path-level progress is separate (stdout bar).
+# Base rsync args (+ regenerable excludes + per-dir .gitignore merge).
 backup_rsync_args() {
   BACKUP_RSYNC_ARGS=(-a)
   BACKUP_RSYNC_ARGS+=("${BACKUP_RSYNC_EXCLUDES[@]+"${BACKUP_RSYNC_EXCLUDES[@]}"}")
+  # Honor .gitignore in every directory unless --no-gitignore
+  if [[ "${LINUXBKUP_NO_GITIGNORE:-0}" -ne 1 ]]; then
+    # dir-merge: apply each directory's .gitignore as exclude rules while walking
+    BACKUP_RSYNC_ARGS+=(--filter=':- .gitignore')
+  fi
 }
 
 # Abort if staging exceeds --max-size. Args: stage
@@ -289,7 +303,12 @@ backup_copy_home() {
     log_info "Showing ${shown}/${#paths[@]} paths — pass -F/--full for all"
   fi
   printf '\n'
-  ui_item note "Regeneratable trees (node_modules, .venv, caches, …) excluded via rsync"
+  ui_item note "Regenerables stripped (node_modules, .next, caches, build/dist, …)"
+  if [[ "${LINUXBKUP_NO_GITIGNORE:-0}" -eq 1 ]]; then
+    ui_item note "Per-directory .gitignore ignored (--no-gitignore)"
+  else
+    ui_item note "Per-directory .gitignore honored (pass --no-gitignore to bypass)"
+  fi
   if [[ "${LINUXBKUP_NO_SECRETS:-0}" -eq 1 ]]; then
     ui_item note "Secrets excluded (--no-secrets)"
   elif [[ "${LINUXBKUP_SECRETS_PLAIN:-0}" -eq 1 ]]; then

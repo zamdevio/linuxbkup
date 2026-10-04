@@ -1,5 +1,6 @@
 # shellcheck shell=bash
 # Styled help / version output (matches terminal UI elsewhere).
+# Convention: one flag per row; short alias listed when it exists.
 
 linuxbkup_print_version() {
   ui_heading "linuxbkup"
@@ -34,33 +35,37 @@ linuxbkup_usage() {
 
   ui_section "Global options"
   ui_kv "-y, --yes" "Accept safe defaults (not destructive overwrite)"
-  ui_kv "--ask" "Interactive path decisions (wins over --yes)"
-  ui_kv "--profile" "easy|balanced|strict (default: balanced)"
-  ui_kv "--keep-stage" "Keep staging dir after successful backup"
-  ui_kv "--stage-dir" "Parent directory for staging"
-  ui_kv "--reclaim" "Interactively include regenerable skips"
-  ui_kv "--reclaim-all" "Include all regenerable skips (warn: large)"
-  ui_kv "--mark-secret" "Treat path as secret (repeatable; age-encrypted)"
-  ui_kv "--dry-run" "Plan only; make no modifications"
+  ui_kv "-a, --ask" "Interactive path decisions (wins over --yes)"
+  ui_kv "-p, --profile" "easy|balanced|strict (default: balanced)"
+  ui_kv "-n, --dry-run" "Plan only; make no modifications"
   ui_kv "-v, --verbose" "Human detail (sizes, progress notes)"
   ui_kv "-d, --debug" "Forensic detail on stderr (implies -v)"
   ui_kv "-q, --quiet" "Less non-essential output"
-  ui_kv "--no-color" "Disable ANSI styling"
-  ui_kv "--no-links" "Disable OSC 8 path/URL hyperlinks"
   ui_kv "-o, --output" "Archive path (default: ~/Backups/linuxbkup/… or Windows Downloads when mounted)"
-  ui_kv "--user" "Target /home/<name> (default: current user)"
-  ui_kv "--force-overwrite" "Allow overwriting conflicting files on restore"
+  ui_kv "-u, --user" "Target /home/<name> (default: current user)"
+  ui_kv "-k, --keep-stage" "Keep staging dir after successful backup"
+  ui_kv "-S, --stage-dir" "Parent directory for staging"
+  ui_kv "-m, --max-size" "Abort if staging exceeds SIZE (uncompressed; e.g. 2G, 500M)"
+  ui_kv "-r, --reclaim" "Interactively include regenerable skips"
+  ui_kv "-R, --reclaim-all" "Include all regenerable skips (warn: large)"
+  ui_kv "-j, --json" "Machine-readable output (plan --json)"
+  ui_kv "-f, --force-overwrite" "Allow overwriting conflicting files on restore"
+  ui_kv "--mark-secret" "Treat path as secret (repeatable; age-encrypted)"
   ui_kv "--no-secrets" "Exclude secrets from backup"
   ui_kv "--secrets-plain" "Include secrets unencrypted (explicit)"
-  ui_kv "--json" "Machine-readable output (plan --json)"
-  ui_kv "--max-size" "Abort if staging exceeds SIZE (uncompressed; e.g. 2G, 500M)"
+  ui_kv "--no-color" "Disable ANSI styling"
+  ui_kv "--no-links" "Disable OSC 8 path/URL hyperlinks"
   printf '\n'
 
   ui_section "Path constraints"
   ui_item note "User flags win over built-ins in lib/constraints/"
   ui_kv "--no-defaults" "Ignore built-in path lists (use --include)"
-  ui_kv "--include" "Include path template or ERE (repeatable)"
-  ui_kv "--exclude" "Exclude matching paths — always wins"
+  ui_kv "-i, --include" "Include path template or ERE (repeatable)"
+  ui_kv "-e, --exclude" "Exclude matching paths — always wins"
+  ui_kv "--no-gitignore" "Do not honor per-directory .gitignore during copy"
+  ui_kv "--no-gitignores" "Alias of --no-gitignore"
+  ui_item note "By default, every directory's .gitignore is applied (rsync dir-merge)"
+  ui_item note "Built-in regenerables also strip node_modules, .next, caches, …"
   printf '\n'
 
   ui_section "Listing policy"
@@ -70,8 +75,10 @@ linuxbkup_usage() {
 
   ui_section "Examples"
   ui_item note "linuxbkup plan -F"
-  ui_item note "linuxbkup plan --json"
+  ui_item note "linuxbkup plan -j"
   ui_item note "linuxbkup -y backup"
+  ui_item note "linuxbkup -y -k -S /var/tmp backup"
+  ui_item note "linuxbkup -i Projects -e Product plan"
   ui_item note "linuxbkup verify ~/Backups/linuxbkup/host.tar.zst"
   printf '\n'
 
@@ -100,11 +107,14 @@ linuxbkup_cmd_help() {
       ui_item note "du, find  (optional: timeout, numfmt, age, tar, zstd, rsync, …)"
       printf '\n'
       ui_section "Useful globals"
-      ui_kv "--user" "Which /home/<name> to scan"
-      ui_kv "--include/--exclude" "Filter constraint paths (regex)"
+      ui_kv "-u, --user" "Which /home/<name> to scan"
+      ui_kv "-i, --include" "Extra include path / ERE (repeatable)"
+      ui_kv "-e, --exclude" "Exclude matching paths (repeatable)"
       ui_kv "--no-defaults" "Ignore built-in path lists"
-      ui_kv "-T/--top, -F/--full" "List length policy"
-      ui_kv "--no-color/--no-links" "Output styling"
+      ui_kv "-T, --top" "Show at most n list items"
+      ui_kv "-F, --full" "Show full lists (no truncation)"
+      ui_kv "--no-color" "Disable ANSI styling"
+      ui_kv "--no-links" "Disable OSC 8 hyperlinks"
       ;;
     plan)
       ui_heading "linuxbkup plan"
@@ -112,17 +122,22 @@ linuxbkup_cmd_help() {
       printf '\n'
       ui_section "Usage"
       ui_item note "linuxbkup [globals] plan"
-      ui_item note "linuxbkup plan --json"
+      ui_item note "linuxbkup plan -j"
       printf '\n'
       ui_section "Useful globals (same meaning as backup)"
-      ui_kv "-F/--full, -T/--top" "List length"
+      ui_kv "-F, --full" "Full include/skip tables"
+      ui_kv "-T, --top" "Cap list length"
       ui_kv "-v, --verbose" "Filter-aware sizes"
       ui_kv "-y, --yes" "Show unexpected as auto-include"
-      ui_kv "--user" "Target home"
-      ui_kv "--no-secrets / --secrets-plain" "Secret handling"
+      ui_kv "-a, --ask" "Interactive decisions (wins over --yes)"
+      ui_kv "-p, --profile" "easy|balanced|strict"
+      ui_kv "-u, --user" "Target home"
+      ui_kv "-i, --include" "Extra include path / ERE"
+      ui_kv "-e, --exclude" "Exclude matching paths"
       ui_kv "--no-defaults" "Ignore built-in rules"
-      ui_kv "--include/--exclude" "Path constraints"
-      ui_kv "--json" "Stable JSON envelope on stdout"
+      ui_kv "--no-secrets" "Secret paths excluded"
+      ui_kv "--secrets-plain" "Secrets treated as plaintext"
+      ui_kv "-j, --json" "Stable JSON envelope on stdout"
       ui_item note "Tips replay these flags into a ready-to-run backup command"
       ;;
     backup)
@@ -137,15 +152,22 @@ linuxbkup_cmd_help() {
       printf '\n'
       ui_section "Useful globals"
       ui_kv "-o, --output" "Archive destination (see platform defaults)"
-      ui_kv "--dry-run" "Plan without writing"
+      ui_kv "-n, --dry-run" "Plan without writing"
       ui_kv "-y, --yes" "Accept copy confirmation; soft-skip unreadable files"
-      ui_kv "--ask" "Interactive unexpected/large picks (ignores --yes)"
-      ui_kv "--profile" "easy|balanced|strict — large-path suggestions/defaults"
-      ui_kv "--keep-stage / --stage-dir" "Staging lifecycle"
-      ui_kv "--max-size" "Abort if staging exceeds SIZE (uncompressed footprint)"
-      ui_kv "--user" "Home to back up"
+      ui_kv "-a, --ask" "Interactive unexpected/large picks (ignores --yes)"
+      ui_kv "-p, --profile" "easy|balanced|strict — large-path suggestions/defaults"
+      ui_kv "-k, --keep-stage" "Keep staging dir after successful backup"
+      ui_kv "-S, --stage-dir" "Parent directory for staging"
+      ui_kv "-m, --max-size" "Abort if staging exceeds SIZE (uncompressed)"
+      ui_kv "-u, --user" "Home to back up"
+      ui_kv "-i, --include" "Extra include path / ERE (repeatable)"
+      ui_kv "-e, --exclude" "Exclude matching paths (repeatable)"
+      ui_kv "-r, --reclaim" "Interactively include regenerable skips"
+      ui_kv "-R, --reclaim-all" "Include all regenerable skips"
       ui_kv "--no-secrets" "Skip sensitive paths"
-      ui_kv "--include/--exclude" "Path constraints"
+      ui_kv "--no-gitignore" "Do not apply per-directory .gitignore"
+      ui_item note "Default: honor .gitignore in every directory during rsync"
+      ui_item note "Also strips regenerables (node_modules, .next, caches, …)"
       ui_item note "Paths to copy listed large → small; progress shows live stage size"
       ui_item note "Full include/skip table: linuxbkup plan"
       ;;
@@ -160,8 +182,8 @@ linuxbkup_cmd_help() {
       ui_item note "tar, zstd, rsync, sha256sum  (optional: age)"
       printf '\n'
       ui_section "Useful globals"
-      ui_kv "--dry-run" "Show plan only"
-      ui_kv "--force-overwrite" "Replace conflicting files"
+      ui_kv "-n, --dry-run" "Show plan only"
+      ui_kv "-f, --force-overwrite" "Replace conflicting files"
       ui_kv "-y, --yes" "Safe defaults (not overwrite)"
       ;;
     verify)
@@ -186,7 +208,8 @@ linuxbkup_cmd_help() {
       printf '\n'
       ui_section "Usage"
       ui_item note "linuxbkup [globals] list <backup>"
-      ui_kv "-T/--top, -F/--full" "How many entries to show"
+      ui_kv "-T, --top" "How many entries to show"
+      ui_kv "-F, --full" "Show all entries"
       ;;
     deps)
       ui_heading "linuxbkup deps"

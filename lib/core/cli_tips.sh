@@ -19,10 +19,10 @@ linuxbkup_flags_plan_relevant() {
   eval "${__name}=()"
   local inc ex
 
-  if [[ "${LINUXBKUP_ASK:-0}" -eq 1 ]]; then _tips_push "${__name}" --ask; fi
+  if [[ "${LINUXBKUP_ASK:-0}" -eq 1 ]]; then _tips_push "${__name}" -a; fi
   if [[ "${LINUXBKUP_YES:-0}" -eq 1 ]]; then _tips_push "${__name}" -y; fi
   if [[ -n "${LINUXBKUP_PROFILE:-}" && "${LINUXBKUP_PROFILE}" != "balanced" ]]; then
-    _tips_push "${__name}" --profile "${LINUXBKUP_PROFILE}"
+    _tips_push "${__name}" -p "${LINUXBKUP_PROFILE}"
   fi
   if [[ "${LINUXBKUP_VERBOSE:-0}" -eq 1 && "${LINUXBKUP_DEBUG:-0}" -ne 1 ]]; then
     _tips_push "${__name}" -v
@@ -31,6 +31,7 @@ linuxbkup_flags_plan_relevant() {
   if [[ "${LINUXBKUP_NO_COLOR:-0}" -eq 1 ]]; then _tips_push "${__name}" --no-color; fi
   if [[ "${LINUXBKUP_NO_LINKS:-0}" -eq 1 ]]; then _tips_push "${__name}" --no-links; fi
   if [[ "${LINUXBKUP_NO_DEFAULTS:-0}" -eq 1 ]]; then _tips_push "${__name}" --no-defaults; fi
+  if [[ "${LINUXBKUP_NO_GITIGNORE:-0}" -eq 1 ]]; then _tips_push "${__name}" --no-gitignore; fi
   if [[ "${LINUXBKUP_NO_SECRETS:-0}" -eq 1 ]]; then _tips_push "${__name}" --no-secrets; fi
   if [[ "${LINUXBKUP_SECRETS_PLAIN:-0}" -eq 1 ]]; then _tips_push "${__name}" --secrets-plain; fi
   if [[ "${LINUXBKUP_LIST_FULL:-0}" -eq 1 ]]; then _tips_push "${__name}" -F; fi
@@ -38,13 +39,13 @@ linuxbkup_flags_plan_relevant() {
     _tips_push "${__name}" -T "${LINUXBKUP_LIST_TOP}"
   fi
   if [[ -n "${LINUXBKUP_USER:-}" ]]; then
-    _tips_push "${__name}" --user "${LINUXBKUP_USER}"
+    _tips_push "${__name}" -u "${LINUXBKUP_USER}"
   fi
   for inc in "${LINUXBKUP_INCLUDE_REGEXES[@]+"${LINUXBKUP_INCLUDE_REGEXES[@]}"}"; do
-    _tips_push "${__name}" --include "${inc}"
+    _tips_push "${__name}" -i "${inc}"
   done
   for ex in "${LINUXBKUP_EXCLUDE_REGEXES[@]+"${LINUXBKUP_EXCLUDE_REGEXES[@]}"}"; do
-    _tips_push "${__name}" --exclude "${ex}"
+    _tips_push "${__name}" -e "${ex}"
   done
   return 0
 }
@@ -57,25 +58,25 @@ linuxbkup_flags_backup_relevant() {
     _tips_push "${__name}" -o "${LINUXBKUP_OUTPUT}"
   fi
   if [[ -n "${LINUXBKUP_MAX_SIZE_BYTES:-}" && "${LINUXBKUP_MAX_SIZE_BYTES}" -gt 0 ]]; then
-    _tips_push "${__name}" --max-size "${LINUXBKUP_MAX_SIZE_BYTES}"
+    _tips_push "${__name}" -m "${LINUXBKUP_MAX_SIZE_BYTES}"
   fi
   if [[ "${LINUXBKUP_KEEP_STAGE:-0}" -eq 1 ]]; then
-    _tips_push "${__name}" --keep-stage
+    _tips_push "${__name}" -k
   fi
   if [[ -n "${LINUXBKUP_STAGE_DIR:-}" ]]; then
-    _tips_push "${__name}" --stage-dir "${LINUXBKUP_STAGE_DIR}"
+    _tips_push "${__name}" -S "${LINUXBKUP_STAGE_DIR}"
   fi
   if [[ "${LINUXBKUP_RECLAIM_ALL:-0}" -eq 1 ]]; then
-    _tips_push "${__name}" --reclaim-all
+    _tips_push "${__name}" -R
   elif [[ "${LINUXBKUP_RECLAIM:-0}" -eq 1 ]]; then
-    _tips_push "${__name}" --reclaim
+    _tips_push "${__name}" -r
   fi
   local ms
   for ms in "${LINUXBKUP_MARK_SECRET[@]+"${LINUXBKUP_MARK_SECRET[@]}"}"; do
     _tips_push "${__name}" --mark-secret "${ms}"
   done
   if [[ "${LINUXBKUP_DRY_RUN:-0}" -eq 1 ]]; then
-    _tips_push "${__name}" --dry-run
+    _tips_push "${__name}" -n
   fi
   return 0
 }

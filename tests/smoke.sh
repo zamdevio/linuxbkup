@@ -381,6 +381,78 @@ else
   bad "help lists reclaim/mark-secret"
 fi
 
+# Help: separate rows + short aliases (not combined "--keep-stage / --stage-dir")
+help_rows="$("${CLI}" --no-color --help 2>/dev/null)" || true
+if [[ "${help_rows}" == *"-k, --keep-stage"* && "${help_rows}" == *"-S, --stage-dir"* \
+  && "${help_rows}" == *"-i, --include"* && "${help_rows}" == *"-e, --exclude"* \
+  && "${help_rows}" != *"--keep-stage / --stage-dir"* \
+  && "${help_rows}" != *"--include/--exclude"* ]]; then
+  ok "help separate rows + short aliases for stage/include"
+else
+  bad "help separate rows + short aliases for stage/include"
+fi
+help_backup="$("${CLI}" --no-color help backup 2>/dev/null)" || true
+if [[ "${help_backup}" == *"-k, --keep-stage"* && "${help_backup}" == *"-S, --stage-dir"* \
+  && "${help_backup}" == *"-i, --include"* && "${help_backup}" == *"--no-gitignore"* ]]; then
+  ok "backup help lists stage/include/gitignore separately"
+else
+  bad "backup help lists stage/include/gitignore separately"
+fi
+
+# Short aliases parse
+alias_parse="$("${CLI}" --no-color -n -k -S /tmp -i Projects -e Product -m 2G -j plan 2>&1)" || true
+if [[ "${alias_parse}" != *"unknown option"* && "${alias_parse}" != *"requires"* ]]; then
+  ok "short aliases -n/-k/-S/-i/-e/-m/-j parse"
+else
+  bad "short aliases -n/-k/-S/-i/-e/-m/-j parse"
+fi
+
+# Reclaim: no circular nameref warning
+reclaim_err="$( (
+  # shellcheck source=/dev/null
+  source "${ROOT}/lib/backup/reclaim.sh"
+  scan_rows=("${fake_home}/.cache"$'\t'"skip"$'\t'"skip"$'\t'"1M"$'\t'"regenerable")
+  cands=()
+  backup_reclaim_candidates scan_rows cands
+) 2>&1 )" || true
+if [[ "${reclaim_err}" != *"circular name reference"* ]]; then
+  ok "reclaim has no circular nameref"
+else
+  bad "reclaim has no circular nameref"
+fi
+
+# Gitignore filter on by default; --no-gitignore bypasses
+# shellcheck source=/dev/null
+source "${ROOT}/lib/constraints/base.sh"
+# shellcheck source=/dev/null
+source "${ROOT}/lib/backup/home.sh"
+LINUXBKUP_NO_GITIGNORE=0
+backup_plan_excludes
+backup_rsync_args
+rsync_joined="${BACKUP_RSYNC_ARGS[*]}"
+if [[ "${rsync_joined}" == *":- .gitignore"* && "${rsync_joined}" == *"node_modules"* ]]; then
+  ok "rsync args include gitignore filter + node_modules"
+else
+  bad "rsync args include gitignore filter + node_modules"
+fi
+LINUXBKUP_NO_GITIGNORE=1
+backup_rsync_args
+rsync_joined="${BACKUP_RSYNC_ARGS[*]}"
+if [[ "${rsync_joined}" != *":- .gitignore"* ]]; then
+  ok "--no-gitignore omits gitignore filter"
+else
+  bad "--no-gitignore omits gitignore filter"
+fi
+unset LINUXBKUP_NO_GITIGNORE
+
+# 08.8 snapshot on backup dry-run
+snap_out="$("${CLI}" --no-color -y -n --no-secrets backup 2>/dev/null)" || true
+if [[ "${snap_out}" == *"Environment snapshot"* && "${snap_out}" == *"Package managers"* ]]; then
+  ok "backup dry-run prints environment snapshot"
+else
+  bad "backup dry-run prints environment snapshot"
+fi
+
 rm -rf "${fake_home}"
 
 exit "${fail}"

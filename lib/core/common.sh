@@ -28,6 +28,7 @@ LINUXBKUP_STAGE_DIR=""
 LINUXBKUP_RECLAIM=0
 LINUXBKUP_RECLAIM_ALL=0
 LINUXBKUP_MARK_SECRET=()
+LINUXBKUP_NO_GITIGNORE=0
 LINUXBKUP_INCLUDE_REGEXES=()
 LINUXBKUP_EXCLUDE_REGEXES=()
 LINUXBKUP_POSITIONAL=()
@@ -47,29 +48,29 @@ linuxbkup_parse_globals() {
         LINUXBKUP_YES=1
         shift
         ;;
-      --ask)
+      -a|--ask)
         LINUXBKUP_ASK=1
         shift
         ;;
-      --profile)
+      -p|--profile)
         [[ $# -ge 2 ]] || { log_fatal "--profile requires easy|balanced|strict"; exit 2; }
         LINUXBKUP_PROFILE="$2"
         shift 2
         ;;
-      --keep-stage)
+      -k|--keep-stage)
         LINUXBKUP_KEEP_STAGE=1
         shift
         ;;
-      --stage-dir)
+      -S|--stage-dir)
         [[ $# -ge 2 ]] || { log_fatal "--stage-dir requires a path"; exit 2; }
         LINUXBKUP_STAGE_DIR="$2"
         shift 2
         ;;
-      --reclaim)
+      -r|--reclaim)
         LINUXBKUP_RECLAIM=1
         shift
         ;;
-      --reclaim-all)
+      -R|--reclaim-all)
         LINUXBKUP_RECLAIM_ALL=1
         shift
         ;;
@@ -78,7 +79,7 @@ linuxbkup_parse_globals() {
         LINUXBKUP_MARK_SECRET+=("$2")
         shift 2
         ;;
-      --dry-run)
+      -n|--dry-run)
         LINUXBKUP_DRY_RUN=1
         shift
         ;;
@@ -108,12 +109,12 @@ linuxbkup_parse_globals() {
         LINUXBKUP_OUTPUT="$2"
         shift 2
         ;;
-      --user)
+      -u|--user)
         [[ $# -ge 2 ]] || { log_fatal "--user requires a name"; exit 2; }
         LINUXBKUP_USER="$2"
         shift 2
         ;;
-      --force-overwrite)
+      -f|--force-overwrite)
         LINUXBKUP_FORCE_OVERWRITE=1
         shift
         ;;
@@ -129,13 +130,17 @@ linuxbkup_parse_globals() {
         LINUXBKUP_NO_DEFAULTS=1
         shift
         ;;
-      --include)
+      --no-gitignore|--no-gitignores)
+        LINUXBKUP_NO_GITIGNORE=1
+        shift
+        ;;
+      -i|--include)
         [[ $# -ge 2 ]] || { log_fatal "--include requires a regex or path"; exit 2; }
         LINUXBKUP_INCLUDE_REGEXES+=("$2")
         shift 2
         ;;
-      --exclude)
-        [[ $# -ge 2 ]] || { log_fatal "--exclude requires a regex"; exit 2; }
+      -e|--exclude)
+        [[ $# -ge 2 ]] || { log_fatal "--exclude requires a regex or path"; exit 2; }
         LINUXBKUP_EXCLUDE_REGEXES+=("$2")
         shift 2
         ;;
@@ -143,11 +148,11 @@ linuxbkup_parse_globals() {
         LINUXBKUP_LIST_FULL=1
         shift
         ;;
-      --json)
+      -j|--json)
         LINUXBKUP_JSON=1
         shift
         ;;
-      --max-size)
+      -m|--max-size)
         [[ $# -ge 2 ]] || { log_fatal "--max-size requires a size (e.g. 2G, 500M)"; exit 2; }
         # shellcheck source=lib/fs/sizes.sh
         source "${LINUXBKUP_ROOT}/lib/fs/sizes.sh"

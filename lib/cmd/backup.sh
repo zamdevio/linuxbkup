@@ -14,6 +14,8 @@ linuxbkup_cmd_backup() {
   source "${LINUXBKUP_ROOT}/lib/env/users.sh"
   # shellcheck source=lib/env/distro.sh
   source "${LINUXBKUP_ROOT}/lib/env/distro.sh"
+  # shellcheck source=lib/env/snapshot.sh
+  source "${LINUXBKUP_ROOT}/lib/env/snapshot.sh"
   # shellcheck source=lib/core/platform/paths.sh
   source "${LINUXBKUP_ROOT}/lib/core/platform/paths.sh"
   # shellcheck source=lib/backup/stage.sh
@@ -61,7 +63,11 @@ linuxbkup_cmd_backup() {
   ui_kv_path "Home" "${home}"
   ui_kv_path "Destination" "${dest}"
   [[ "${LINUXBKUP_DRY_RUN:-0}" -eq 1 ]] && ui_kv "Mode" "dry-run"
+  [[ "${LINUXBKUP_NO_GITIGNORE:-0}" -eq 1 ]] && ui_kv "Gitignore" "off (--no-gitignore)"
   printf '\n'
+
+  # 08.8 — detect (shared snapshot) before staging / manifests
+  env_print_snapshot backup
 
   if [[ "${LINUXBKUP_DRY_RUN:-0}" -ne 1 ]]; then
     if ! safety_confirm "Proceed with backup?" "y"; then

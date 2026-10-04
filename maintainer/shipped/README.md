@@ -22,6 +22,9 @@ What has actually landed (not aspirational). Binary: **`linuxbkup`**. Env: **`LI
 | UX | Default-skip `~/go`; `/tmp` off default size scan; `--max-size` (staged bytes) |
 | Phase 03 | `--profile` / `--ask`>`--yes` / Bash+fzf ask UI / `--keep-stage` / `--stage-dir` |
 | Phase 04 | `--reclaim` / `--reclaim-all` / `--mark-secret`; age encrypt secrets → `secrets.tar.age` |
+| Phase 08.8–08.9 | Shared `lib/env/snapshot.sh`; backup prints capability snapshot before stage |
+| UX | Short aliases (`-k`/`-S`/`-i`/`-e`/`-a`/`-p`/`-m`/`-j`/`-f`/…); help one flag per row |
+| UX | Honor per-dir `.gitignore` (rsync); `--no-gitignore`; expanded regenerable strip |
 
 ## Not shipped yet (redesign track)
 
