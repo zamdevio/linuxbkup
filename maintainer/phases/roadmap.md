@@ -33,7 +33,8 @@ Clean `linuxbkup` / `LINUXBKUP_*` identity (phase 00).
 | 06 | [Docs content](./06-docs-content.md) | planned |
 | 07 | [VitePress → pages.dev](./07-vitepress.md) | planned |
 | 08 | [Terminal UX](./08-terminal-ux.md) | **done** (08.8–08.9 snapshot; 08.10 queued) |
-| 09 | [UX fail-fast](./09-ux-failfast.md) | **in progress** (secrets preflight, size honesty) |
+| 09 | [UX fail-fast](./09-ux-failfast.md) | **in progress** (09.1–09.3/09.6 done; banner later) |
+| 10 | [PM/tools research](./10-pm-tools-research.md) | **OPEN standing** — living keep/strip/manifest guide (do not fold) |
 
 Later product phases (after redesign foundation): restore polish, language modules, systemd/`/etc`, Docker — re-queue in focus when ready.
 

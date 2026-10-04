@@ -35,10 +35,10 @@ Restore on another machine:
 
 - [x] **05.1** Platform free-space helper (`lib/core/platform/fs_space.sh`)
 - [x] **05.2** Backup preflight gate (`lib/backup/preflight.sh` — floor + est+10%)
-- [ ] **05.3** Write `schema.json` + decisions during stage
-- [ ] **05.4** `verify` checks schema presence/version
+- [x] **05.3** Write `schema.json` + `decisions.tsv` during stage (`lib/backup/schema.sh`)
+- [x] **05.4** `verify` soft-checks schema / decisions presence
 - [ ] **05.5** Document schema fields in `docs/` (phase 06)
-- [ ] **05.6** Smoke: tiny backup contains schema + decisions
+- [ ] **05.6** Smoke: tiny backup / fixture contains schema + decisions
 
 ## Acceptance
 

@@ -13,6 +13,8 @@ source "${LINUXBKUP_ROOT}/lib/ask/select.sh"
 source "${LINUXBKUP_ROOT}/lib/backup/reclaim.sh"
 # shellcheck source=lib/backup/secrets_crypt.sh
 source "${LINUXBKUP_ROOT}/lib/backup/secrets_crypt.sh"
+# shellcheck source=lib/backup/schema.sh
+source "${LINUXBKUP_ROOT}/lib/backup/schema.sh"
 
 # Paths reclaimed from regenerable skips (full rsync, no strip excludes).
 declare -A BACKUP_RECLAIMED=()
@@ -82,11 +84,16 @@ backup_plan_excludes() {
     --exclude '.local/share/Trash/'
     --exclude '.local/share/pnpm/'
     --exclude '.local/share/uv/'
-    --exclude '.local/share/mise/'
+    # mise: strip installs/downloads only — keep share/mise migrations+shims; state/ is separate
+    --exclude '.local/share/mise/installs/'
+    --exclude '.local/share/mise/downloads/'
     --exclude '.local/share/pipx/'
     --exclude '.local/share/NuGet/'
     --exclude '.local/share/JetBrains/'
     --exclude '.local/lib/'
+    --exclude '.asdf/installs/'
+    --exclude '.asdf/downloads/'
+    --exclude '.nvm/versions/'
     --exclude '.yarn/cache/'
     --exclude '.yarn/unplugged/'
     --exclude '.pnpm-store/'
@@ -180,7 +187,7 @@ backup_copy_home() {
   local p class action size reason
   local i total bytes human est=0 esth maxh used usedh delta pct
   local row line suggested need_ask=0
-  local is_unexp is_lg display_class
+  local is_unexp is_lg display_class decision
   local -A include_set=()
   BACKUP_ESTIMATE_BYTES=0
   BACKUP_SIZE_CACHE=()
@@ -378,6 +385,31 @@ backup_copy_home() {
   if ! safety_confirm "Copy these paths into the backup staging area?" "y"; then
     log_skip "home/config copy cancelled"
     return 1
+  fi
+
+  # Restore contract: decisions after confirm (final include set)
+  if [[ "${LINUXBKUP_DRY_RUN:-0}" -ne 1 ]]; then
+    mkdir -p "${stage}/metadata"
+    {
+      printf 'path\tclass\taction\tsize\treason\tdecision\n'
+      for row in "${scan_rows[@]+"${scan_rows[@]}"}"; do
+        [[ -z "${row}" ]] && continue
+        IFS=$'\t' read -r p class action size reason <<<"${row}" || true
+        decision="skip"
+        if [[ -n "${include_set[${p}]+x}" ]]; then
+          if [[ "${class}" == "secret" || -n "${BACKUP_MARKED_SECRET[${p}]+x}" ]]; then
+            decision="secret"
+          else
+            decision="include"
+          fi
+        fi
+        [[ -n "${BACKUP_RECLAIMED[${p}]+x}" ]] && decision="include"
+        printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
+          "${p}" "${class}" "${action}" "${size:-}" "${reason:-}" "${decision}"
+      done
+    } >"${stage}/metadata/decisions.tsv"
+    log_ok "decisions.tsv written"
+    ui_kv_path "Decisions" "${stage}/metadata/decisions.tsv"
   fi
 
   total="${#paths[@]}"

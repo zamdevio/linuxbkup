@@ -22,9 +22,11 @@ Built-in **rules**, listing policy, and the **filter stack**. Phase **02** full-
 - User `--exclude` always wins. Path-like tokens expand `~` / `{home}` against the active `--user` home, strip trailing `/`, and match exact/prefix/basename — not naive ERE (so `.` in paths is literal).
 - Unexpected paths: report always; `--yes` / non-TTY → include; TTY backup asks.
 - **No host-shaped home dirnames** in shipped rules.
-- Sizing / rsync share regenerable globs from `CONSTRAINTS_DU_EXCLUDE_GLOBS` + `CONSTRAINTS_FILE_EXCLUDE_GLOBS` (node_modules, .next, venv, `__pycache__`, `*.pyc`, `.wrangler`, build/dist, PM/IDE caches, …).
+- Sizing / rsync share regenerable globs from `CONSTRAINTS_DU_EXCLUDE_GLOBS` + `CONSTRAINTS_FILE_EXCLUDE_GLOBS` (node_modules, .next, venv, `__pycache__`, `site-packages`, `*.pyc`, `.tmp`, `.wrangler`, build/dist, PM/IDE caches, …).
+- **mise:** strip `~/.local/share/mise/installs` + `downloads` only; keep config (`~/.config/mise`) and small `state/`; see standing research [`../phases/10-pm-tools-research.md`](../phases/10-pm-tools-research.md).
+- **Python:** do not pack `site-packages` / user `~/.local/lib` — restore via freeze/lock (capture modules later).
 - Rsync also applies per-directory `.gitignore` via `--filter=':- .gitignore'` unless `--no-gitignore`.
-- Backup path estimates always re-`du -sb` filtered — never sum rounded human labels.
+- Backup path estimates use byte-accurate filtered `du -sb`.
 - `plan` / dry-run skip per-path `du` unless `-v`.
 - Top-level `go` (GOPATH) default **skip** — regenerable cache; `--include` / phase 04 reclaim to pull back.
 - `/tmp` is **not** a default inspect size target (no special classify rule — simply omitted).

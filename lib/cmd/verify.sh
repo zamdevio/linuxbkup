@@ -90,6 +90,7 @@ linuxbkup_cmd_verify() {
   fi
 
   archive_print_verify_summary "${root}"
+  archive_verify_schema "${root}"
 
   if [[ -n "${tmp}" ]]; then
     rm -rf "${tmp}"

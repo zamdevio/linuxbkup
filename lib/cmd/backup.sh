@@ -26,6 +26,8 @@ linuxbkup_cmd_backup() {
   source "${LINUXBKUP_ROOT}/lib/backup/secrets_crypt.sh"
   # shellcheck source=lib/backup/preflight.sh
   source "${LINUXBKUP_ROOT}/lib/backup/preflight.sh"
+  # shellcheck source=lib/backup/schema.sh
+  source "${LINUXBKUP_ROOT}/lib/backup/schema.sh"
   # shellcheck source=modules/apt.sh
   source "${LINUXBKUP_ROOT}/modules/apt.sh"
   # shellcheck source=lib/archive/checksums.sh
@@ -141,6 +143,7 @@ linuxbkup_cmd_backup() {
   trap 'log_fatal "interrupted during backup"; exit 130' INT TERM
 
   backup_write_metadata "${stage}" "${user}" "${home}"
+  backup_write_schema "${stage}" "${user}" "${home}"
   apt_capture_manifests "${stage}"
 
   if ! backup_copy_home "${home}" "${stage}"; then

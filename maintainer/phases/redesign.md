@@ -34,6 +34,7 @@ After these phase docs are agreed and implementation lands, fold outcomes into [
 | [07-vitepress.md](./07-vitepress.md) | `apps/docs` → https://linuxbkup.pages.dev |
 | [08-terminal-ux.md](./08-terminal-ux.md) | Progress, OSC links, notify, flag-aware tips |
 | [09-ux-failfast.md](./09-ux-failfast.md) | Fail-fast preflight, honest sizes, no late fatal after long copy |
+| [10-pm-tools-research.md](./10-pm-tools-research.md) | **Standing** keep/strip/manifest/restore map for PMs & tools (does not fold early) |
 
 ## Discovery → backup (target)
 

@@ -1,15 +1,14 @@
 # shellcheck shell=bash
 # Paths / EREs / globs treated as regeneratable (strip from du + rsync).
 #
-# Doctrine: back up source of truth; skip install caches, build outputs, and
-# language/tool temp trees. Per-directory .gitignore is also honored at rsync
-# time (unless --no-gitignore). Keep expanding as real hosts show waste.
+# Doctrine: back up source of truth + lockfiles/config; skip install trees,
+# caches, build outputs, and temp dirs. Restore reinstalls from manifests
+# (see maintainer/phases/10-pm-tools-research.md — standing research).
 #
-# Categories covered (non-exhaustive): JS/TS, Python, Rust, Go, JVM, .NET,
-# Ruby, PHP, Elixir, Dart/Flutter, Terraform/Pulumi/CDK, Cloudflare/wrangler,
-# IDE/remote-server caches, Linux PM caches under home.
+# Per-directory .gitignore is also honored at rsync (unless --no-gitignore).
 
 # Concrete path templates (expanded under home / absolute)
+# Prefer *install/cache* leaves over whole tool homes when config/state must stay.
 CONSTRAINTS_REGENERABLE_TARGETS=(
   .cache
   .npm
@@ -20,12 +19,16 @@ CONSTRAINTS_REGENERABLE_TARGETS=(
   .local/share/pnpm
   .local/share/Trash
   .local/share/uv
-  .local/share/mise
+  .local/share/mise/installs
+  .local/share/mise/downloads
   .local/share/flatpak
   .local/share/containers
   .local/share/NuGet
   .local/share/JetBrains
   .local/lib
+  .asdf/installs
+  .asdf/downloads
+  .nvm/versions
   .bun/install/cache
   .nuget/packages
   .composer/cache
@@ -80,6 +83,7 @@ CONSTRAINTS_REGENERABLE_REGEXES=(
   '/venv(/|$)'
   '/__pycache__(/|$)'
   '/__pypackages__(/|$)'
+  '/site-packages(/|$)'
   '/\.eggs(/|$)'
   '/\.tox(/|$)'
   '/\.mypy_cache(/|$)'
@@ -100,10 +104,17 @@ CONSTRAINTS_REGENERABLE_REGEXES=(
   '/coverage(/|$)'
   '/bower_components(/|$)'
   '/\.cache(/|$)'
+  '/\.tmp(/|$)'
+  '/\.temp(/|$)'
   '/\.npm(/|$)'
   '/\.pnpm-store(/|$)'
   '/\.local/share/pnpm(/|$)'
   '/\.local/lib(/|$)'
+  '/\.local/share/mise/installs(/|$)'
+  '/\.local/share/mise/downloads(/|$)'
+  '/\.asdf/installs(/|$)'
+  '/\.asdf/downloads(/|$)'
+  '/\.nvm/versions(/|$)'
   '/\.yarn/cache(/|$)'
   '/\.yarn/unplugged(/|$)'
   '/\.bun/install/cache(/|$)'
@@ -116,7 +127,6 @@ CONSTRAINTS_REGENERABLE_REGEXES=(
   '/\.local/share/pipx(/|$)'
   '/\.local/share/Trash(/|$)'
   '/\.local/share/uv(/|$)'
-  '/\.local/share/mise(/|$)'
   '/\.local/share/NuGet(/|$)'
   '/\.nuget/packages(/|$)'
   '/\.composer/cache(/|$)'
@@ -179,6 +189,7 @@ CONSTRAINTS_DU_EXCLUDE_GLOBS=(
   venv
   __pycache__
   __pypackages__
+  site-packages
   .eggs
   .tox
   .mypy_cache
@@ -198,6 +209,8 @@ CONSTRAINTS_DU_EXCLUDE_GLOBS=(
   coverage
   bower_components
   .cache
+  .tmp
+  .temp
   .npm
   .pnpm-store
   .dart_tool
@@ -223,12 +236,20 @@ CONSTRAINTS_DU_EXCLUDE_GLOBS=(
   .vscode-server
   .vscode-remote
   .net
+  # Version-manager install trees (mise/asdf use these basenames under share/)
+  installs
+  downloads
 )
 
 # File / glob patterns for rsync + GNU du (not bare basenames)
 CONSTRAINTS_FILE_EXCLUDE_GLOBS=(
   '*.pyc'
   '*.pyo'
+  '*.tmp'
+  '*.temp'
+  '*.swp'
+  '*.swo'
+  '*~'
   '*.tsbuildinfo'
   '*.egg-info'
   '.DS_Store'

@@ -28,6 +28,9 @@ What has actually landed (not aspirational). Binary: **`linuxbkup`**. Env: **`LI
 | Phase 09.1–09.3/09.6 | Fail-fast secrets preflight before copy; byte-accurate estimates; stage-vs-est warn |
 | Phase 05.1–05.2 | Space floor + estimate+10% gate (`lib/backup/preflight.sh`) |
 | UX | Regenerables: Python/JS/wrangler/PM/IDE caches + `*.pyc`; smoke on `~/Bots` |
+| Phase 05.3–05.4 | `schema.json` + `decisions.tsv`; verify soft-checks |
+| Phase 10 | Standing PM/tools path research (mise installs strip; open forever until done) |
+| UX | Strip `.tmp` / mise `installs|downloads`; keep mise state/config |
 
 ## Not shipped yet (redesign track)
 

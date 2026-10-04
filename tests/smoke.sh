@@ -524,6 +524,58 @@ else
   bad "space preflight helpers loadable"
 fi
 
+# .tmp + mise installs stripped from filter stack
+tmp_tree="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-smoke-tmp.XXXXXX")"
+mkdir -p "${tmp_tree}/.codex/.tmp" "${tmp_tree}/keep" \
+  "${tmp_tree}/.local/share/mise/installs/node/v1" \
+  "${tmp_tree}/.local/share/mise/migrations"
+dd if=/dev/zero of="${tmp_tree}/.codex/.tmp/junk.bin" bs=1024 count=400 status=none 2>/dev/null \
+  || dd if=/dev/zero of="${tmp_tree}/.codex/.tmp/junk.bin" bs=1024 count=400 2>/dev/null
+dd if=/dev/zero of="${tmp_tree}/.local/share/mise/installs/node/v1/big.bin" bs=1024 count=800 status=none 2>/dev/null \
+  || dd if=/dev/zero of="${tmp_tree}/.local/share/mise/installs/node/v1/big.bin" bs=1024 count=800 2>/dev/null
+printf 'ok\n' >"${tmp_tree}/keep/a.txt"
+printf 'm\n' >"${tmp_tree}/.local/share/mise/migrations/x"
+raw_t="$(fs_dir_bytes "${tmp_tree}")"
+filt_t="$(fs_du_bytes "${tmp_tree}" filtered)"
+if [[ "${filt_t}" -lt 50000 && "${filt_t}" -lt "${raw_t}" ]]; then
+  ok ".tmp and mise installs stripped from du filter"
+else
+  bad ".tmp and mise installs stripped from du filter (raw=${raw_t} filt=${filt_t})"
+fi
+rm -rf "${tmp_tree}"
+
+# 05.3 schema writer
+# shellcheck source=/dev/null
+source "${ROOT}/lib/backup/schema.sh"
+sch_stage="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-smoke-schema.XXXXXX")"
+mkdir -p "${sch_stage}/metadata"
+LINUXBKUP_DRY_RUN=0
+LINUXBKUP_SECRETS_MODE=exclude
+backup_write_schema "${sch_stage}" "smoke" "${sch_stage}" || true
+if [[ -f "${sch_stage}/metadata/schema.json" ]] \
+  && grep -q 'linuxbkup.schema/v1' "${sch_stage}/metadata/schema.json" \
+  && grep -q 'schema_version' "${sch_stage}/metadata/schema.json"; then
+  ok "schema.json written with version fields"
+else
+  bad "schema.json written with version fields"
+fi
+# decisions helper path
+printf '%s\n' $'/tmp/x\tinclude\tinclude\t1\treason' | backup_write_decisions "${sch_stage}"
+if [[ -f "${sch_stage}/metadata/decisions.tsv" ]] && grep -q '^path' "${sch_stage}/metadata/decisions.tsv"; then
+  ok "decisions.tsv writer works"
+else
+  bad "decisions.tsv writer works"
+fi
+rm -rf "${sch_stage}"
+
+# phase 10 standing research doc exists
+if [[ -f "${ROOT}/maintainer/phases/10-pm-tools-research.md" ]] \
+  && grep -q 'OPEN' "${ROOT}/maintainer/phases/10-pm-tools-research.md"; then
+  ok "phase 10 PM/tools research doc present"
+else
+  bad "phase 10 PM/tools research doc present"
+fi
+
 rm -rf "${fake_home}"
 
 exit "${fail}"
