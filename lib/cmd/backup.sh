@@ -42,6 +42,8 @@ linuxbkup_cmd_backup() {
     log_fatal "No home directory for user: ${user}"
     return 1
   fi
+  LINUXBKUP_HOME="${home}"
+  export LINUXBKUP_HOME
 
   if [[ -n "${LINUXBKUP_OUTPUT:-}" ]]; then
     dest="${LINUXBKUP_OUTPUT}"
@@ -120,7 +122,10 @@ linuxbkup_cmd_backup() {
   ui_kv_path "Stage" "${stage}"
   printf '\n'
 
-  backup_write_index "${stage}"
+  if ! backup_write_index "${stage}"; then
+    log_fatal "INDEX step failed"
+    return 1
+  fi
 
   if ! archive_write_checksums "${stage}"; then
     log_fatal "checksum step failed"

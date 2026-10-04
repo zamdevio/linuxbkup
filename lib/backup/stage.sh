@@ -71,12 +71,16 @@ backup_write_index() {
   fi
 
   log_info "writing INDEX…"
+  # Avoid find|head SIGPIPE under set -o pipefail (exits the whole backup).
   {
     printf 'linuxbkup index\n'
     printf 'version=%s\n' "${LINUXBKUP_VERSION}"
     printf 'created=%s\n' "$(date -Iseconds)"
     printf '\ncontents (first 500 paths, unsorted sample):\n'
-    find "${stage}" -mindepth 1 -printf '%P\n' 2>/dev/null | head -n 500
-  } >"${index}"
+    find "${stage}" -mindepth 1 -printf '%P\n' 2>/dev/null | head -n 500 || true
+  } >"${index}" || {
+    log_fatal "failed to write INDEX at ${index}"
+    return 1
+  }
   log_ok "INDEX written"
 }

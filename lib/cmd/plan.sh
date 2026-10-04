@@ -23,6 +23,8 @@ linuxbkup_cmd_plan() {
     log_fatal "No home directory for user: ${user}"
     return 1
   fi
+  LINUXBKUP_HOME="${home}"
+  export LINUXBKUP_HOME
 
   # JSON mode: minimal banner noise — tools check still useful for du when -v
   if [[ "${LINUXBKUP_JSON:-0}" -eq 1 ]]; then
@@ -40,6 +42,7 @@ linuxbkup_cmd_plan() {
     --optional du timeout numfmt
 
   log_verbose "plan start home=${home}"
+  # Default plan is table-only; -v/-d enable per-path sizes (slower, richer).
   if [[ "${LINUXBKUP_VERBOSE:-0}" -ne 1 && "${LINUXBKUP_DEBUG:-0}" -ne 1 ]]; then
     LINUXBKUP_INSPECT_QUICK=1
   fi

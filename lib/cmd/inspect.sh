@@ -32,6 +32,9 @@ linuxbkup_cmd_inspect() {
   user="$(env_resolve_user)"
   if ! home="$(env_user_home "${user}")"; then
     home="(unavailable)"
+  else
+    LINUXBKUP_HOME="${home}"
+    export LINUXBKUP_HOME
   fi
 
   log_verbose "inspect user=${user} home=${home}"

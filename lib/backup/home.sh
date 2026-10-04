@@ -213,9 +213,11 @@ backup_copy_home() {
   trap 'term_progress_end; term_cursor_show; log_fatal "interrupted during copy"; exit 130' INT TERM
 
   i=0
-  for path in "${paths[@]}"; do
+  for row in "${ranked[@]}"; do
+    IFS=$'\t' read -r bytes human class path <<<"${row}" || true
+    [[ -z "${path}" ]] && continue
     i=$((i + 1))
-    term_progress_update "${i}" "${path}"
+    term_progress_update "${i}" "${path}" "${human}"
 
     if [[ ! -e "${path}" ]]; then
       skipped=$((skipped + 1))

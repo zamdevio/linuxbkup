@@ -65,11 +65,12 @@ term_progress_begin() {
   fi
 }
 
-# Update. Args: current [label]
+# Update. Args: current [path_label] [item_size_human]
+# Example: 19%  19/96  /home/amf/.claude (713M) · stage 5.1GB
 term_progress_update() {
-  local cur="$1" label="${2:-}"
+  local cur="$1" label="${2:-}" item_h="${3:-}"
   local pct=0 width=28 filled empty i bar
-  local short stage_h="" max_h="" extra=""
+  local short stage_h="" max_h="" mid="" extra=""
 
   TERM_PROGRESS_CUR="${cur}"
   [[ -n "${label}" ]] && TERM_PROGRESS_LABEL="${label}"
@@ -79,6 +80,14 @@ term_progress_update() {
     ((pct > 100)) && pct=100
   fi
 
+  short="$(term_progress_truncate "${label}" 40)"
+  if [[ -n "${short}" ]]; then
+    mid="${short}"
+    if [[ -n "${item_h}" && "${item_h}" != "?" ]]; then
+      mid+=" (${item_h})"
+    fi
+  fi
+
   if [[ -n "${TERM_PROGRESS_STAGE}" ]]; then
     term_progress_sample_stage >/dev/null || true
     if declare -F fs_bytes_human >/dev/null 2>&1; then
@@ -86,7 +95,7 @@ term_progress_update() {
     else
       stage_h="${TERM_PROGRESS_STAGE_BYTES}B"
     fi
-    extra="  stage ${stage_h}"
+    extra=" · stage ${stage_h}"
     if [[ -n "${LINUXBKUP_MAX_SIZE_BYTES:-}" && "${LINUXBKUP_MAX_SIZE_BYTES}" -gt 0 ]]; then
       if declare -F fs_bytes_human >/dev/null 2>&1; then
         max_h="$(fs_bytes_human "${LINUXBKUP_MAX_SIZE_BYTES}")"
@@ -100,7 +109,7 @@ term_progress_update() {
   if ! term_progress_enabled || [[ "${TERM_PROGRESS_ACTIVE}" -ne 1 ]]; then
     if [[ "${LINUXBKUP_QUIET:-0}" -ne 1 ]]; then
       if [[ "${TERM_PROGRESS_TOTAL}" -le 20 ]] || (( cur == TERM_PROGRESS_TOTAL || cur % 5 == 0 )); then
-        log_info "progress ${cur}/${TERM_PROGRESS_TOTAL} ${label}${extra}"
+        log_info "progress ${cur}/${TERM_PROGRESS_TOTAL} ${mid}${extra}"
       fi
     fi
     return 0
@@ -111,12 +120,11 @@ term_progress_update() {
   bar=""
   for ((i = 0; i < filled; i++)); do bar+="█"; done
   for ((i = 0; i < empty; i++)); do bar+="░"; done
-  short="$(term_progress_truncate "${label}" 36)"
 
   _ui_ensure
   printf '\r  %s[%s]%s %3d%%  %s/%s  %s%s' \
     "${UI_DIM}" "${bar}" "${UI_RESET}" \
-    "${pct}" "${cur}" "${TERM_PROGRESS_TOTAL}" "${short}" "${extra}"
+    "${pct}" "${cur}" "${TERM_PROGRESS_TOTAL}" "${mid}" "${extra}"
   term_clear_eol
 }
 

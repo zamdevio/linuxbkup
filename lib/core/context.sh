@@ -42,6 +42,9 @@ cmd_context_begin() {
   fi
   home="$(getent passwd "${user}" 2>/dev/null | cut -d: -f6 || true)"
   [[ -n "${home}" ]] || home="/home/${user}"
+  # Active home for ~ / {home} expansion in --exclude/--include
+  LINUXBKUP_HOME="${home}"
+  export LINUXBKUP_HOME
 
   log_verbose "command=${command} user=${user}"
   log_debug "context begin required=[${required[*]:-}] optional=[${optional[*]:-}]"
@@ -64,10 +67,10 @@ cmd_context_begin() {
     ui_kv "List" "top ${CONSTRAINTS_LIST_DEFAULT_TOP:-10} (default)"
   fi
   if [[ "${#LINUXBKUP_INCLUDE_REGEXES[@]}" -gt 0 ]]; then
-    ui_kv "Include" "${LINUXBKUP_INCLUDE_REGEXES[*]}"
+    ui_kv "Include" "$(IFS=', '; echo "${LINUXBKUP_INCLUDE_REGEXES[*]}")"
   fi
   if [[ "${#LINUXBKUP_EXCLUDE_REGEXES[@]}" -gt 0 ]]; then
-    ui_kv "Exclude" "${LINUXBKUP_EXCLUDE_REGEXES[*]}"
+    ui_kv "Exclude" "$(IFS=', '; echo "${LINUXBKUP_EXCLUDE_REGEXES[*]}")"
   fi
 
   printf '\n'

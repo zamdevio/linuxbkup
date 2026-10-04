@@ -19,7 +19,7 @@ Built-in **rules**, listing policy, and the **filter stack**. Phase **02** full-
 
 ## Rules
 
-- User `--exclude` always wins.
+- User `--exclude` always wins. Path-like tokens expand `~` / `{home}` against the active `--user` home, strip trailing `/`, and match exact/prefix/basename — not naive ERE (so `.` in paths is literal).
 - Unexpected paths: report always; `--yes` / non-TTY → include; TTY backup asks.
 - **No host-shaped home dirnames** in shipped rules.
 - Sizing / rsync share regenerable globs from `CONSTRAINTS_DU_EXCLUDE_GLOBS`.

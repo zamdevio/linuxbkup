@@ -194,6 +194,25 @@ else
   bad "classify: ~/go default skip"
   echo "${go_row}" || true
 fi
+# --exclude: ~, trailing slash, basename (path-like, not naive ERE)
+# shellcheck source=/dev/null
+source "${ROOT}/lib/constraints/base.sh"
+LINUXBKUP_HOME="${fake_home}"
+export LINUXBKUP_HOME
+mkdir -p "${fake_home}/Product" "${fake_home}/.local/share" "${fake_home}/Projects"
+LINUXBKUP_EXCLUDE_REGEXES=("Projects" "~/.local/share" "${fake_home}/Product/")
+ex_ok=1
+constraints_path_excluded "${fake_home}/Projects" || ex_ok=0
+constraints_path_excluded "${fake_home}/.local/share" || ex_ok=0
+constraints_path_excluded "${fake_home}/Product" || ex_ok=0
+constraints_path_excluded "${fake_home}/.config" && ex_ok=0
+if [[ "${ex_ok}" -eq 1 ]]; then
+  ok "exclude matches ~ basename and trailing slash"
+else
+  bad "exclude matches ~ basename and trailing slash"
+fi
+unset LINUXBKUP_EXCLUDE_REGEXES
+LINUXBKUP_EXCLUDE_REGEXES=()
 if ! grep -qE '^\s*/tmp\s*$' "${ROOT}/lib/constraints/size_targets.sh"; then
   ok "size_targets: /tmp not default-scanned"
 else

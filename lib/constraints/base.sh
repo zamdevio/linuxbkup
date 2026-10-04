@@ -72,8 +72,8 @@ constraints_build_paths() {
     [[ -n "${seen[${path}]+x}" ]] && continue
     seen["${path}"]=1
 
-    # Exclude always wins
-    if constraints_matches_any_regex "${path}" LINUXBKUP_EXCLUDE_REGEXES; then
+    # Exclude always wins (path-like + ~ + trailing-/ aware)
+    if constraints_path_excluded "${path}"; then
       log_debug "exclude hit: ${path}"
       continue
     fi
