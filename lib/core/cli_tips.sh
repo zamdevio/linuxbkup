@@ -60,6 +60,9 @@ linuxbkup_flags_backup_relevant() {
   if [[ -n "${LINUXBKUP_MAX_SIZE_BYTES:-}" && "${LINUXBKUP_MAX_SIZE_BYTES}" -gt 0 ]]; then
     _tips_push "${__name}" -m "${LINUXBKUP_MAX_SIZE_BYTES}"
   fi
+  if [[ -n "${LINUXBKUP_WORKERS:-}" && "${LINUXBKUP_WORKERS}" != "4" ]]; then
+    _tips_push "${__name}" -w "${LINUXBKUP_WORKERS}"
+  fi
   if [[ "${LINUXBKUP_KEEP_STAGE:-0}" -eq 1 ]]; then
     _tips_push "${__name}" -k
   fi

@@ -172,11 +172,76 @@ fs_home_large_dirs() {
   done
 }
 
+# Parallel du of independent paths. Fills named array with "HUMAN\tPATH" lines.
+# Args: out_array_name path…   (uses worker policy op=du)
+fs_du_paths_parallel() {
+  local __out="$1"
+  shift
+  local -a paths=("$@")
+  local n="${#paths[@]}"
+  local workers i work p mode line size idx
+  local -a bucket=()
+
+  eval "${__out}=()"
+  [[ "${n}" -gt 0 ]] || return 0
+
+  # shellcheck source=lib/core/workers.sh
+  source "${LINUXBKUP_ROOT}/lib/core/workers.sh"
+  workers="$(linuxbkup_workers_for "${n}" du)"
+  linuxbkup_workers_note du "${workers}" "${n} targets"
+
+  if [[ "${workers}" -le 1 || "${n}" -le 1 ]]; then
+    for p in "${paths[@]}"; do
+      mode="filtered"
+      constraints_is_regenerable_path "${p}" && mode="raw"
+      if line="$(fs_du_sh "${p}" "${mode}")"; then
+        size="${line%%$'\t'*}"
+        eval "${__out}+=(\"\$(printf '%s\t%s' \"\${size}\" \"\${p}\")\")"
+      fi
+    done
+    return 0
+  fi
+
+  work="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-duw.XXXXXX")"
+  for ((i = 0; i < workers; i++)); do
+    : >"${work}/part.${i}"
+  done
+  i=0
+  for p in "${paths[@]}"; do
+    printf '%s\n' "${p}" >>"${work}/part.$((i % workers))"
+    i=$((i + 1))
+  done
+
+  for ((i = 0; i < workers; i++)); do
+    [[ -s "${work}/part.${i}" ]] || continue
+    (
+      idx=0
+      while IFS= read -r p || [[ -n "${p}" ]]; do
+        [[ -z "${p}" ]] && continue
+        mode="filtered"
+        constraints_is_regenerable_path "${p}" && mode="raw"
+        if line="$(fs_du_sh "${p}" "${mode}")"; then
+          size="${line%%$'\t'*}"
+          printf '%s\t%s\n' "${size}" "${p}" >"${work}/r.${i}.${idx}"
+          idx=$((idx + 1))
+        fi
+      done <"${work}/part.${i}"
+    ) &
+  done
+  wait || true
+  while IFS= read -r line; do
+    [[ -z "${line}" ]] && continue
+    IFS=$'\t' read -r size p <<<"${line}" || true
+    [[ -n "${p:-}" ]] || continue
+    eval "${__out}+=(\"\$(printf '%s\t%s' \"\${size}\" \"\${p}\")\")"
+  done < <(cat "${work}"/r.* 2>/dev/null | sort -t$'\t' -k2,2)
+  rm -rf "${work}"
+}
+
 fs_print_filesystem() {
   local home="$1"
-  local line size path
-  local -a rows=()
-  local mode
+  local size path line
+  local -a rows=() paths=() sized=()
 
   ui_section "Filesystem (selected targets)"
   ui_item note "sizes omit regenerable trees (node_modules, .venv, …) unless the target is itself a cache"
@@ -197,15 +262,17 @@ fs_print_filesystem() {
 
   while IFS= read -r path; do
     [[ -z "${path}" ]] && continue
-    mode="filtered"
-    if constraints_is_regenerable_path "${path}"; then
-      mode="raw"
-    fi
-    if line="$(fs_du_sh "${path}" "${mode}")"; then
-      size="${line%%$'\t'*}"
-      rows+=("$(printf '  %6s  %s' "${size}" "$(term_path_link "${path}")")")
-    fi
+    paths+=("${path}")
   done < <(fs_collect_size_targets "${home}")
+
+  fs_du_paths_parallel sized "${paths[@]+"${paths[@]}"}"
+  local line
+  for line in "${sized[@]+"${sized[@]}"}"; do
+    [[ -z "${line}" ]] && continue
+    size="${line%%$'\t'*}"
+    path="${line#*$'\t'}"
+    rows+=("$(printf '  %6s  %s' "${size}" "$(term_path_link "${path}")")")
+  done
 
   if [[ "${#rows[@]}" -eq 0 ]]; then
     ui_item note "none matched constraints (check --no-defaults / --include / --exclude)"

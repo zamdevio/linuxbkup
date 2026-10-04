@@ -60,20 +60,67 @@ archive_verify_schema() {
 }
 
 # Verify checksums.sha256 in place under root. Returns 0 on match, 1 on fail.
-# Warns and returns 2 if file missing.
+# Warns and returns 2 if file missing. Uses worker policy for large lists.
 archive_verify_checksums_inplace() {
   local root="$1"
+  local n workers i work rc=0
+  local -a wpids=()
+
   if [[ ! -f "${root}/checksums.sha256" ]]; then
     log_warn "no checksums.sha256 in ${root}"
     return 2
   fi
   ui_section "Checksums"
-  if (
-    cd "${root}" && sha256sum -c checksums.sha256 --quiet
-  ); then
-    local n
-    n="$(wc -l <"${root}/checksums.sha256" | tr -d ' ')"
-    log_ok "all checksums matched (${n} entries)"
+  n="$(wc -l <"${root}/checksums.sha256" | tr -d ' ')"
+
+  # shellcheck source=lib/core/workers.sh
+  source "${LINUXBKUP_ROOT}/lib/core/workers.sh"
+  workers="$(linuxbkup_workers_for "${n}" verify)"
+  linuxbkup_workers_note verify "${workers}" "${n} entries"
+
+  if [[ "${workers}" -le 1 || "${n}" -lt 16 ]]; then
+    if (
+      cd "${root}" && sha256sum -c checksums.sha256 --quiet
+    ); then
+      log_ok "all checksums matched (${n} entries)"
+      return 0
+    fi
+    log_fatal "checksum mismatch"
+    return 1
+  fi
+
+  work="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-vfy.XXXXXX")"
+  # Split manifest into N parts (round-robin)
+  for ((i = 0; i < workers; i++)); do
+    : >"${work}/part.${i}"
+  done
+  i=0
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    [[ -z "${line}" || "${line}" == \#* ]] && continue
+    printf '%s\n' "${line}" >>"${work}/part.$((i % workers))"
+    i=$((i + 1))
+  done <"${root}/checksums.sha256"
+
+  for ((i = 0; i < workers; i++)); do
+    [[ -s "${work}/part.${i}" ]] || continue
+    (
+      cd "${root}" || exit 1
+      if sha256sum -c "${work}/part.${i}" --quiet; then
+        exit 0
+      fi
+      exit 1
+    ) &
+    wpids+=("$!")
+  done
+  for i in "${wpids[@]+"${wpids[@]}"}"; do
+    if ! wait "${i}"; then
+      rc=1
+    fi
+  done
+  rm -rf "${work}"
+
+  if [[ "${rc}" -eq 0 ]]; then
+    log_ok "all checksums matched (${n} entries, ${workers} workers)"
     return 0
   fi
   log_fatal "checksum mismatch"

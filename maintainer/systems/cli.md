@@ -39,6 +39,7 @@ Short aliases on frequent flags (one row each in `--help`):
 | `-r` / `-R` | `--reclaim` / `--reclaim-all` |
 | `-i` / `-e` | `--include` / `--exclude` |
 | `-j` | `--json` |
+| `-w` | `--workers` (cap for parallel checksums; default 4, auto 1–N by job size) |
 | `-f` | `--force-overwrite` |
 | `-o` `-u` `-v` `-d` `-q` `-F` `-T` | output / user / verbose / debug / quiet / full / top |
 

@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# Confirmation and destructive-action gates.
+# Confirmation, destructive-action gates, and signal handlers.
 
 # Confirm a question. Returns 0 if approved.
 # With LINUXBKUP_YES=1, accepts the provided default (safe path only).
@@ -23,7 +23,12 @@ safety_confirm() {
   local hint="[y/N]"
   [[ "${default}" == "y" || "${default}" == "Y" ]] && hint="[Y/n]"
 
-  read -r -p "${prompt} ${hint} " reply || true
+  # Prefer /dev/tty so Ctrl+C confirm still works if stdin was a pipe
+  if [[ -c /dev/tty ]]; then
+    read -r -p "${prompt} ${hint} " reply </dev/tty || true
+  else
+    read -r -p "${prompt} ${hint} " reply || true
+  fi
   reply="${reply:-${default}}"
   case "${reply}" in
     y|Y|yes|YES) return 0 ;;
@@ -65,14 +70,78 @@ safety_secrets_mode_for_yes() {
   return 1
 }
 
+# --- Signals -----------------------------------------------------------------
+
+LINUXBKUP_INT_BUSY=0
+
+# Restore terminal after interrupt/suspend mid-progress.
+_safety_ui_cleanup() {
+  declare -F term_progress_end >/dev/null 2>&1 && term_progress_end
+  declare -F term_cursor_show >/dev/null 2>&1 && term_cursor_show
+}
+
+# Ctrl+C — confirm on TTY to avoid accidental abort; non-TTY exits immediately.
+safety_on_int() {
+  if [[ "${LINUXBKUP_INT_BUSY:-0}" -eq 1 ]]; then
+    _safety_ui_cleanup
+    log_fatal "Interrupted"
+    exit 130
+  fi
+  LINUXBKUP_INT_BUSY=1
+  printf '\n' >&2
+  _safety_ui_cleanup
+
+  if [[ ! -t 0 && ! -c /dev/tty ]]; then
+    log_fatal "Interrupted (non-TTY)"
+    exit 130
+  fi
+
+  # Nested INT during confirm → exit
+  trap 'log_fatal "Interrupted"; exit 130' INT
+  if safety_confirm "Stop linuxbkup and exit?" "n"; then
+    log_fatal "Interrupted by user"
+    exit 130
+  fi
+  trap 'safety_on_int' INT
+  LINUXBKUP_INT_BUSY=0
+  log_info "Continuing…"
+}
+
+# SIGTERM — no confirm (external kill)
+safety_on_term() {
+  _safety_ui_cleanup
+  log_fatal "Terminated (SIGTERM)"
+  exit 143
+}
+
+# Ctrl+Z — allow suspend; guide resume with fg (TTY-aware).
+# After fg, reinstall trap and continue.
+safety_on_tstp() {
+  printf '\n' >&2
+  _safety_ui_cleanup
+  if [[ -t 0 || -t 1 || -c /dev/tty ]]; then
+    log_info "Stopped (Ctrl+Z) — job suspended in this shell"
+    log_info "Resume with: fg"
+    log_info "If a prompt/password was pending, use fg (not bg) so the TTY can attach again"
+  else
+    log_info "Stopped (SIGTSTP)"
+  fi
+  # Deliver real stop; when fg resumes, execution continues below
+  trap - TSTP
+  kill -s TSTP "$$" 2>/dev/null || kill -STOP "$$"
+  trap 'safety_on_tstp' TSTP
+  log_info "Resumed (fg)"
+}
+
+# Install process-wide handlers. Safe to call once from the entry binary.
 linuxbkup_install_traps() {
-  trap 'log_fatal "Aborted (signal)"; exit 130' INT TERM
+  trap 'safety_on_int' INT
+  trap 'safety_on_term' TERM
+  trap 'safety_on_tstp' TSTP
 }
 
 # Permission / unreadable path policy. Never auto-sudo.
 # Prints: continue | abort
-# --yes / non-TTY / prior skip-all → continue (soft-skip).
-# TTY → ask once; accepting enables skip-all for the rest of the run.
 safety_permission_policy() {
   local path="$1"
   local detail="${2:-permission denied}"
@@ -98,9 +167,6 @@ safety_permission_policy() {
 }
 
 # Run rsync; treat partial transfer (23/24) as soft-skip, not fatal.
-# Args: same as rsync after the binary name…  OR: backup_rsync <src> <dest> with excludes from BACKUP_RSYNC_EXCLUDES
-# Usage: backup_rsync_run -- <rsync args...>
-# Returns 0 on ok/partial+continue, 1 on abort/hard fail.
 backup_rsync_run() {
   local -a args=("$@")
   local rc=0 err
@@ -117,7 +183,6 @@ backup_rsync_run() {
     return 0
   fi
 
-  # 23 = partial due to errors (often EACCES); 24 = vanished source files
   local label="${args[$((${#args[@]} - 1))]:-rsync}"
 
   if [[ "${rc}" -eq 23 || "${rc}" -eq 24 ]]; then

@@ -51,6 +51,7 @@ case "${cmd}" in
     exit 0
     ;;
   inspect|backup|plan|restore|verify|list|deps)
+    linuxbkup_install_traps
     # shellcheck source=/dev/null
     source "${LINUXBKUP_ROOT}/lib/cmd/${cmd}.sh"
     "linuxbkup_cmd_${cmd}" "$@"

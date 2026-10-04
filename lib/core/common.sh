@@ -29,6 +29,7 @@ LINUXBKUP_RECLAIM=0
 LINUXBKUP_RECLAIM_ALL=0
 LINUXBKUP_MARK_SECRET=()
 LINUXBKUP_NO_GITIGNORE=0
+LINUXBKUP_WORKERS=""
 LINUXBKUP_INCLUDE_REGEXES=()
 LINUXBKUP_EXCLUDE_REGEXES=()
 LINUXBKUP_POSITIONAL=()
@@ -152,6 +153,12 @@ linuxbkup_parse_globals() {
         LINUXBKUP_JSON=1
         shift
         ;;
+      -w|--workers)
+        [[ $# -ge 2 ]] || { log_fatal "--workers requires a number (default 4)"; exit 2; }
+        [[ "$2" =~ ^[0-9]+$ ]] || { log_fatal "--workers must be an integer"; exit 2; }
+        LINUXBKUP_WORKERS="$2"
+        shift 2
+        ;;
       -m|--max-size)
         [[ $# -ge 2 ]] || { log_fatal "--max-size requires a size (e.g. 2G, 500M)"; exit 2; }
         # shellcheck source=lib/fs/sizes.sh
@@ -194,8 +201,14 @@ linuxbkup_parse_globals() {
 
   # shellcheck source=lib/core/profile.sh
   source "${LINUXBKUP_ROOT}/lib/core/profile.sh"
+  # shellcheck source=lib/core/workers.sh
+  source "${LINUXBKUP_ROOT}/lib/core/workers.sh"
   linuxbkup_profile_validate || exit 2
   linuxbkup_apply_ask_yes_precedence
+  if [[ -z "${LINUXBKUP_WORKERS}" ]]; then
+    LINUXBKUP_WORKERS="${LINUXBKUP_WORKERS_DEFAULT}"
+  fi
+  linuxbkup_workers_init || exit 2
 }
 
 linuxbkup_require_cmd() {

@@ -576,6 +576,88 @@ else
   bad "phase 10 PM/tools research doc present"
 fi
 
+# Workers policy + parallel checksums
+export LINUXBKUP_ROOT="${ROOT}"
+# shellcheck source=/dev/null
+source "${ROOT}/lib/core/common.sh"
+# shellcheck source=/dev/null
+source "${ROOT}/lib/core/terminal/style.sh"
+# shellcheck source=/dev/null
+source "${ROOT}/lib/core/terminal/control.sh"
+# shellcheck source=/dev/null
+source "${ROOT}/lib/core/terminal/progress.sh"
+# shellcheck source=/dev/null
+source "${ROOT}/lib/core/workers.sh"
+_ui_init
+LINUXBKUP_WORKERS=4
+linuxbkup_workers_init
+w1="$(linuxbkup_workers_for 5)"
+w2="$(linuxbkup_workers_for 40)"
+w3="$(linuxbkup_workers_for 500)"
+if [[ "${w1}" -eq 1 && "${w2}" -eq 2 && "${w3}" -eq 4 ]]; then
+  ok "workers_for scales 1/2/4 by count"
+else
+  bad "workers_for scales 1/2/4 by count (got ${w1}/${w2}/${w3})"
+fi
+help_w="$("${CLI}" --no-color --help 2>/dev/null)" || true
+if [[ "${help_w}" == *"-w, --workers"* ]]; then
+  ok "help lists -w/--workers"
+else
+  bad "help lists -w/--workers"
+fi
+# shellcheck source=/dev/null
+source "${ROOT}/lib/archive/checksums.sh"
+ck_stage="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-smoke-ck.XXXXXX")"
+mkdir -p "${ck_stage}/home/a"
+for i in $(seq 1 40); do
+  printf 'blob-%s\n' "${i}" >"${ck_stage}/home/a/f${i}.txt"
+done
+LINUXBKUP_DRY_RUN=0
+LINUXBKUP_WORKERS=4
+linuxbkup_workers_init
+archive_write_checksums "${ck_stage}"
+ck_n="$(wc -l <"${ck_stage}/checksums.sha256" | tr -d ' ')"
+if [[ "${ck_n}" -eq 40 ]] && (cd "${ck_stage}" && sha256sum -c checksums.sha256 --quiet); then
+  ok "parallel checksums write+verify 40 files"
+else
+  bad "parallel checksums write+verify 40 files (n=${ck_n})"
+fi
+# parallel verify path
+# shellcheck source=/dev/null
+source "${ROOT}/lib/archive/verify.sh"
+if archive_verify_checksums_inplace "${ck_stage}"; then
+  ok "parallel verify checksums inplace"
+else
+  bad "parallel verify checksums inplace"
+fi
+rm -rf "${ck_stage}"
+
+# compat probes
+# shellcheck source=/dev/null
+source "${ROOT}/lib/tools/compat.sh"
+if tools_compat_tar_zstd && tools_compat_rsync && tools_compat_sha256sum; then
+  ok "compat tar_zstd/rsync/sha256sum probes"
+else
+  bad "compat tar_zstd/rsync/sha256sum probes"
+fi
+# workers_for pack/du
+wp="$(linuxbkup_workers_for 1 pack)"
+wd="$(linuxbkup_workers_for 10 du)"
+if [[ "${wp}" -eq 4 && "${wd}" -ge 2 ]]; then
+  ok "workers_for pack/du rules"
+else
+  bad "workers_for pack/du rules (pack=${wp} du=${wd})"
+fi
+
+# trap helpers exist
+# shellcheck source=/dev/null
+source "${ROOT}/lib/core/safety.sh"
+if declare -F safety_on_int >/dev/null && declare -F safety_on_tstp >/dev/null; then
+  ok "signal handlers safety_on_int/tstp defined"
+else
+  bad "signal handlers safety_on_int/tstp defined"
+fi
+
 rm -rf "${fake_home}"
 
 exit "${fail}"

@@ -415,8 +415,6 @@ backup_copy_home() {
   total="${#paths[@]}"
   term_progress_set_stage "${stage}"
   term_progress_begin "${total}" "Copying into staging"
-  # Ensure cursor restored if interrupted mid-loop
-  trap 'term_progress_end; term_cursor_show; log_fatal "interrupted during copy"; exit 130' INT TERM
 
   i=0
   for row in "${ranked[@]}"; do
@@ -501,7 +499,6 @@ backup_copy_home() {
   done
 
   term_progress_end
-  trap 'log_fatal "interrupted during backup"; exit 130' INT TERM
   log_ok "copied ${count} paths (${skipped} skipped, ${LINUXBKUP_PERM_SKIPS:-0} soft-skips)"
   if [[ -d "${stage}" ]]; then
     used="$(fs_dir_bytes "${stage}")"

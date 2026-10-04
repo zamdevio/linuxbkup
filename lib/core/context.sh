@@ -3,6 +3,10 @@
 
 # shellcheck source=lib/tools/check.sh
 source "${LINUXBKUP_ROOT}/lib/tools/check.sh"
+# shellcheck source=lib/tools/compat.sh
+source "${LINUXBKUP_ROOT}/lib/tools/compat.sh"
+# shellcheck source=lib/core/workers.sh
+source "${LINUXBKUP_ROOT}/lib/core/workers.sh"
 
 # cmd_context_begin <command> --required ... --optional ... [--desc "..."]
 # Exits 2 if required tools are missing.
@@ -12,6 +16,7 @@ cmd_context_begin() {
   local -a required=() optional=()
   local desc="" mode=""
   local user home
+  local need_compat=()
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -67,6 +72,7 @@ cmd_context_begin() {
   fi
   [[ "${LINUXBKUP_VERBOSE:-0}" -eq 1 ]] && ui_kv "Verbose" "on"
   [[ "${LINUXBKUP_DEBUG:-0}" -eq 1 ]] && ui_kv "Debug" "on"
+  ui_kv "Workers" "${LINUXBKUP_WORKERS:-4} (cap; ops scale 1–N)"
   [[ "${LINUXBKUP_NO_DEFAULTS:-0}" -eq 1 ]] && ui_kv "Defaults" "off (--no-defaults)"
   if [[ "${LINUXBKUP_LIST_FULL:-0}" -eq 1 ]]; then
     ui_kv "List" "full"
@@ -87,6 +93,33 @@ cmd_context_begin() {
   if ! tools_check --required "${required[@]+"${required[@]}"}" --optional "${optional[@]+"${optional[@]}"}"; then
     log_fatal "Missing required tools for '${command}'. Install them, then re-run."
     exit 2
+  fi
+
+  # Lean op-usable probes (presence ≠ pipe/flags work)
+  need_compat=()
+  local t
+  for t in "${required[@]+"${required[@]}"}"; do
+    case "${t}" in
+      tar|zstd) need_compat+=(tar_zstd) ;;
+      rsync) need_compat+=(rsync) ;;
+      sha256sum) need_compat+=(sha256sum) ;;
+      age) need_compat+=(age) ;;
+    esac
+  done
+  # dedupe
+  if [[ "${#need_compat[@]}" -gt 0 ]]; then
+    local -A seen=()
+    local -a uniq=()
+    for t in "${need_compat[@]}"; do
+      [[ -n "${seen[${t}]+x}" ]] && continue
+      seen["${t}"]=1
+      uniq+=("${t}")
+    done
+    ui_section "Compat"
+    if ! tools_compat_require "${uniq[@]}"; then
+      exit 2
+    fi
+    ui_item ok "operation probes passed (${uniq[*]})"
   fi
   printf '\n'
 }

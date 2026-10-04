@@ -140,7 +140,7 @@ linuxbkup_cmd_backup() {
     return "${rc}"
   }
   trap '_linuxbkup_backup_on_exit' EXIT
-  trap 'log_fatal "interrupted during backup"; exit 130' INT TERM
+  # INT/TSTP/TERM: process-wide handlers from linuxbkup_install_traps
 
   backup_write_metadata "${stage}" "${user}" "${home}"
   backup_write_schema "${stage}" "${user}" "${home}"
