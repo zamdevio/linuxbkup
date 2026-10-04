@@ -622,6 +622,13 @@ if [[ "${ck_n}" -eq 40 ]] && (cd "${ck_stage}" && sha256sum -c checksums.sha256 
 else
   bad "parallel checksums write+verify 40 files (n=${ck_n})"
 fi
+if [[ -f "${ROOT}/lib/archive/_checksum_worker.sh" ]] \
+  && grep -q 'set +m' "${ROOT}/lib/archive/checksums.sh" \
+  && grep -q '_checksum_kill_workers' "${ROOT}/lib/archive/checksums.sh"; then
+  ok "checksum workers isolated (no set -m INT dump)"
+else
+  bad "checksum workers isolated (no set -m INT dump)"
+fi
 # parallel verify path
 # shellcheck source=/dev/null
 source "${ROOT}/lib/archive/verify.sh"
@@ -656,6 +663,67 @@ if declare -F safety_on_int >/dev/null && declare -F safety_on_tstp >/dev/null; 
   ok "signal handlers safety_on_int/tstp defined"
 else
   bad "signal handlers safety_on_int/tstp defined"
+fi
+# Ctrl+Z = monitor mode + STOP process group (not child-only wedge)
+if declare -F safety_on_cont >/dev/null \
+  && grep -q 'set -m' "${ROOT}/lib/core/safety.sh" \
+  && grep -q 'kill -STOP 0' "${ROOT}/lib/core/safety.sh"; then
+  ok "Ctrl+Z monitor mode + STOP process group"
+else
+  bad "Ctrl+Z monitor mode + STOP process group"
+fi
+# Live progress parks before logs (stderr \r/EL2 pattern)
+# shellcheck source=/dev/null
+source "${ROOT}/lib/core/terminal/control.sh"
+if declare -F term_live_park >/dev/null && declare -F term_clear_line >/dev/null \
+  && grep -q 'set +e' "${ROOT}/linuxbkup"; then
+  ok "live-line park + set +e around commands"
+else
+  bad "live-line park + set +e around commands"
+fi
+if declare -F linuxbkup_tty_restore >/dev/null \
+  && grep -q 'tput cnorm' "${ROOT}/lib/core/terminal/control.sh"; then
+  ok "tty restore uses tput cnorm"
+else
+  bad "tty restore uses tput cnorm"
+fi
+if grep -q 'linuxbkup_op_begin "pack"' "${ROOT}/lib/archive/pack.sh" \
+  && grep -q 'interrupt_pending' "${ROOT}/lib/archive/pack.sh"; then
+  ok "pack step has interrupt retry path"
+else
+  bad "pack step has interrupt retry path"
+fi
+# interrupt UX (Ctrl+C menu)
+if declare -F linuxbkup_interrupt_menu >/dev/null \
+  && declare -F linuxbkup_interrupt_apply >/dev/null \
+  && declare -F linuxbkup_interrupt_resolve >/dev/null \
+  && declare -F linuxbkup_op_begin >/dev/null \
+  && declare -F linuxbkup_interrupt_pending >/dev/null; then
+  ok "interrupt menu/op state helpers defined"
+else
+  bad "interrupt menu/op state helpers defined"
+fi
+# apply must clear flags in-process (never via $(apply) subshell)
+LINUXBKUP_INTERRUPT_ACTION="skip"
+LINUXBKUP_WAS_INTERRUPTED=1
+linuxbkup_interrupt_apply
+if [[ -z "${LINUXBKUP_INTERRUPT_ACTION}" && "${LINUXBKUP_WAS_INTERRUPTED}" -eq 0 \
+  && "${LINUXBKUP_INTERRUPT_RESULT}" == "skip" ]]; then
+  ok "interrupt apply clears parent shell flags"
+else
+  bad "interrupt apply clears parent shell flags (action='${LINUXBKUP_INTERRUPT_ACTION}' was=${LINUXBKUP_WAS_INTERRUPTED} result='${LINUXBKUP_INTERRUPT_RESULT}')"
+fi
+if ! grep -qE '\$\(linuxbkup_interrupt_apply\)' "${ROOT}/lib"/cmd/*.sh "${ROOT}/lib"/backup/*.sh "${ROOT}/lib"/archive/*.sh "${ROOT}/lib"/classify/*.sh 2>/dev/null; then
+  ok "no \$(interrupt_apply) subshell call sites"
+else
+  bad "no \$(interrupt_apply) subshell call sites"
+fi
+# rsync rc=20 is interrupt, not soft-skip (function comment + return path)
+if grep -q 'return 20' "${ROOT}/lib/core/safety.sh" \
+  && grep -qE 'rc.*-eq 20|SIGINT' "${ROOT}/lib/core/safety.sh"; then
+  ok "rsync SIGINT (rc=20) treated as interrupt"
+else
+  bad "rsync SIGINT (rc=20) treated as interrupt"
 fi
 
 rm -rf "${fake_home}"
