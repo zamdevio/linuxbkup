@@ -86,7 +86,7 @@ _safety_ui_cleanup() {
 # Ops that apply LINUXBKUP_INTERRUPT_ACTION after the current syscall returns.
 _linuxbkup_op_has_waiter() {
   case "${LINUXBKUP_OP_STEP:-}" in
-    classify|checksum|pack|copy|snapshot|apt-capture|verify|verify-extract|plan|inspect)
+    classify|checksum|pack|copy|snapshot|apt-capture|verify|verify-extract|plan|inspect|index|secrets)
       return 0
       ;;
     *)
@@ -95,23 +95,28 @@ _linuxbkup_op_has_waiter() {
   esac
 }
 
-# TERM children (not INT — monitor mode can re-raise INT as a second Ctrl+C).
+# TERM children (never INT — set -m job teardown can re-raise INT to us).
+# Use BASHPID: $$ is the parent even inside $()/subshells — pkill -P $$ would
+# kill sibling jobs (and the harness itself during smoke proofs).
 _safety_stop_children() {
-  local pid
+  local pid self="${BASHPID:-$$}"
   for pid in $(jobs -p 2>/dev/null); do
     kill -TERM "${pid}" 2>/dev/null || true
   done
   if command -v pkill >/dev/null 2>&1; then
-    pkill -TERM -P $$ 2>/dev/null || true
+    pkill -TERM -P "${self}" 2>/dev/null || true
   else
-    for pid in $(ps -o pid= --ppid $$ 2>/dev/null); do
-      [[ -z "${pid}" || "${pid}" == "$$" ]] && continue
+    for pid in $(ps -o pid= --ppid "${self}" 2>/dev/null); do
+      [[ -z "${pid}" || "${pid}" == "${self}" ]] && continue
       kill -TERM "${pid}" 2>/dev/null || true
     done
   fi
+  wait 2>/dev/null || true
 }
 
 # Ctrl+C — menu (never silent continue). Second Ctrl+C in menu → hard quit.
+# INT stays ignored after resume choices until interrupt_resolve/arm — otherwise
+# monitor-mode re-raises kill the shell right after "retrying…".
 safety_on_int() {
   if [[ "${LINUXBKUP_INT_BUSY:-0}" -eq 1 ]]; then
     _safety_ui_cleanup
@@ -120,17 +125,19 @@ safety_on_int() {
   fi
   LINUXBKUP_INT_BUSY=1
   LINUXBKUP_WAS_INTERRUPTED=1
+  # Ignore re-raised INT from child/job teardown before any kill/wait.
+  trap '' INT
   _safety_ui_cleanup
   _safety_stop_children
 
-  if [[ ! -t 0 && ! -c /dev/tty ]]; then
+  # Real TTYs get the menu; smoke may inject LINUXBKUP_TEST_INTERRUPT_REPLY.
+  if [[ -z "${LINUXBKUP_TEST_INTERRUPT_REPLY:-}" && ! -t 0 && ! -c /dev/tty ]]; then
     log_fatal "Interrupted (non-TTY) — exiting"
     exit 130
   fi
 
   trap 'log_fatal "Interrupted (forced)"; exit 130' INT
   linuxbkup_interrupt_menu
-  trap 'safety_on_int' INT
 
   case "${LINUXBKUP_INTERRUPT_ACTION}" in
     quit|quit_clean)
@@ -139,11 +146,11 @@ safety_on_int() {
       ;;
     *)
       LINUXBKUP_INT_BUSY=0
+      # Keep INT ignored for waiters until resolve; idle re-arms below.
+      trap '' INT
       if [[ -n "${TERM_PROGRESS_T0+x}" ]]; then
         TERM_PROGRESS_T0="$(date +%s)"
       fi
-      # Waiters leave ACTION for the caller. Idle: consume now so set -e
-      # does not see status 130 and kill the process after the menu.
       if [[ "${LINUXBKUP_OP_CAN_SKIP:-0}" -eq 1 && -n "${LINUXBKUP_OP_ITEM:-}" ]]; then
         log_info "Paused — will ${LINUXBKUP_INTERRUPT_ACTION} when the current copy returns"
       elif _linuxbkup_op_has_waiter; then
@@ -157,6 +164,7 @@ safety_on_int() {
         LINUXBKUP_INTERRUPT_ACTION=""
         LINUXBKUP_WAS_INTERRUPTED=0
         LINUXBKUP_OP_REDO=0
+        linuxbkup_interrupt_arm
       fi
       if [[ "${TERM_PROGRESS_ACTIVE:-0}" -eq 1 ]]; then
         declare -F term_progress_resume_paint >/dev/null 2>&1 && term_progress_resume_paint
@@ -259,9 +267,12 @@ backup_rsync_run() {
   local rc=0 err
   err="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-rsync.XXXXXX")"
 
+  # Re-arm after interrupt_resolve left INT ignored through retry setup.
+  linuxbkup_interrupt_arm
   log_debug "rsync: ${args[*]}"
+  # Drop monitor mode so tty ^C hits our trap (not only rsync's PGID).
   set +e
-  rsync "${args[@]}" 2>"${err}"
+  linuxbkup_without_monitor rsync "${args[@]}" 2>"${err}"
   rc=$?
   set -e
 

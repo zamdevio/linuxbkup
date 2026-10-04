@@ -196,20 +196,46 @@ linuxbkup_cmd_backup() {
     return 1
   fi
 
+  linuxbkup_op_begin "secrets" "" 0 1
   if ! backup_secrets_encrypt_stage "${stage}"; then
+    linuxbkup_op_end
     log_fatal "secrets encrypt step failed"
     return 1
   fi
+  if linuxbkup_interrupt_resolve; then
+    case "${LINUXBKUP_INTERRUPT_RESULT}" in
+      retry)
+        linuxbkup_op_end
+        backup_secrets_encrypt_stage "${stage}" || true
+        ;;
+      continue|skip) ;;
+      *) linuxbkup_op_end; return 1 ;;
+    esac
+  fi
+  linuxbkup_op_end
 
   ui_section "Staging summary"
   ui_kv "Size" "$(du -sh "${stage}" 2>/dev/null | awk '{print $1}')"
   ui_kv_path "Stage" "${stage}"
   printf '\n'
 
+  linuxbkup_op_begin "index" "" 0 1
   if ! backup_write_index "${stage}"; then
+    linuxbkup_op_end
     log_fatal "INDEX step failed"
     return 1
   fi
+  if linuxbkup_interrupt_resolve; then
+    case "${LINUXBKUP_INTERRUPT_RESULT}" in
+      retry)
+        linuxbkup_op_end
+        backup_write_index "${stage}" || true
+        ;;
+      continue|skip) ;;
+      *) linuxbkup_op_end; return 1 ;;
+    esac
+  fi
+  linuxbkup_op_end
 
   if ! archive_write_checksums "${stage}"; then
     log_fatal "checksum step failed"
@@ -233,10 +259,14 @@ linuxbkup_cmd_backup() {
     backup_stage_cleanup "${stage}"
     LINUXBKUP_BACKUP_STAGE=""
   fi
-  trap - EXIT INT TERM
+  # Drop staging EXIT handler only — keep INT/TERM until the command returns
+  # so Ctrl+C during the summary still gets the menu (not raw SIGINT death).
+  trap 'linuxbkup_tty_restore' EXIT
 
   printf '\n'
+  linuxbkup_op_begin "summary" "" 0 1
   classify_print_backup_summary "${home}"
+  linuxbkup_op_end
   printf '\n'
   log_ok "backup complete"
   ui_kv_path "Archive" "${dest}"

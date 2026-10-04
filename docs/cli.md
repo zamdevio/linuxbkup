@@ -64,7 +64,7 @@ Full `$HOME` shallow scan classifies known / secret / skip / unexpected. Unexpec
 | **Ctrl+C** | Pause → menu: retry / skip / continue / quit (keep staging) / quit+cleanup |
 | **Ctrl+Z** | Suspend the whole job (`fg` / `bg` to resume) |
 
-`rsync` exit 20 is treated as interrupt, not a soft-skip. Progress paints on stderr; the cursor is always restored on exit.
+Works across the backup path (copy, checksums, pack, summary, …). Mid-pack Ctrl+C can retry `tar|zstd` without killing the run. `rsync` exit 20 is interrupt, not a soft-skip. Progress paints on stderr; cursor always restored on exit.
 
 ## Logging
 

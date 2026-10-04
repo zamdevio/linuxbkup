@@ -57,10 +57,18 @@ Ask UI: `lib/ask/select.sh` (numbered + optional fzf).
 |--------|------|
 | `linuxbkup_op_begin` / `op_item` / `op_end` | Mark current step/item for the menu |
 | `linuxbkup_interrupt_resolve` | **Central:** pending? → menu if needed → apply → set `LINUXBKUP_INTERRUPT_RESULT` |
+| `linuxbkup_interrupt_disarm` / `arm` | Ignore / restore SIGINT (teardown + retry setup) |
+| `linuxbkup_without_monitor` | Run blocking work with `set +m` so tty ^C hits our trap |
 | `linuxbkup_interrupt_shield` | Defer INT around short critical `$()` (e.g. dest resolve) |
 | `linuxbkup_tty_restore` | `tput cnorm` + unhide cursor on EXIT |
 
-Ops (`copy`, `checksum`, `pack`, `classify`, …) only: `op_begin` → work → `if linuxbkup_interrupt_resolve; then case RESULT…`. Do **not** call menu/apply by hand or wrap apply in `$()`.
+Ops only: `op_begin` → work → `if linuxbkup_interrupt_resolve; then case RESULT…`. Do **not** call menu/apply by hand or wrap apply in `$()`.
+
+**Whole-backup coverage:** setup → resolve → snapshot → apt → classify → copy → secrets → index → checksum → pack → summary. Long waits (`rsync`, `tar|zstd`, checksum workers) use `without_monitor` / `set +m` so Ctrl+C cannot skip the menu via a child-only PGID.
+
+**Resume rule:** after menu/resolve, SIGINT stays ignored until the next `op_begin` / `backup_rsync_run` / pack arm — otherwise `set -m` job teardown re-raises INT and kills the shell mid-retry.
+
+**Smoke proof:** `LINUXBKUP_TEST_INTERRUPT_REPLY=r` + SIGINT during `without_monitor sleep` → resolve RESULT=retry → process survives.
 
 ## Ctrl+C (SIGINT)
 

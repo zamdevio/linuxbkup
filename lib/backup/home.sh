@@ -504,6 +504,7 @@ backup_copy_home() {
         action="${LINUXBKUP_INTERRUPT_RESULT}"
         case "${action}" in
           retry)
+            # INT still ignored from resolve — safe to wipe partial dest
             if [[ -d "${dest}" && "${dest}" == "${stage}/"* ]]; then
               rm -rf "${dest}"
               mkdir -p "${dest}"
@@ -512,13 +513,15 @@ backup_copy_home() {
             fi
             TERM_PROGRESS_T0="$(date +%s)"
             log_info "retrying copy: ${path}"
-            continue
+            continue # backup_rsync_run re-arms INT
             ;;
           skip|continue)
             log_warn "skipped after interrupt: ${path}"
+            linuxbkup_interrupt_arm
             return 2
             ;;
           *)
+            linuxbkup_interrupt_arm
             return 1
             ;;
         esac

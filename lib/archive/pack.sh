@@ -1,5 +1,6 @@
 # shellcheck shell=bash
-# Pack staging → tar.zst. Foreground pipeline for job-control; Ctrl+C → resolve.
+# Pack staging → tar.zst. Pipeline runs without monitor mode so Ctrl+C hits
+# our interrupt trap (set -m would give tar|zstd its own PGID and skip the menu).
 
 archive_pack_tar_zst() {
   local stage="$1"
@@ -40,15 +41,23 @@ archive_pack_tar_zst() {
   linuxbkup_op_begin "pack" "${dest}" 0 1
   term_progress_status "Packing tar.zst (${threads} threads) → ${dest}"
 
+  _archive_pack_pipeline() {
+    tar -C "${stage}" --exclude='*.sock' -cf - . 2>/dev/null \
+      | zstd -T"${threads}" -q -o "${dest}"
+  }
+
+  linuxbkup_interrupt_arm
   set +e
-  tar -C "${stage}" --exclude='*.sock' -cf - . 2>/dev/null | zstd -T"${threads}" -q -o "${dest}"
+  linuxbkup_without_monitor _archive_pack_pipeline
   pack_rc=$?
   set -e
 
-  if linuxbkup_interrupt_pending || [[ "${pack_rc}" -eq 130 ]]; then
+  if linuxbkup_interrupt_pending \
+    || [[ "${pack_rc}" -eq 130 || "${pack_rc}" -eq 141 || "${pack_rc}" -eq 143 ]]; then
+    linuxbkup_interrupt_disarm
     declare -F term_live_park >/dev/null 2>&1 && term_live_park
-    pkill -TERM -P $$ -x tar 2>/dev/null || true
-    pkill -TERM -P $$ -x zstd 2>/dev/null || true
+    pkill -TERM -P "${BASHPID:-$$}" -x tar 2>/dev/null || true
+    pkill -TERM -P "${BASHPID:-$$}" -x zstd 2>/dev/null || true
     wait 2>/dev/null || true
     LINUXBKUP_WAS_INTERRUPTED=1
 
@@ -61,6 +70,7 @@ archive_pack_tar_zst() {
       archive_pack_tar_zst "${stage}" "${dest}"
       return $?
     fi
+    linuxbkup_interrupt_arm
     return 1
   fi
 

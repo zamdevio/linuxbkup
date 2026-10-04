@@ -14,7 +14,9 @@ LINUXBKUP_OP_REDO=0 # 1 = re-run step; discard partial
 # Steps where "continue" must not keep partial results (copy uses skip instead).
 _linuxbkup_op_needs_full_retry() {
   case "${LINUXBKUP_OP_STEP:-}" in
-    classify|checksum|pack|plan|inspect|verify|verify-extract) return 0 ;;
+    classify|checksum|pack|plan|inspect|verify|verify-extract|index|secrets|apt-capture|snapshot)
+      return 0
+      ;;
     *) return 1 ;;
   esac
 }
@@ -28,6 +30,8 @@ linuxbkup_op_begin() {
   LINUXBKUP_WAS_INTERRUPTED=0
   LINUXBKUP_INTERRUPT_ACTION=""
   LINUXBKUP_OP_REDO=0
+  # New step = accept Ctrl+C again (resolve leaves INT ignored through retry setup).
+  linuxbkup_interrupt_arm
 }
 
 linuxbkup_op_item() {
@@ -46,13 +50,37 @@ linuxbkup_interrupt_pending() {
   [[ "${LINUXBKUP_WAS_INTERRUPTED:-0}" -eq 1 || -n "${LINUXBKUP_INTERRUPT_ACTION:-}" || "${LINUXBKUP_OP_REDO:-0}" -eq 1 ]]
 }
 
+# Ignore SIGINT (teardown / resume windows). Pair with linuxbkup_interrupt_arm.
+linuxbkup_interrupt_disarm() {
+  trap '' INT
+}
+
+linuxbkup_interrupt_arm() {
+  if declare -F safety_on_int >/dev/null 2>&1; then
+    trap 'safety_on_int' INT
+  fi
+}
+
 # Defer SIGINT around short critical work (avoids empty $(…) after coalesced Ctrl+C).
 linuxbkup_interrupt_shield() {
-  trap '' INT
+  linuxbkup_interrupt_disarm
   "$@"
   local _shield_rc=$?
-  trap 'safety_on_int' INT
+  linuxbkup_interrupt_arm
   return "${_shield_rc}"
+}
+
+# Run a blocking command/pipeline with monitor mode OFF so tty Ctrl+C hits
+# our SIGINT trap (not only a child PGID). Restores set -m afterward.
+# Usage: linuxbkup_without_monitor tar ... \| zstd ...   — or a function.
+linuxbkup_without_monitor() {
+  local had_m=0 _rc=0
+  [[ $- == *m* ]] && had_m=1
+  set +m 2>/dev/null || true
+  "$@"
+  _rc=$?
+  [[ "${had_m}" -eq 1 ]] && set -m 2>/dev/null || true
+  return "${_rc}"
 }
 
 linuxbkup_interrupt_clear() {
@@ -64,6 +92,11 @@ linuxbkup_interrupt_clear() {
 
 _interrupt_read() {
   local prompt="$1" reply=""
+  # Test hook — smoke injects r/s/c/q without a real TTY dance.
+  if [[ -n "${LINUXBKUP_TEST_INTERRUPT_REPLY:-}" ]]; then
+    printf '%s\n' "${LINUXBKUP_TEST_INTERRUPT_REPLY}"
+    return 0
+  fi
   if [[ -c /dev/tty ]]; then
     read -r -p "${prompt}" reply </dev/tty || true
   elif [[ -t 0 ]]; then
@@ -221,19 +254,23 @@ linuxbkup_interrupt_apply() {
 # Central path for ops after a long step returns.
 # return 1 = nothing pending; return 0 = RESULT is retry|skip|continue;
 # exit 130 = quit. Never wrap in $().
+# Leaves SIGINT ignored — caller must linuxbkup_interrupt_arm before the next
+# long wait (or arm is deferred until after retry setup).
 linuxbkup_interrupt_resolve() {
   LINUXBKUP_INTERRUPT_RESULT=""
   if ! linuxbkup_interrupt_pending; then
     return 1
   fi
+  linuxbkup_interrupt_disarm
   if [[ -z "${LINUXBKUP_INTERRUPT_ACTION:-}" ]]; then
+    # Second Ctrl+C during post-syscall menu → hard quit
+    trap 'log_fatal "Interrupted (forced)"; exit 130' INT
     linuxbkup_interrupt_menu
+    linuxbkup_interrupt_disarm
   fi
   linuxbkup_interrupt_apply
-  # Drop coalesced SIGINT from child teardown before retry
-  if declare -F safety_on_int >/dev/null 2>&1; then
-    trap '' INT
-    trap 'safety_on_int' INT
-  fi
+  # Reap stragglers; keep INT ignored so monitor-mode job notifications
+  # cannot re-raise SIGINT and kill the shell mid-retry.
+  wait 2>/dev/null || true
   return 0
 }

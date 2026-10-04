@@ -687,11 +687,68 @@ if declare -F linuxbkup_tty_restore >/dev/null \
 else
   bad "tty restore uses tput cnorm"
 fi
-if grep -q 'linuxbkup_op_begin "pack"' "${ROOT}/lib/archive/pack.sh" \
-  && grep -q 'interrupt_pending' "${ROOT}/lib/archive/pack.sh"; then
+if grep -q 'linuxbkup_without_monitor' "${ROOT}/lib/archive/pack.sh" \
+  && grep -q 'interrupt_pending' "${ROOT}/lib/archive/pack.sh" \
+  && grep -qE 'pack_rc.*141|141.*pack_rc' "${ROOT}/lib/archive/pack.sh"; then
   ok "pack step has interrupt retry path"
 else
   bad "pack step has interrupt retry path"
+fi
+# INT ignored during teardown/resume so set -m re-raise cannot kill mid-retry
+if grep -q 'linuxbkup_interrupt_disarm' "${ROOT}/lib/core/interrupt.sh" \
+  && grep -q 'trap '\'''\'' INT' "${ROOT}/lib/core/safety.sh"; then
+  ok "interrupt disarm during teardown/resume"
+else
+  bad "interrupt disarm during teardown/resume"
+fi
+# Solid proof: SIGINT during without_monitor → menu (test reply) → retry → survive
+# (Pack failure mode: set -m gave tar|zstd its own PGID so bash never got the trap.)
+_proof_out="$(
+  set +e
+  # shellcheck source=/dev/null
+  source "${ROOT}/lib/core/common.sh"
+  # shellcheck source=/dev/null
+  source "${ROOT}/lib/core/terminal/style.sh"
+  # shellcheck source=/dev/null
+  source "${ROOT}/lib/core/safety.sh"
+  _ui_init
+  linuxbkup_install_traps
+  LINUXBKUP_TEST_INTERRUPT_REPLY=r
+  export LINUXBKUP_TEST_INTERRUPT_REPLY
+  linuxbkup_op_begin "pack" "/tmp/linuxbkup-smoke-pack" 0 1
+  _proof_pid="${BASHPID}"
+  (
+    sleep 0.25
+    kill -INT "${_proof_pid}"
+  ) &
+  linuxbkup_without_monitor sleep 8
+  if ! linuxbkup_interrupt_pending && [[ -z "${LINUXBKUP_INTERRUPT_ACTION:-}" ]]; then
+    echo "PROOF_FAIL: no interrupt pending" >&2
+    exit 1
+  fi
+  linuxbkup_interrupt_resolve
+  if [[ "${LINUXBKUP_INTERRUPT_RESULT}" != "retry" ]]; then
+    echo "PROOF_FAIL: RESULT='${LINUXBKUP_INTERRUPT_RESULT}'" >&2
+    exit 1
+  fi
+  linuxbkup_interrupt_arm
+  echo PROOF_OK
+  exit 0
+)"
+_proof_rc=$?
+if [[ "${_proof_rc}" -eq 0 && "${_proof_out}" == *PROOF_OK* ]]; then
+  ok "SIGINT proof: without_monitor + menu reply retry survives"
+else
+  bad "SIGINT proof: without_monitor + menu reply retry survives (rc=${_proof_rc} out=${_proof_out})"
+fi
+# backup keeps INT through summary; pack/rsync use without_monitor
+if grep -q "trap 'linuxbkup_tty_restore' EXIT" "${ROOT}/lib/cmd/backup.sh" \
+  && grep -q 'without_monitor' "${ROOT}/lib/core/safety.sh" \
+  && grep -q 'op_begin "index"' "${ROOT}/lib/cmd/backup.sh" \
+  && grep -q 'op_begin "secrets"' "${ROOT}/lib/cmd/backup.sh"; then
+  ok "backup steps wired for interrupt (secrets/index/summary/rsync/pack)"
+else
+  bad "backup steps wired for interrupt (secrets/index/summary/rsync/pack)"
 fi
 # interrupt UX (Ctrl+C menu)
 if declare -F linuxbkup_interrupt_menu >/dev/null \

@@ -149,6 +149,7 @@ archive_write_checksums() {
       archive_write_checksums "${stage}"
       return $?
     fi
+    linuxbkup_interrupt_arm
     return 1
   fi
 
