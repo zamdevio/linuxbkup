@@ -2,7 +2,7 @@
 # Per-command context banner: what we're doing + tool prerequisites.
 
 # shellcheck source=lib/tools/check.sh
-source "${WSLBKUP_ROOT}/lib/tools/check.sh"
+source "${LINUXBKUP_ROOT}/lib/tools/check.sh"
 
 # cmd_context_begin <command> --required ... --optional ... [--desc "..."]
 # Exits 2 if required tools are missing.
@@ -35,34 +35,34 @@ cmd_context_begin() {
     esac
   done
 
-  if [[ -n "${WSLBKUP_USER:-}" ]]; then
-    user="${WSLBKUP_USER}"
+  if [[ -n "${LINUXBKUP_USER:-}" ]]; then
+    user="${LINUXBKUP_USER}"
   else
     user="${USER:-$(id -un)}"
   fi
   home="$(getent passwd "${user}" 2>/dev/null | cut -d: -f6 || true)"
   [[ -n "${home}" ]] || home="/home/${user}"
 
-  ui_heading "wslbkup ${command}"
+  ui_heading "linuxbkup ${command}"
   [[ -n "${desc}" ]] && ui_item note "${desc}"
-  ui_kv "Version" "${WSLBKUP_VERSION}"
+  ui_kv "Version" "${LINUXBKUP_VERSION}"
   ui_kv "User" "${user}"
   ui_kv_path "Home" "${home}"
-  [[ "${WSLBKUP_DRY_RUN:-0}" -eq 1 ]] && ui_kv "Mode" "dry-run"
-  [[ "${WSLBKUP_YES:-0}" -eq 1 ]] && ui_kv "Yes" "enabled (safe defaults only)"
-  [[ "${WSLBKUP_NO_DEFAULTS:-0}" -eq 1 ]] && ui_kv "Defaults" "off (--no-defaults)"
-  if [[ "${WSLBKUP_LIST_FULL:-0}" -eq 1 ]]; then
+  [[ "${LINUXBKUP_DRY_RUN:-0}" -eq 1 ]] && ui_kv "Mode" "dry-run"
+  [[ "${LINUXBKUP_YES:-0}" -eq 1 ]] && ui_kv "Yes" "enabled (safe defaults only)"
+  [[ "${LINUXBKUP_NO_DEFAULTS:-0}" -eq 1 ]] && ui_kv "Defaults" "off (--no-defaults)"
+  if [[ "${LINUXBKUP_LIST_FULL:-0}" -eq 1 ]]; then
     ui_kv "List" "full"
-  elif [[ -n "${WSLBKUP_LIST_TOP:-}" ]]; then
-    ui_kv "List" "top ${WSLBKUP_LIST_TOP}"
+  elif [[ -n "${LINUXBKUP_LIST_TOP:-}" ]]; then
+    ui_kv "List" "top ${LINUXBKUP_LIST_TOP}"
   else
     ui_kv "List" "top ${CONSTRAINTS_LIST_DEFAULT_TOP:-10} (default)"
   fi
-  if [[ "${#WSLBKUP_INCLUDE_REGEXES[@]}" -gt 0 ]]; then
-    ui_kv "Include" "${WSLBKUP_INCLUDE_REGEXES[*]}"
+  if [[ "${#LINUXBKUP_INCLUDE_REGEXES[@]}" -gt 0 ]]; then
+    ui_kv "Include" "${LINUXBKUP_INCLUDE_REGEXES[*]}"
   fi
-  if [[ "${#WSLBKUP_EXCLUDE_REGEXES[@]}" -gt 0 ]]; then
-    ui_kv "Exclude" "${WSLBKUP_EXCLUDE_REGEXES[*]}"
+  if [[ "${#LINUXBKUP_EXCLUDE_REGEXES[@]}" -gt 0 ]]; then
+    ui_kv "Exclude" "${LINUXBKUP_EXCLUDE_REGEXES[*]}"
   fi
 
   printf '\n'

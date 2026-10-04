@@ -1,6 +1,6 @@
 # System — CLI
 
-Surface: root **`wslbkup`** bin (→ **`linuxbkup`** in phase 00).
+Surface: root **`linuxbkup`** bin. Env: `LINUXBKUP_*`.
 
 ## Flow
 
@@ -8,7 +8,8 @@ Surface: root **`wslbkup`** bin (→ **`linuxbkup`** in phase 00).
 2. Terminal UI — `lib/core/terminal/{style,links,control}.sh`
 3. Safety — `lib/core/safety.sh`
 4. Help/version — `lib/core/help.sh`
-5. Dispatch — `lib/cmd/<name>.sh` via `wslbkup_cmd_<name>`
+5. Platform (when needed) — `lib/core/platform/` via commands
+6. Dispatch — `lib/cmd/<name>.sh` via `linuxbkup_cmd_<name>`
 
 ## Commands (live)
 

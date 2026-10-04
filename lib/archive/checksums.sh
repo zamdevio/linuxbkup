@@ -7,12 +7,12 @@ archive_write_checksums() {
   local out="${stage}/checksums.sha256"
   local list total=0 n=0
 
-  if [[ "${WSLBKUP_DRY_RUN:-0}" -eq 1 ]]; then
+  if [[ "${LINUXBKUP_DRY_RUN:-0}" -eq 1 ]]; then
     log_info "dry-run — would write checksums.sha256"
     return 0
   fi
 
-  list="$(mktemp "${TMPDIR:-/tmp}/wslbkup-cksum.XXXXXX")"
+  list="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-cksum.XXXXXX")"
   # Build file list first (no full-tree sort)
   find "${stage}" -type f ! -name 'checksums.sha256' -printf '%P\n' >"${list}" || true
   total="$(wc -l <"${list}" | tr -d ' ')"

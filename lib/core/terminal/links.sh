@@ -3,9 +3,9 @@
 
 # Enable file/URL hyperlinks when stdout is a TTY and links are not disabled.
 term_links_enabled() {
-  [[ "${WSLBKUP_NO_LINKS:-0}" -eq 1 ]] && return 1
-  [[ "${WSLBKUP_NO_COLOR:-0}" -eq 1 && "${WSLBKUP_FORCE_LINKS:-0}" -ne 1 ]] && return 1
-  [[ -n "${NO_COLOR:-}" && "${WSLBKUP_FORCE_LINKS:-0}" -ne 1 ]] && return 1
+  [[ "${LINUXBKUP_NO_LINKS:-0}" -eq 1 ]] && return 1
+  [[ "${LINUXBKUP_NO_COLOR:-0}" -eq 1 && "${LINUXBKUP_FORCE_LINKS:-0}" -ne 1 ]] && return 1
+  [[ -n "${NO_COLOR:-}" && "${LINUXBKUP_FORCE_LINKS:-0}" -ne 1 ]] && return 1
   [[ -t 1 ]] || return 1
   return 0
 }
@@ -49,7 +49,7 @@ term_path_link() {
   else
     abs="${path}"
   fi
-  if wslbkup_require_cmd realpath; then
+  if linuxbkup_require_cmd realpath; then
     abs="$(realpath -m "${abs}" 2>/dev/null || printf '%s' "${abs}")"
   fi
 

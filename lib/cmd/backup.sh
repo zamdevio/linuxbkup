@@ -1,31 +1,31 @@
 # shellcheck shell=bash
 
-wslbkup_cmd_backup() {
+linuxbkup_cmd_backup() {
   if cmd_want_help "$@"; then
-    wslbkup_cmd_help backup
+    linuxbkup_cmd_help backup
     return 0
   fi
 
   # shellcheck source=lib/core/context.sh
-  source "${WSLBKUP_ROOT}/lib/core/context.sh"
+  source "${LINUXBKUP_ROOT}/lib/core/context.sh"
   # shellcheck source=lib/constraints/base.sh
-  source "${WSLBKUP_ROOT}/lib/constraints/base.sh"
+  source "${LINUXBKUP_ROOT}/lib/constraints/base.sh"
   # shellcheck source=lib/env/users.sh
-  source "${WSLBKUP_ROOT}/lib/env/users.sh"
+  source "${LINUXBKUP_ROOT}/lib/env/users.sh"
   # shellcheck source=lib/env/distro.sh
-  source "${WSLBKUP_ROOT}/lib/env/distro.sh"
-  # shellcheck source=lib/windows/paths.sh
-  source "${WSLBKUP_ROOT}/lib/windows/paths.sh"
+  source "${LINUXBKUP_ROOT}/lib/env/distro.sh"
+  # shellcheck source=lib/core/platform/paths.sh
+  source "${LINUXBKUP_ROOT}/lib/core/platform/paths.sh"
   # shellcheck source=lib/backup/stage.sh
-  source "${WSLBKUP_ROOT}/lib/backup/stage.sh"
+  source "${LINUXBKUP_ROOT}/lib/backup/stage.sh"
   # shellcheck source=lib/backup/home.sh
-  source "${WSLBKUP_ROOT}/lib/backup/home.sh"
+  source "${LINUXBKUP_ROOT}/lib/backup/home.sh"
   # shellcheck source=modules/apt.sh
-  source "${WSLBKUP_ROOT}/modules/apt.sh"
+  source "${LINUXBKUP_ROOT}/modules/apt.sh"
   # shellcheck source=lib/archive/checksums.sh
-  source "${WSLBKUP_ROOT}/lib/archive/checksums.sh"
+  source "${LINUXBKUP_ROOT}/lib/archive/checksums.sh"
   # shellcheck source=lib/archive/pack.sh
-  source "${WSLBKUP_ROOT}/lib/archive/pack.sh"
+  source "${LINUXBKUP_ROOT}/lib/archive/pack.sh"
 
   cmd_context_begin backup \
     --desc "Create an intelligent backup archive." \
@@ -39,38 +39,34 @@ wslbkup_cmd_backup() {
     return 1
   fi
 
-  if [[ -n "${WSLBKUP_OUTPUT:-}" ]]; then
-    dest="${WSLBKUP_OUTPUT}"
+  if [[ -n "${LINUXBKUP_OUTPUT:-}" ]]; then
+    dest="${LINUXBKUP_OUTPUT}"
   else
-    if ! dest_dir="$(windows_default_backup_dir)"; then
-      log_fatal "Could not resolve default Downloads path — pass --output <path>"
-      return 1
-    fi
-    dest="${dest_dir}/$(windows_default_archive_name)"
+    dest="$(platform_default_archive_path)"
   fi
   dest_dir="$(dirname "${dest}")"
 
   ui_heading "Backup plan"
   ui_kv_path "Home" "${home}"
   ui_kv_path "Destination" "${dest}"
-  [[ "${WSLBKUP_DRY_RUN:-0}" -eq 1 ]] && ui_kv "Mode" "dry-run"
+  [[ "${LINUXBKUP_DRY_RUN:-0}" -eq 1 ]] && ui_kv "Mode" "dry-run"
   printf '\n'
 
-  if [[ "${WSLBKUP_DRY_RUN:-0}" -ne 1 ]]; then
+  if [[ "${LINUXBKUP_DRY_RUN:-0}" -ne 1 ]]; then
     if ! safety_confirm "Proceed with backup?" "y"; then
       log_skip "backup cancelled"
       return 1
     fi
     if ! mkdir -p "${dest_dir}"; then
-      log_fatal "cannot create ${dest_dir} — is /mnt/c mounted and writable?"
+      log_fatal "cannot create ${dest_dir} — check permissions or pass --output <path>"
       return 1
     fi
     log_ok "destination dir ready"
     ui_kv_path "Dir" "${dest_dir}"
   fi
 
-  if [[ "${WSLBKUP_DRY_RUN:-0}" -eq 1 ]]; then
-    stage="/tmp/wslbkup.dry-run.placeholder"
+  if [[ "${LINUXBKUP_DRY_RUN:-0}" -eq 1 ]]; then
+    stage="/tmp/linuxbkup.dry-run.placeholder"
     log_info "dry-run — staging skipped (no files written)"
     backup_write_metadata "${stage}" "${user}" "${home}" || true
     apt_capture_manifests "${stage}" || true
@@ -83,23 +79,23 @@ wslbkup_cmd_backup() {
   fi
 
   stage="$(backup_stage_create)"
-  WSLBKUP_BACKUP_STAGE="${stage}"
-  WSLBKUP_BACKUP_OK=0
+  LINUXBKUP_BACKUP_STAGE="${stage}"
+  LINUXBKUP_BACKUP_OK=0
   log_ok "staging: ${stage}"
 
-  _wslbkup_backup_on_exit() {
+  _linuxbkup_backup_on_exit() {
     local rc=$?
-    if [[ "${WSLBKUP_BACKUP_OK:-0}" -eq 1 ]]; then
-      backup_stage_cleanup "${WSLBKUP_BACKUP_STAGE:-}"
+    if [[ "${LINUXBKUP_BACKUP_OK:-0}" -eq 1 ]]; then
+      backup_stage_cleanup "${LINUXBKUP_BACKUP_STAGE:-}"
       return 0
     fi
-    if [[ -n "${WSLBKUP_BACKUP_STAGE:-}" && -d "${WSLBKUP_BACKUP_STAGE}" ]]; then
-      log_warn "backup did not finish — staging kept at: ${WSLBKUP_BACKUP_STAGE}"
-      log_info "Remove with: rm -rf ${WSLBKUP_BACKUP_STAGE}"
+    if [[ -n "${LINUXBKUP_BACKUP_STAGE:-}" && -d "${LINUXBKUP_BACKUP_STAGE}" ]]; then
+      log_warn "backup did not finish — staging kept at: ${LINUXBKUP_BACKUP_STAGE}"
+      log_info "Remove with: rm -rf ${LINUXBKUP_BACKUP_STAGE}"
     fi
     return "${rc}"
   }
-  trap '_wslbkup_backup_on_exit' EXIT
+  trap '_linuxbkup_backup_on_exit' EXIT
   trap 'log_fatal "interrupted during backup"; exit 130' INT TERM
 
   backup_write_metadata "${stage}" "${user}" "${home}"
@@ -127,9 +123,9 @@ wslbkup_cmd_backup() {
     return 1
   fi
 
-  WSLBKUP_BACKUP_OK=1
+  LINUXBKUP_BACKUP_OK=1
   backup_stage_cleanup "${stage}"
-  WSLBKUP_BACKUP_STAGE=""
+  LINUXBKUP_BACKUP_STAGE=""
   trap - EXIT INT TERM
 
   printf '\n'

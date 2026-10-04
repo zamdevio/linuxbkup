@@ -3,19 +3,19 @@
 # Loads links + control helpers for the terminal package.
 
 # shellcheck source=lib/core/terminal/links.sh
-source "${WSLBKUP_ROOT}/lib/core/terminal/links.sh"
+source "${LINUXBKUP_ROOT}/lib/core/terminal/links.sh"
 # shellcheck source=lib/core/terminal/control.sh
-source "${WSLBKUP_ROOT}/lib/core/terminal/control.sh"
+source "${LINUXBKUP_ROOT}/lib/core/terminal/control.sh"
 
 _ui_init() {
-  WSLBKUP_COLOR=0
-  if [[ "${WSLBKUP_NO_COLOR:-0}" -eq 1 || -n "${NO_COLOR:-}" ]]; then
-    WSLBKUP_COLOR=0
+  LINUXBKUP_COLOR=0
+  if [[ "${LINUXBKUP_NO_COLOR:-0}" -eq 1 || -n "${NO_COLOR:-}" ]]; then
+    LINUXBKUP_COLOR=0
   elif [[ -t 1 && -t 2 ]]; then
-    WSLBKUP_COLOR=1
+    LINUXBKUP_COLOR=1
   fi
 
-  if [[ "${WSLBKUP_COLOR}" -eq 1 ]]; then
+  if [[ "${LINUXBKUP_COLOR}" -eq 1 ]]; then
     UI_RESET=$'\033[0m'
     UI_DIM=$'\033[2m'
     UI_BOLD=$'\033[1m'
@@ -31,7 +31,7 @@ _ui_init() {
 }
 
 _ui_ensure() {
-  [[ -n "${WSLBKUP_COLOR+x}" && -n "${UI_RESET+x}" ]] || _ui_init
+  [[ -n "${LINUXBKUP_COLOR+x}" && -n "${UI_RESET+x}" ]] || _ui_init
 }
 
 _log_tag() {
@@ -41,13 +41,13 @@ _log_tag() {
 }
 
 log_info() {
-  [[ "${WSLBKUP_QUIET:-0}" -eq 1 ]] && return 0
+  [[ "${LINUXBKUP_QUIET:-0}" -eq 1 ]] && return 0
   _ui_ensure
   printf '%s %s\n' "$(_log_tag INFO "${UI_BLUE}")" "$*"
 }
 
 log_ok() {
-  [[ "${WSLBKUP_QUIET:-0}" -eq 1 ]] && return 0
+  [[ "${LINUXBKUP_QUIET:-0}" -eq 1 ]] && return 0
   _ui_ensure
   printf '%s %s\n' "$(_log_tag OK "${UI_GREEN}")" "$*"
 }
@@ -58,7 +58,7 @@ log_warn() {
 }
 
 log_skip() {
-  [[ "${WSLBKUP_QUIET:-0}" -eq 1 ]] && return 0
+  [[ "${LINUXBKUP_QUIET:-0}" -eq 1 ]] && return 0
   _ui_ensure
   printf '%s %s\n' "$(_log_tag SKIP "${UI_DIM}")" "$*"
 }
@@ -69,7 +69,7 @@ log_fatal() {
 }
 
 log_debug() {
-  [[ "${WSLBKUP_VERBOSE:-0}" -eq 1 ]] || return 0
+  [[ "${LINUXBKUP_VERBOSE:-0}" -eq 1 ]] || return 0
   _ui_ensure
   printf '%s %s\n' "$(_log_tag DEBUG "${UI_DIM}")" "$*" >&2
 }

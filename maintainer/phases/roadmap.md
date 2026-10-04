@@ -6,9 +6,9 @@ See [`focus.md`](./focus.md) (max 3 active) and [`redesign.md`](./redesign.md) (
 ## Identity
 
 **linuxbkup** — Bash-first Linux backup/restore CLI (desktop, VPS, WSL).  
-No `wslbkup` legacy after phase 00. Repo move to `~/Tools/linuxbkup` after this plan set is written (operator).
+Clean `linuxbkup` / `LINUXBKUP_*` identity (phase 00).
 
-## Historical (pre-rename tree)
+## Historical (pre-redesign)
 
 | Phase | Name | Status | Notes |
 |-------|------|--------|-------|
@@ -24,7 +24,7 @@ No `wslbkup` legacy after phase 00. Repo move to `~/Tools/linuxbkup` after this 
 
 | Phase | Doc | Status |
 |-------|-----|--------|
-| 00 | [Identity + platform](./00-identity-and-platform.md) | planned |
+| 00 | [Identity + platform](./00-identity-and-platform.md) | **done** |
 | 01 | [Verify staging](./01-verify-staging.md) | planned |
 | 02 | [Home scan + classify](./02-home-scan-classify.md) | planned |
 | 03 | [Profiles, ask, flags](./03-profiles-ask-flags.md) | planned |

@@ -1,9 +1,9 @@
 # CLI reference
 
 ```bash
-wslbkup --help
-wslbkup help inspect
-wslbkup version
+linuxbkup --help
+linuxbkup help inspect
+linuxbkup version
 ```
 
 ## Commands
@@ -20,10 +20,10 @@ wslbkup version
 ## Dependencies
 
 ```bash
-wslbkup deps
-wslbkup deps install          # missing core
-wslbkup deps install all      # core + optional, skip present
-wslbkup deps howto zstd
+linuxbkup deps
+linuxbkup deps install          # missing core
+linuxbkup deps install all      # core + optional, skip present
+linuxbkup deps howto zstd
 ```
 
 Install guides: `guides/tools/<name>.guide`.
@@ -31,8 +31,8 @@ Install guides: `guides/tools/<name>.guide`.
 ## Path filters
 
 ```bash
-wslbkup inspect --exclude '\.cache' -T 5
-wslbkup inspect --no-defaults --include Projects
+linuxbkup inspect --exclude '\.cache' -T 5
+linuxbkup inspect --no-defaults --include Projects
 ```
 
 Built-in lists live in `lib/constraints/`.

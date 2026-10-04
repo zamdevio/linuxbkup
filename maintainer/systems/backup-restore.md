@@ -8,7 +8,7 @@
 | Staging / home copy | `lib/backup/` |
 | Pack + checksums | `lib/archive/` |
 | APT manuals | `modules/apt.sh` (and backup orchestration) |
-| Default dest | Windows Downloads via `lib/windows/` when available |
+| Default dest | `lib/core/platform/paths.sh` — native `~/Backups/linuxbkup/` or Windows Downloads when mounted |
 | Verify | `lib/cmd/verify.sh` — **archive file only** (`*.tar.zst`) |
 | Failure UX | Staging kept if pack fails; INDEX write hardened (`32b5b11`) |
 

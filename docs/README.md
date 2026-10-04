@@ -1,6 +1,6 @@
-# Docs — wslbkup
+# Docs — linuxbkup
 
-End-user documentation for the WSL backup/restore CLI.
+End-user documentation for the Linux backup/restore CLI (desktop, VPS, and WSL).
 
 Keep this free of sprint language and `maintainer/` links.
 
@@ -12,6 +12,6 @@ Keep this free of sprint language and `maintainer/` links.
 
 - Install / PATH
 - `inspect` → `backup` → `restore` workflow
-- Default archive location (Windows Downloads)
+- Default archive location (`~/Backups/linuxbkup/` or Windows Downloads when mounted)
 - Secrets passphrase (`age`) and `--yes` rules
 - Per-ecosystem regenerables (venv, node_modules, …)

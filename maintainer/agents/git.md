@@ -1,4 +1,4 @@
-# Git — wslbkup
+# Git — linuxbkup
 
 ## 1. Never surprise the user
 

@@ -1,11 +1,11 @@
 # Architecture
 
-Binary today: **`wslbkup`**. Target: **`linuxbkup`** ([phase 00](../phases/00-identity-and-platform.md)). No legacy shim after rename.
+Binary: **`linuxbkup`**. Env: **`LINUXBKUP_*`**. See [phase 00](../phases/00-identity-and-platform.md).
 
 ## 1. Topology
 
 ```text
-wslbkup                 # argv dispatch → linuxbkup after 00
+linuxbkup               # argv dispatch
 lib/
   core/
     common.sh           # globals, flag parse
@@ -13,11 +13,10 @@ lib/
     context.sh          # per-command banner + tool gates
     help.sh             # styled help / version
     terminal/           # style, OSC 8 links, control
-    platform/           # PLANNED 00 — detect, paths, windows, fs_space
+    platform/           # detect, paths, windows, fs_space
   cmd/                  # inspect backup restore verify list deps
   env/                  # distro, users, capabilities
   fs/                   # du / size scans
-  windows/              # Downloads (fold into platform/ in 00)
   classify/             # uses constraints
   constraints/          # path lists + list policy (→ rules in 02)
   tools/                # require + How-To from guides/
@@ -34,8 +33,8 @@ AGENT.md
 
 ## 2. Boundaries
 
-- **CLI host** (`wslbkup` + `lib/cmd/*.sh`) — argv, prompts, orchestration, reports
-- **Core** (`lib/core/`) — flags, logging, safety, (later) platform
+- **CLI host** (`linuxbkup` + `lib/cmd/*.sh`) — argv, prompts, orchestration, reports
+- **Core** (`lib/core/`) — flags, logging, safety, platform
 - **Modules** — ecosystem detect + manifests
 - **Constraints / classify** — what to scan/skip/secret
 - **Unix tools** — `du`, `rsync`, `tar`, `zstd`, `sha256sum`, `age`, package managers
@@ -54,8 +53,8 @@ AGENT.md
 
 ```bash
 ./tests/smoke.sh
-bash -n wslbkup lib/core/*.sh lib/cmd/*.sh
-command -v shellcheck >/dev/null && shellcheck -x wslbkup lib/core/*.sh lib/cmd/*.sh
+bash -n linuxbkup lib/core/*.sh lib/core/platform/*.sh lib/cmd/*.sh
+command -v shellcheck >/dev/null && shellcheck -x linuxbkup lib/core/*.sh lib/cmd/*.sh
 ```
 
 No Node required to run the CLI.

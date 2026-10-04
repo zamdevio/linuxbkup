@@ -7,7 +7,7 @@ archive_pack_tar_zst() {
   local dest_dir size
 
   dest_dir="$(dirname "${dest}")"
-  if [[ "${WSLBKUP_DRY_RUN:-0}" -eq 1 ]]; then
+  if [[ "${LINUXBKUP_DRY_RUN:-0}" -eq 1 ]]; then
     log_info "dry-run — would create $(term_path_link "${dest}")"
     return 0
   fi

@@ -1,4 +1,4 @@
-# AGENT.md — linuxbkup (tree still named wslbkup until phase 00)
+# AGENT.md — linuxbkup
 
 Coding agents: start here.
 
@@ -6,8 +6,8 @@ Coding agents: start here.
 
 Bash-first **Linux** backup/restore CLI. Orchestrates mature Unix tools (`du`, `rsync`, `tar`, `zstd`, `age`, package managers). Does **not** dump whole disks or `/usr`.
 
-**Today’s binary:** `./wslbkup` (pre-rename).  
-**Target identity:** `linuxbkup` — see [`maintainer/phases/redesign.md`](maintainer/phases/redesign.md). Clean rename in phase 00 — **no** legacy aliases/env.
+**Binary:** `./linuxbkup`  
+**Identity:** `linuxbkup` — see [`maintainer/phases/redesign.md`](maintainer/phases/redesign.md). Env prefix: `LINUXBKUP_*` only. WSL is one supported environment, not the brand.
 
 Scaffolded via `@zamdevio/scaffolder` (`cli` preset), then **pivoted to Bash**. Keep the maintainer control plane; product code is shell.
 
@@ -25,14 +25,13 @@ Scaffolded via `@zamdevio/scaffolder` (`cli` preset), then **pivoted to Bash**. 
 
 | Path | Role |
 |------|------|
-| `wslbkup` | CLI entry (bin) — rename → `linuxbkup` in phase 00 |
+| `linuxbkup` | CLI entry (bin) |
 | `lib/core/` | Shared plumbing (common, safety, context, help) |
 | `lib/core/terminal/` | style (logging/UI), OSC 8 links, control seqs |
-| `lib/core/platform/` | **planned** (phase 00) — detect, paths, windows mount, space |
+| `lib/core/platform/` | Host detect, dest paths, Windows mount helpers, fs space |
 | `lib/cmd/` | One script per CLI command |
 | `lib/env/` | Distro, users, capability probes |
 | `lib/fs/` | Size / `du` scans |
-| `lib/windows/` | Windows path / Downloads defaults (→ platform in 00) |
 | `lib/classify/` | Classification (reads constraints) |
 | `lib/constraints/` | Built-in path lists + `--full`/`--top` policy |
 | `lib/backup/` | Staging + home copy |
@@ -56,15 +55,13 @@ Scaffolded via `@zamdevio/scaffolder` (`cli` preset), then **pivoted to Bash**. 
 7. **Do not commit or push unless the user explicitly asks.**
 8. Examples/placeholders: generic only (`/home/user`, `~/Backups/linuxbkup/…`).
 
-## Commands (current binary)
+## Commands
 
 ```bash
-./wslbkup --help
-./wslbkup inspect
+./linuxbkup --help
+./linuxbkup inspect
 ./tests/smoke.sh
 
 # Optional: put on PATH
-ln -sf "$PWD/wslbkup" ~/.local/bin/wslbkup
+ln -sf "$PWD/linuxbkup" ~/.local/bin/linuxbkup
 ```
-
-After phase 00: replace `wslbkup` with `linuxbkup` everywhere above.

@@ -12,7 +12,7 @@ classify_print_summary() {
   _classify_show_line() {
     local mark="$1" path="$2" size="?" linked
     linked="$(term_path_link "${path}")"
-    if [[ "${WSLBKUP_INSPECT_QUICK:-0}" -eq 1 ]]; then
+    if [[ "${LINUXBKUP_INSPECT_QUICK:-0}" -eq 1 ]]; then
       printf '    %s %s\n' "${mark}" "${linked}"
     else
       size="$(fs_du_sh "${path}" | awk '{print $1}')"
@@ -59,7 +59,7 @@ classify_print_summary() {
     sens=$((sens + 1))
   done < <(constraints_build_paths "${home}" CONSTRAINTS_SECRETS_TARGETS)
 
-  if [[ -d "${home}" && "${WSLBKUP_NO_DEFAULTS:-0}" -eq 0 ]]; then
+  if [[ -d "${home}" && "${LINUXBKUP_NO_DEFAULTS:-0}" -eq 0 ]]; then
     local find_expr=() name
     for name in "${CONSTRAINTS_SECRETS_FIND_NAMES[@]+"${CONSTRAINTS_SECRETS_FIND_NAMES[@]}"}"; do
       [[ "${#find_expr[@]}" -gt 0 ]] && find_expr+=(-o)
@@ -68,7 +68,7 @@ classify_print_summary() {
     if [[ "${#find_expr[@]}" -gt 0 ]]; then
       while IFS= read -r path; do
         [[ -z "${path}" ]] && continue
-        if constraints_matches_any_regex "${path}" WSLBKUP_EXCLUDE_REGEXES; then
+        if constraints_matches_any_regex "${path}" LINUXBKUP_EXCLUDE_REGEXES; then
           continue
         fi
         rows+=("    ✓ $(term_path_link "${path}")")

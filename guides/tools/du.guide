@@ -11,4 +11,4 @@ HOW_YUM=sudo yum install -y coreutils
 HOW_PACMAN=sudo pacman -S --needed coreutils
 HOW_APK=sudo apk add coreutils
 HOW_BREW=brew install coreutils
-NOTE=Almost always preinstalled on WSL Ubuntu.
+NOTE=Almost always preinstalled on Ubuntu (including under WSL).

@@ -4,7 +4,7 @@
 _cap_line() {
   local label="$1"
   shift
-  if wslbkup_require_cmd "$@"; then
+  if linuxbkup_require_cmd "$@"; then
     ui_item ok "${label}"
     return 0
   fi
@@ -30,7 +30,7 @@ env_print_package_managers() {
 
 env_print_services() {
   ui_section "Services"
-  if wslbkup_require_cmd systemctl; then
+  if linuxbkup_require_cmd systemctl; then
     if systemctl is-system-running >/dev/null 2>&1 \
       || systemctl list-units --type=service >/dev/null 2>&1; then
       ui_item ok "systemd"
@@ -41,15 +41,15 @@ env_print_services() {
     ui_item off "systemd"
   fi
 
-  if wslbkup_require_cmd sshd || [[ -x /usr/sbin/sshd ]]; then
+  if linuxbkup_require_cmd sshd || [[ -x /usr/sbin/sshd ]]; then
     ui_item ok "ssh (sshd present)"
-  elif wslbkup_require_cmd ssh; then
+  elif linuxbkup_require_cmd ssh; then
     ui_item warn "ssh (client only)"
   else
     ui_item off "ssh"
   fi
 
-  if wslbkup_require_cmd docker; then
+  if linuxbkup_require_cmd docker; then
     ui_item ok "docker"
   else
     ui_item off "docker"
@@ -58,7 +58,7 @@ env_print_services() {
 
 env_print_dev_environments() {
   ui_section "Development environments"
-  if wslbkup_require_cmd python3 || wslbkup_require_cmd python; then
+  if linuxbkup_require_cmd python3 || linuxbkup_require_cmd python; then
     ui_item ok "Python"
   else
     ui_item off "Python"

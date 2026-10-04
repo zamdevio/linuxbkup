@@ -2,14 +2,14 @@
 
 Umbrella for the Linux-general backup redesign. **Plans only here until Focus says implement.**
 
-After these phase docs are agreed and implementation lands, fold outcomes into [`../shipped/`](../shipped/) and [`../systems/`](../systems/). Repo move to `~/Tools/linuxbkup` happens **after** this plan set is written (your call).
+After these phase docs are agreed and implementation lands, fold outcomes into [`../shipped/`](../shipped/) and [`../systems/`](../systems/).
 
 ## Locked product rules
 
 | Rule | Detail |
 |------|--------|
 | Identity | **`linuxbkup`** — multi-distro Linux CLI. WSL is one environment, not the brand. |
-| No legacy | **Zero** `wslbkup` leftover: no binary alias, no `WSLBKUP_*` env, no comments/docs nostalgia. Clean rename. |
+| No legacy | Clean identity only: binary, `LINUXBKUP_*` env, docs/comments. No old-name aliases or env shims. |
 | Safety default | Conservative defaults (strict-leaning suggestions, confirm on TTY, secrets via `age`, space preflight). |
 | Portability default | Archives + `schema.json` restore across machines/distros of the same family where possible; honest gap reports. |
 | `--ask` > `--yes` | If both set: **ignore `--yes`**, print one log line, proceed interactive. |

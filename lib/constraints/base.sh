@@ -3,15 +3,15 @@
 # Exclude always wins. Include adds path templates and/or keeps regex matches.
 
 # shellcheck source=lib/constraints/list.sh
-source "${WSLBKUP_ROOT}/lib/constraints/list.sh"
+source "${LINUXBKUP_ROOT}/lib/constraints/list.sh"
 # shellcheck source=lib/constraints/size_targets.sh
-source "${WSLBKUP_ROOT}/lib/constraints/size_targets.sh"
+source "${LINUXBKUP_ROOT}/lib/constraints/size_targets.sh"
 # shellcheck source=lib/constraints/regenerable.sh
-source "${WSLBKUP_ROOT}/lib/constraints/regenerable.sh"
+source "${LINUXBKUP_ROOT}/lib/constraints/regenerable.sh"
 # shellcheck source=lib/constraints/important.sh
-source "${WSLBKUP_ROOT}/lib/constraints/important.sh"
+source "${LINUXBKUP_ROOT}/lib/constraints/important.sh"
 # shellcheck source=lib/constraints/secrets.sh
-source "${WSLBKUP_ROOT}/lib/constraints/secrets.sh"
+source "${LINUXBKUP_ROOT}/lib/constraints/secrets.sh"
 
 constraints_expand_template() {
   local home="$1" template="$2"
@@ -42,11 +42,11 @@ constraints_matches_any_regex() {
 constraints_build_paths() {
   local home="$1"
   local -n _templates="$2"
-  local existing_only="${WSLBKUP_CONSTRAINTS_EXISTING_ONLY:-1}"
+  local existing_only="${LINUXBKUP_CONSTRAINTS_EXISTING_ONLY:-1}"
   local t path inc
   local -a candidates=()
 
-  if [[ "${WSLBKUP_NO_DEFAULTS:-0}" -eq 0 ]]; then
+  if [[ "${LINUXBKUP_NO_DEFAULTS:-0}" -eq 0 ]]; then
     for t in "${_templates[@]+"${_templates[@]}"}"; do
       [[ -z "${t}" ]] && continue
       candidates+=("$(constraints_expand_template "${home}" "${t}")")
@@ -54,7 +54,7 @@ constraints_build_paths() {
   fi
 
   # User includes: path-like templates are expanded into the candidate set.
-  for inc in "${WSLBKUP_INCLUDE_REGEXES[@]+"${WSLBKUP_INCLUDE_REGEXES[@]}"}"; do
+  for inc in "${LINUXBKUP_INCLUDE_REGEXES[@]+"${LINUXBKUP_INCLUDE_REGEXES[@]}"}"; do
     [[ -z "${inc}" ]] && continue
     # Path-like (absolute, relative, {home}, or simple name without regex metachar intent)
     if [[ "${inc}" == /* || "${inc}" == \{home\}/* || "${inc}" == .*/* || "${inc}" == ./* || "${inc}" != *[\|\(\)\[\]\*\+\?\^\$]* ]]; then
@@ -69,7 +69,7 @@ constraints_build_paths() {
     seen["${path}"]=1
 
     # Exclude always wins
-    if constraints_matches_any_regex "${path}" WSLBKUP_EXCLUDE_REGEXES; then
+    if constraints_matches_any_regex "${path}" LINUXBKUP_EXCLUDE_REGEXES; then
       log_debug "exclude hit: ${path}"
       continue
     fi
@@ -77,9 +77,9 @@ constraints_build_paths() {
     # When includes contain regex metacharacters, also allow keep-if-match on candidates
     # (already in set). When --no-defaults and only regex includes, candidates may be empty —
     # user should pass path-like includes.
-    if [[ "${WSLBKUP_NO_DEFAULTS:-0}" -eq 1 && "${#WSLBKUP_INCLUDE_REGEXES[@]}" -gt 0 ]]; then
+    if [[ "${LINUXBKUP_NO_DEFAULTS:-0}" -eq 1 && "${#LINUXBKUP_INCLUDE_REGEXES[@]}" -gt 0 ]]; then
       local ok=0
-      for inc in "${WSLBKUP_INCLUDE_REGEXES[@]}"; do
+      for inc in "${LINUXBKUP_INCLUDE_REGEXES[@]}"; do
         local expanded
         expanded="$(constraints_expand_template "${home}" "${inc}")"
         if [[ "${path}" == "${expanded}" || "${path}" =~ ${inc} ]]; then

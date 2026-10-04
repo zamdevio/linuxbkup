@@ -6,7 +6,7 @@ fs_du_sh() {
   local path="$1"
   local out=""
   [[ -e "${path}" ]] || return 1
-  if wslbkup_require_cmd timeout; then
+  if linuxbkup_require_cmd timeout; then
     out="$(timeout 8s du -sh "${path}" 2>/dev/null || true)"
   else
     out="$(du -sh "${path}" 2>/dev/null || true)"
@@ -18,7 +18,7 @@ fs_du_sh() {
 fs_collect_size_targets() {
   local home="$1"
   constraints_build_paths "${home}" CONSTRAINTS_SIZE_TARGETS
-  if [[ "${WSLBKUP_VERBOSE:-0}" -eq 1 ]]; then
+  if [[ "${LINUXBKUP_VERBOSE:-0}" -eq 1 ]]; then
     constraints_build_paths "${home}" CONSTRAINTS_SIZE_TARGETS_VERBOSE
   fi
 }
@@ -43,7 +43,7 @@ fs_home_large_dirs() {
 
   _fs_du_depth1_sorted() {
     local root="$1"
-    if wslbkup_require_cmd timeout; then
+    if linuxbkup_require_cmd timeout; then
       timeout 20s du -xk --max-depth=1 "${root}" 2>/dev/null || true
     else
       du -xk --max-depth=1 "${root}" 2>/dev/null || true
@@ -52,7 +52,7 @@ fs_home_large_dirs() {
 
   while read -r kb path; do
     [[ -z "${path:-}" ]] && continue
-    if constraints_matches_any_regex "${path}" WSLBKUP_EXCLUDE_REGEXES; then
+    if constraints_matches_any_regex "${path}" LINUXBKUP_EXCLUDE_REGEXES; then
       continue
     fi
     human="$(numfmt --to=iec --suffix=B "$((kb * 1024))" 2>/dev/null || printf '%sK' "${kb}")"
@@ -68,7 +68,7 @@ fs_home_large_dirs() {
     local n=0
     while read -r kb path; do
       [[ -z "${path:-}" ]] && continue
-      if constraints_matches_any_regex "${path}" WSLBKUP_EXCLUDE_REGEXES; then
+      if constraints_matches_any_regex "${path}" LINUXBKUP_EXCLUDE_REGEXES; then
         continue
       fi
       human="$(numfmt --to=iec --suffix=B "$((kb * 1024))" 2>/dev/null || printf '%sK' "${kb}")"
@@ -86,8 +86,8 @@ fs_print_filesystem() {
 
   ui_section "Filesystem (selected targets)"
 
-  if [[ "${WSLBKUP_INSPECT_QUICK:-0}" -eq 1 ]]; then
-    ui_item note "sizes skipped — WSLBKUP_INSPECT_QUICK=1"
+  if [[ "${LINUXBKUP_INSPECT_QUICK:-0}" -eq 1 ]]; then
+    ui_item note "sizes skipped — LINUXBKUP_INSPECT_QUICK=1"
     while IFS= read -r path; do
       [[ -z "${path}" ]] && continue
       rows+=("  ·  $(term_path_link "${path}")")
@@ -96,7 +96,7 @@ fs_print_filesystem() {
     constraints_list_footer "targets"
     printf '\n'
     ui_section "Large items under home"
-    ui_item note "skipped — WSLBKUP_INSPECT_QUICK=1"
+    ui_item note "skipped — LINUXBKUP_INSPECT_QUICK=1"
     return 0
   fi
 

@@ -1,27 +1,27 @@
 # shellcheck shell=bash
 
-wslbkup_cmd_inspect() {
+linuxbkup_cmd_inspect() {
   if cmd_want_help "$@"; then
-    wslbkup_cmd_help inspect
+    linuxbkup_cmd_help inspect
     return 0
   fi
 
   # shellcheck source=lib/core/context.sh
-  source "${WSLBKUP_ROOT}/lib/core/context.sh"
+  source "${LINUXBKUP_ROOT}/lib/core/context.sh"
   # shellcheck source=lib/constraints/base.sh
-  source "${WSLBKUP_ROOT}/lib/constraints/base.sh"
+  source "${LINUXBKUP_ROOT}/lib/constraints/base.sh"
   # shellcheck source=lib/env/distro.sh
-  source "${WSLBKUP_ROOT}/lib/env/distro.sh"
+  source "${LINUXBKUP_ROOT}/lib/env/distro.sh"
   # shellcheck source=lib/env/users.sh
-  source "${WSLBKUP_ROOT}/lib/env/users.sh"
+  source "${LINUXBKUP_ROOT}/lib/env/users.sh"
   # shellcheck source=lib/env/capabilities.sh
-  source "${WSLBKUP_ROOT}/lib/env/capabilities.sh"
-  # shellcheck source=lib/windows/paths.sh
-  source "${WSLBKUP_ROOT}/lib/windows/paths.sh"
+  source "${LINUXBKUP_ROOT}/lib/env/capabilities.sh"
+  # shellcheck source=lib/core/platform/paths.sh
+  source "${LINUXBKUP_ROOT}/lib/core/platform/paths.sh"
   # shellcheck source=lib/fs/sizes.sh
-  source "${WSLBKUP_ROOT}/lib/fs/sizes.sh"
+  source "${LINUXBKUP_ROOT}/lib/fs/sizes.sh"
   # shellcheck source=lib/classify/paths.sh
-  source "${WSLBKUP_ROOT}/lib/classify/paths.sh"
+  source "${LINUXBKUP_ROOT}/lib/classify/paths.sh"
 
   cmd_context_begin inspect \
     --desc "Read-only environment scan — no files are modified." \
@@ -59,7 +59,7 @@ wslbkup_cmd_inspect() {
     printf '\n'
   fi
 
-  windows_print_backup_destination
+  platform_print_backup_destination
   printf '\n'
   log_ok "inspect complete"
 }

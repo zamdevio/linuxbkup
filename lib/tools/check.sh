@@ -2,22 +2,22 @@
 # Tool presence checks + platform How-To guides from guides/tools/<name>.guide
 
 tools_guides_dir() {
-  printf '%s\n' "${WSLBKUP_ROOT}/guides/tools"
+  printf '%s\n' "${LINUXBKUP_ROOT}/guides/tools"
 }
 
 # Detect package family for install hints.
 tools_pkg_family() {
-  if wslbkup_require_cmd apt-get || wslbkup_require_cmd apt; then
+  if linuxbkup_require_cmd apt-get || linuxbkup_require_cmd apt; then
     printf '%s\n' "apt"
-  elif wslbkup_require_cmd dnf; then
+  elif linuxbkup_require_cmd dnf; then
     printf '%s\n' "dnf"
-  elif wslbkup_require_cmd yum; then
+  elif linuxbkup_require_cmd yum; then
     printf '%s\n' "yum"
-  elif wslbkup_require_cmd pacman; then
+  elif linuxbkup_require_cmd pacman; then
     printf '%s\n' "pacman"
-  elif wslbkup_require_cmd apk; then
+  elif linuxbkup_require_cmd apk; then
     printf '%s\n' "apk"
-  elif wslbkup_require_cmd brew; then
+  elif linuxbkup_require_cmd brew; then
     printf '%s\n' "brew"
   else
     printf '%s\n' "unknown"
@@ -83,7 +83,7 @@ tools_print_howto_body() {
   local family
   family="$(tools_pkg_family)"
 
-  if wslbkup_require_cmd "${tool}"; then
+  if linuxbkup_require_cmd "${tool}"; then
     status_label="installed"
   else
     status_label="missing"
@@ -121,7 +121,7 @@ tools_print_howto_body() {
     printf '\n'
     ui_item note "Run:"
     printf '    %s\n' "${how}"
-    ui_item note "Or: wslbkup deps install ${tool}"
+    ui_item note "Or: linuxbkup deps install ${tool}"
   else
     printf '\n'
     ui_item note "See guides/tools/${tool}.guide for install options on other platforms."
@@ -161,7 +161,7 @@ tools_check() {
   done
 
   for t in "${required[@]+"${required[@]}"}"; do
-    if wslbkup_require_cmd "${t}"; then
+    if linuxbkup_require_cmd "${t}"; then
       ui_item ok "${t}  (required)"
     else
       ui_item warn "${t}  (required — missing)"
@@ -169,7 +169,7 @@ tools_check() {
     fi
   done
   for t in "${optional[@]+"${optional[@]}"}"; do
-    if wslbkup_require_cmd "${t}"; then
+    if linuxbkup_require_cmd "${t}"; then
       ui_item ok "${t}  (optional)"
     else
       ui_item off "${t}  (optional — missing)"
@@ -179,7 +179,7 @@ tools_check() {
   if [[ "${missing_req}" -eq 1 ]]; then
     printf '\n'
     for t in "${required[@]+"${required[@]}"}"; do
-      wslbkup_require_cmd "${t}" && continue
+      linuxbkup_require_cmd "${t}" && continue
       tools_print_howto "${t}"
     done
     return 1
@@ -195,7 +195,7 @@ tools_install_one() {
   local how
 
   # Belt-and-suspenders: never run pkg manager if tool is present
-  if wslbkup_require_cmd "${tool}"; then
+  if linuxbkup_require_cmd "${tool}"; then
     log_skip "${tool} already installed — skipping"
     return 0
   fi
@@ -206,7 +206,7 @@ tools_install_one() {
   fi
 
   # shellcheck source=lib/tools/catalog.sh
-  [[ -n "${WSLBKUP_DEPS_CORE+x}" ]] || source "${WSLBKUP_ROOT}/lib/tools/catalog.sh"
+  [[ -n "${LINUXBKUP_DEPS_CORE+x}" ]] || source "${LINUXBKUP_ROOT}/lib/tools/catalog.sh"
   how="$(tools_install_command "${tool}")"
   if [[ -z "${how}" ]]; then
     log_fatal "No install command for '${tool}' on this package family ($(tools_pkg_family))"
@@ -223,7 +223,7 @@ tools_install_one() {
   fi
   ui_item note "Command: ${how}"
 
-  if [[ "${WSLBKUP_DRY_RUN:-0}" -eq 1 ]]; then
+  if [[ "${LINUXBKUP_DRY_RUN:-0}" -eq 1 ]]; then
     log_info "dry-run — not executing install"
     return 0
   fi
@@ -234,13 +234,13 @@ tools_install_one() {
   fi
 
   # Final check right before executing
-  if wslbkup_require_cmd "${tool}"; then
+  if linuxbkup_require_cmd "${tool}"; then
     log_skip "${tool} appeared on PATH — skipping install"
     return 0
   fi
 
   if bash -lc "${how}"; then
-    if wslbkup_require_cmd "${tool}"; then
+    if linuxbkup_require_cmd "${tool}"; then
       log_ok "${tool} installed"
       return 0
     fi

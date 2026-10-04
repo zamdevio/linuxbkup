@@ -9,12 +9,12 @@ CONSTRAINTS_LIST_DEFAULT_TOP="${CONSTRAINTS_LIST_DEFAULT_TOP:-10}"
 # Prints: "full" | a positive integer
 constraints_list_limit() {
   local caller_default="${1:-${CONSTRAINTS_LIST_DEFAULT_TOP}}"
-  if [[ "${WSLBKUP_LIST_FULL:-0}" -eq 1 ]]; then
+  if [[ "${LINUXBKUP_LIST_FULL:-0}" -eq 1 ]]; then
     printf '%s\n' "full"
     return 0
   fi
-  if [[ -n "${WSLBKUP_LIST_TOP:-}" ]]; then
-    printf '%s\n' "${WSLBKUP_LIST_TOP}"
+  if [[ -n "${LINUXBKUP_LIST_TOP:-}" ]]; then
+    printf '%s\n' "${LINUXBKUP_LIST_TOP}"
     return 0
   fi
   printf '%s\n' "${caller_default}"

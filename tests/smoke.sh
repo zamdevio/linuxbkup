@@ -2,11 +2,16 @@
 set -Eeuo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CLI="${ROOT}/wslbkup"
+CLI="${ROOT}/linuxbkup"
 fail=0
 
 ok() { printf 'OK  %s\n' "$1"; }
 bad() { printf 'FAIL %s\n' "$1"; fail=1; }
+
+if [[ ! -x "${CLI}" ]]; then
+  bad "entry binary linuxbkup missing"
+  exit 1
+fi
 
 if "${CLI}" --help >/dev/null; then ok "help exits 0"; else bad "help exits 0"; fi
 
@@ -24,9 +29,15 @@ else
   bad "styled help lists commands"
 fi
 
+if [[ "${help_out}" == *"desktop Linux, VPS, and WSL"* ]]; then
+  ok "help mentions desktop/VPS/WSL"
+else
+  bad "help mentions desktop/VPS/WSL"
+fi
+
 if "${CLI}" --no-color help deps >/dev/null 2>&1; then ok "help deps"; else bad "help deps"; fi
 
-out="$(env WSLBKUP_INSPECT_QUICK=1 "${CLI}" --no-color --no-links inspect 2>/dev/null)" || true
+out="$(env LINUXBKUP_INSPECT_QUICK=1 "${CLI}" --no-color --no-links inspect 2>/dev/null)" || true
 if [[ "${out}" == *"Environment inspection"* && "${out}" == *"Distribution"* && "${out}" == *"Backup destination"* && "${out}" == *"Tools"* ]]; then
   ok "inspect reports environment"
 else
@@ -47,7 +58,7 @@ else
   bad "deps install skips present tools"
 fi
 
-if env WSLBKUP_TEST=1 "${CLI}" --no-color nope >/dev/null 2>&1; then
+if env LINUXBKUP_TEST=1 "${CLI}" --no-color nope >/dev/null 2>&1; then
   bad "unknown command should fail"
 else
   ok "unknown command fails"
@@ -62,10 +73,10 @@ fi
 if bash -n "${CLI}" \
   && bash -n "${ROOT}"/lib/core/*.sh \
   && bash -n "${ROOT}"/lib/core/terminal/*.sh \
+  && bash -n "${ROOT}"/lib/core/platform/*.sh \
   && bash -n "${ROOT}"/lib/cmd/*.sh \
   && bash -n "${ROOT}"/lib/env/*.sh \
   && bash -n "${ROOT}"/lib/fs/*.sh \
-  && bash -n "${ROOT}"/lib/windows/*.sh \
   && bash -n "${ROOT}"/lib/classify/*.sh \
   && bash -n "${ROOT}"/lib/constraints/*.sh \
   && bash -n "${ROOT}"/lib/tools/*.sh \
@@ -77,11 +88,46 @@ else
   bad "bash -n syntax"
 fi
 
-bak_out="$(env WSLBKUP_YES=1 "${CLI}" --no-color --dry-run -o /tmp/wslbkup-smoke-dry.tar.zst backup 2>/dev/null)" || true
+bak_out="$(env LINUXBKUP_YES=1 "${CLI}" --no-color --dry-run -o /tmp/linuxbkup-smoke-dry.tar.zst backup 2>/dev/null)" || true
 if [[ "${bak_out}" == *"dry-run"* && "${bak_out}" == *"Backup plan"* ]]; then
   ok "backup dry-run plans"
 else
   bad "backup dry-run plans"
+fi
+
+# Identity gate: previous product binary/env prefix must not appear in the tree.
+# Pattern is assembled at runtime so the old strings never live in source.
+_old_bin="$(printf '%s%s' 'wsl' 'bkup')"
+_old_env="$(printf '%s%s' 'WSL' 'BKUP')"
+if command -v rg >/dev/null 2>&1; then
+  if rg -i "${_old_bin}|${_old_env}" --glob '!.git/**' "${ROOT}" >/dev/null 2>&1; then
+    bad "identity: previous product name still present"
+    rg -i "${_old_bin}|${_old_env}" --glob '!.git/**' "${ROOT}" || true
+  else
+    ok "identity: previous product name absent"
+  fi
+else
+  if grep -RInE "${_old_bin}|${_old_env}" \
+    --exclude-dir=.git \
+    "${ROOT}" >/dev/null 2>&1; then
+    bad "identity: previous product name still present"
+  else
+    ok "identity: previous product name absent"
+  fi
+fi
+
+# Platform dest default: native helper is always under ~/Backups/linuxbkup
+LINUXBKUP_ROOT="${ROOT}"
+export LINUXBKUP_ROOT
+# shellcheck source=/dev/null
+source "${ROOT}/lib/core/common.sh"
+# shellcheck source=/dev/null
+source "${ROOT}/lib/core/platform/paths.sh"
+native="$(platform_native_backup_dir)"
+if [[ "${native}" == */Backups/linuxbkup ]]; then
+  ok "native backup dir under Backups/linuxbkup"
+else
+  bad "native backup dir under Backups/linuxbkup"
 fi
 
 exit "${fail}"

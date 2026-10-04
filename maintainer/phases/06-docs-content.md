@@ -33,7 +33,7 @@ docs/
 - Platforms: “Works on most Linux distros — desktop, VPS, and WSL”
 - Paths: `/home/user`, `~/Backups/linuxbkup/archive.tar.zst` — never personal hosts
 - Defaults: safety + portability called out explicitly
-- No `wslbkup` history lessons
+- No history lessons about previous product names
 
 ## Slices
 

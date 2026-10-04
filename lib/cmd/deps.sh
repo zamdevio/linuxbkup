@@ -1,20 +1,20 @@
 # shellcheck shell=bash
 # Dependency status / install / howto.
 
-wslbkup_cmd_deps() {
+linuxbkup_cmd_deps() {
   # shellcheck source=lib/core/context.sh
-  source "${WSLBKUP_ROOT}/lib/core/context.sh"
+  source "${LINUXBKUP_ROOT}/lib/core/context.sh"
   # shellcheck source=lib/tools/check.sh
-  source "${WSLBKUP_ROOT}/lib/tools/check.sh"
+  source "${LINUXBKUP_ROOT}/lib/tools/check.sh"
   # shellcheck source=lib/tools/catalog.sh
-  source "${WSLBKUP_ROOT}/lib/tools/catalog.sh"
+  source "${LINUXBKUP_ROOT}/lib/tools/catalog.sh"
 
   local sub="${1:-status}"
   shift || true
 
   case "${sub}" in
     -h|--help|help)
-      wslbkup_cmd_help deps
+      linuxbkup_cmd_help deps
       return 0
       ;;
     status|"")
@@ -22,7 +22,7 @@ wslbkup_cmd_deps() {
       ;;
     install)
       if cmd_want_help "$@"; then
-        wslbkup_cmd_help deps
+        linuxbkup_cmd_help deps
         return 0
       fi
       _deps_install "$@"
@@ -30,19 +30,19 @@ wslbkup_cmd_deps() {
     howto|how-to|guide)
       local tool="${1:-}"
       if cmd_want_help "${tool:-help}"; then
-        wslbkup_cmd_help deps
+        linuxbkup_cmd_help deps
         return 0
       fi
       if [[ -z "${tool}" ]]; then
-        log_fatal "Usage: wslbkup deps howto <tool>"
-        wslbkup_cmd_help deps
+        log_fatal "Usage: linuxbkup deps howto <tool>"
+        linuxbkup_cmd_help deps
         return 2
       fi
       _deps_howto "${tool}"
       ;;
     *)
       log_fatal "Unknown deps subcommand: ${sub}"
-      log_info "Try: wslbkup help deps"
+      log_info "Try: linuxbkup help deps"
       return 2
       ;;
   esac
@@ -56,17 +56,17 @@ _deps_count_catalog() {
   DEPS_MISSING_OPT=0
   DEPS_TOTAL=0
 
-  for tool in "${WSLBKUP_DEPS_CORE[@]}"; do
+  for tool in "${LINUXBKUP_DEPS_CORE[@]}"; do
     DEPS_TOTAL=$((DEPS_TOTAL + 1))
-    if wslbkup_require_cmd "${tool}"; then
+    if linuxbkup_require_cmd "${tool}"; then
       DEPS_PRESENT=$((DEPS_PRESENT + 1))
     else
       DEPS_MISSING_CORE=$((DEPS_MISSING_CORE + 1))
     fi
   done
-  for tool in "${WSLBKUP_DEPS_OPTIONAL[@]}"; do
+  for tool in "${LINUXBKUP_DEPS_OPTIONAL[@]}"; do
     DEPS_TOTAL=$((DEPS_TOTAL + 1))
-    if wslbkup_require_cmd "${tool}"; then
+    if linuxbkup_require_cmd "${tool}"; then
       DEPS_PRESENT=$((DEPS_PRESENT + 1))
     else
       DEPS_MISSING_OPT=$((DEPS_MISSING_OPT + 1))
@@ -90,7 +90,7 @@ _deps_banner() {
   ui_kv "Missing" "${DEPS_MISSING}  (core ${DEPS_MISSING_CORE} · optional ${DEPS_MISSING_OPT})"
 
   if [[ -n "${focus}" ]]; then
-    if wslbkup_require_cmd "${focus}"; then
+    if linuxbkup_require_cmd "${focus}"; then
       status_label="installed"
     else
       status_label="missing"
@@ -115,11 +115,11 @@ _deps_banner() {
 _deps_status() {
   local tool
 
-  _deps_banner "wslbkup deps"
+  _deps_banner "linuxbkup deps"
 
   ui_section "Core (needed for backup/restore)"
-  for tool in "${WSLBKUP_DEPS_CORE[@]}"; do
-    if wslbkup_require_cmd "${tool}"; then
+  for tool in "${LINUXBKUP_DEPS_CORE[@]}"; do
+    if linuxbkup_require_cmd "${tool}"; then
       ui_item ok "${tool}"
     else
       ui_item warn "${tool}  — missing"
@@ -128,8 +128,8 @@ _deps_status() {
 
   printf '\n'
   ui_section "Optional"
-  for tool in "${WSLBKUP_DEPS_OPTIONAL[@]}"; do
-    if wslbkup_require_cmd "${tool}"; then
+  for tool in "${LINUXBKUP_DEPS_OPTIONAL[@]}"; do
+    if linuxbkup_require_cmd "${tool}"; then
       ui_item ok "${tool}"
     else
       ui_item off "${tool}  — missing"
@@ -148,7 +148,7 @@ _deps_status() {
     ui_section "Other guides"
     while IFS= read -r tool; do
       [[ "$(tools_dep_tier "${tool}")" == "extra" ]] || continue
-      if wslbkup_require_cmd "${tool}"; then
+      if linuxbkup_require_cmd "${tool}"; then
         ui_item ok "${tool}"
       else
         ui_item off "${tool}"
@@ -158,11 +158,11 @@ _deps_status() {
 
   printf '\n'
   if [[ "${DEPS_MISSING_CORE}" -gt 0 ]]; then
-    log_warn "Core tools missing — run: wslbkup deps install"
+    log_warn "Core tools missing — run: linuxbkup deps install"
     return 1
   fi
   if [[ "${DEPS_MISSING_OPT}" -gt 0 ]]; then
-    log_info "Optional missing — run: wslbkup deps install all   or   wslbkup deps install <tool>"
+    log_info "Optional missing — run: linuxbkup deps install all   or   linuxbkup deps install <tool>"
   fi
   log_ok "deps status complete"
   return 0
@@ -170,7 +170,7 @@ _deps_status() {
 
 _deps_howto() {
   local tool="$1"
-  _deps_banner "wslbkup deps howto" "${tool}"
+  _deps_banner "linuxbkup deps howto" "${tool}"
   # tools_print_howto already prints Detected/Package — use a lean body here
   tools_print_howto_body "${tool}"
 }
@@ -204,10 +204,10 @@ _deps_install() {
   local -a candidates=()
   case "${mode}" in
     core)
-      candidates=("${WSLBKUP_DEPS_CORE[@]}")
+      candidates=("${LINUXBKUP_DEPS_CORE[@]}")
       ;;
     all)
-      candidates=("${WSLBKUP_DEPS_CORE[@]}" "${WSLBKUP_DEPS_OPTIONAL[@]}")
+      candidates=("${LINUXBKUP_DEPS_CORE[@]}" "${LINUXBKUP_DEPS_OPTIONAL[@]}")
       ;;
     named)
       candidates=("${requested[@]}")
@@ -216,7 +216,7 @@ _deps_install() {
 
   # Check each tool BEFORE planning installs
   for tool in "${candidates[@]+"${candidates[@]}"}"; do
-    if wslbkup_require_cmd "${tool}"; then
+    if linuxbkup_require_cmd "${tool}"; then
       already+=("${tool}")
     else
       to_install+=("${tool}")
@@ -224,9 +224,9 @@ _deps_install() {
   done
 
   if [[ "${mode}" == "named" && "${#requested[@]}" -eq 1 ]]; then
-    _deps_banner "wslbkup deps install" "${requested[0]}"
+    _deps_banner "linuxbkup deps install" "${requested[0]}"
   else
-    _deps_banner "wslbkup deps install"
+    _deps_banner "linuxbkup deps install"
     ui_kv "Scope" "${mode}"
     printf '\n'
   fi
@@ -242,7 +242,7 @@ _deps_install() {
   if [[ "${#to_install[@]}" -eq 0 ]]; then
     log_ok "Nothing to install — requested tools already present"
     if [[ "${mode}" == "core" ]]; then
-      ui_item note "Tip: wslbkup deps install all   (also cover optional)"
+      ui_item note "Tip: linuxbkup deps install all   (also cover optional)"
     fi
     return 0
   fi
@@ -261,7 +261,7 @@ _deps_install() {
   local failed=0
   for tool in "${to_install[@]}"; do
     # Re-check immediately before each install (race / prior step)
-    if wslbkup_require_cmd "${tool}"; then
+    if linuxbkup_require_cmd "${tool}"; then
       log_skip "${tool} already installed — skipping"
       continue
     fi

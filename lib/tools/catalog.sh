@@ -2,7 +2,7 @@
 # Known dependency catalog (tools with guides/tools/<name>.guide).
 
 # Core tools needed for backup/restore path.
-WSLBKUP_DEPS_CORE=(
+LINUXBKUP_DEPS_CORE=(
   du
   find
   tar
@@ -12,7 +12,7 @@ WSLBKUP_DEPS_CORE=(
 )
 
 # Nice-to-have / feature-gated.
-WSLBKUP_DEPS_OPTIONAL=(
+LINUXBKUP_DEPS_OPTIONAL=(
   age
   timeout
   numfmt
@@ -24,7 +24,7 @@ tools_catalog_all() {
   local t f base
   local -A seen=()
 
-  for t in "${WSLBKUP_DEPS_CORE[@]}" "${WSLBKUP_DEPS_OPTIONAL[@]}"; do
+  for t in "${LINUXBKUP_DEPS_CORE[@]}" "${LINUXBKUP_DEPS_OPTIONAL[@]}"; do
     seen["${t}"]=1
     printf '%s\n' "${t}"
   done
@@ -42,10 +42,10 @@ tools_catalog_all() {
 
 tools_dep_tier() {
   local tool="$1" t
-  for t in "${WSLBKUP_DEPS_CORE[@]}"; do
+  for t in "${LINUXBKUP_DEPS_CORE[@]}"; do
     [[ "${t}" == "${tool}" ]] && { printf '%s\n' "core"; return 0; }
   done
-  for t in "${WSLBKUP_DEPS_OPTIONAL[@]}"; do
+  for t in "${LINUXBKUP_DEPS_OPTIONAL[@]}"; do
     [[ "${t}" == "${tool}" ]] && { printf '%s\n' "optional"; return 0; }
   done
   printf '%s\n' "extra"

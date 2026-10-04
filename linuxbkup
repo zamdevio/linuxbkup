@@ -1,28 +1,28 @@
 #!/usr/bin/env bash
-# wslbkup — Bash-first WSL backup / restore CLI
+# linuxbkup — Bash-first Linux backup / restore CLI
 set -Eeuo pipefail
 
-WSLBKUP_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-export WSLBKUP_ROOT
+LINUXBKUP_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export LINUXBKUP_ROOT
 
 # shellcheck source=lib/core/common.sh
-source "${WSLBKUP_ROOT}/lib/core/common.sh"
+source "${LINUXBKUP_ROOT}/lib/core/common.sh"
 # shellcheck source=lib/core/terminal/style.sh
-source "${WSLBKUP_ROOT}/lib/core/terminal/style.sh"
+source "${LINUXBKUP_ROOT}/lib/core/terminal/style.sh"
 # shellcheck source=lib/core/help.sh
-source "${WSLBKUP_ROOT}/lib/core/help.sh"
+source "${LINUXBKUP_ROOT}/lib/core/help.sh"
 # shellcheck source=lib/core/safety.sh
-source "${WSLBKUP_ROOT}/lib/core/safety.sh"
+source "${LINUXBKUP_ROOT}/lib/core/safety.sh"
 # shellcheck source=lib/constraints/list.sh
-source "${WSLBKUP_ROOT}/lib/constraints/list.sh"
+source "${LINUXBKUP_ROOT}/lib/constraints/list.sh"
 
 _ui_init
 
-wslbkup_parse_globals "$@"
+linuxbkup_parse_globals "$@"
 # Re-init after --no-color / --no-links may have been set
 _ui_init
 
-set -- "${WSLBKUP_POSITIONAL[@]:-}"
+set -- "${LINUXBKUP_POSITIONAL[@]:-}"
 
 cmd="${1:-}"
 if [[ -n "${cmd}" ]]; then
@@ -31,31 +31,31 @@ fi
 
 case "${cmd}" in
   ""|-h|--help)
-    wslbkup_usage
+    linuxbkup_usage
     exit 0
     ;;
   help)
     if [[ -n "${1:-}" ]]; then
-      wslbkup_cmd_help "$1" || exit 2
+      linuxbkup_cmd_help "$1" || exit 2
     else
-      wslbkup_usage
+      linuxbkup_usage
     fi
     exit 0
     ;;
   -V|--version|version)
-    wslbkup_print_version
+    linuxbkup_print_version
     exit 0
     ;;
   inspect|backup|restore|verify|list|deps)
     # shellcheck source=/dev/null
-    source "${WSLBKUP_ROOT}/lib/cmd/${cmd}.sh"
-    "wslbkup_cmd_${cmd}" "$@"
+    source "${LINUXBKUP_ROOT}/lib/cmd/${cmd}.sh"
+    "linuxbkup_cmd_${cmd}" "$@"
     ;;
   *)
     log_fatal "Unknown command: ${cmd}"
-    if [[ "${WSLBKUP_TEST:-0}" -ne 1 ]]; then
+    if [[ "${LINUXBKUP_TEST:-0}" -ne 1 ]]; then
       printf '\n' >&2
-      wslbkup_usage >&2
+      linuxbkup_usage >&2
     fi
     exit 2
     ;;

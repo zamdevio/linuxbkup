@@ -1,21 +1,23 @@
 # shellcheck shell=bash
 # Styled help / version output (matches terminal UI elsewhere).
 
-wslbkup_print_version() {
-  ui_heading "wslbkup"
-  ui_kv "Version" "${WSLBKUP_VERSION}"
-  ui_kv_path "Root" "${WSLBKUP_ROOT}"
-  ui_item note "Bash-first WSL backup / restore"
+linuxbkup_print_version() {
+  ui_heading "linuxbkup"
+  ui_kv "Version" "${LINUXBKUP_VERSION}"
+  ui_kv_path "Root" "${LINUXBKUP_ROOT}"
+  ui_item note "Bash-first Linux backup / restore"
+  ui_item note "Works on desktop Linux, VPS, and WSL"
   printf '\n'
 }
 
-wslbkup_usage() {
-  ui_heading "wslbkup"
-  ui_item note "Safe, reconstructable WSL backup / restore"
+linuxbkup_usage() {
+  ui_heading "linuxbkup"
+  ui_item note "Safe, reconstructable Linux backup / restore"
+  ui_item note "Works on desktop Linux, VPS, and WSL"
   printf '\n'
 
   ui_section "Usage"
-  ui_item note "wslbkup [global options] <command> [args]"
+  ui_item note "linuxbkup [global options] <command> [args]"
   printf '\n'
 
   ui_section "Commands"
@@ -36,7 +38,7 @@ wslbkup_usage() {
   ui_kv "-q, --quiet" "Less non-essential output"
   ui_kv "--no-color" "Disable ANSI styling"
   ui_kv "--no-links" "Disable OSC 8 path/URL hyperlinks"
-  ui_kv "-o, --output" "Backup output path (default: Windows Downloads)"
+  ui_kv "-o, --output" "Archive path (default: ~/Backups/linuxbkup/… or Windows Downloads when mounted)"
   ui_kv "--user" "Target /home/<name> (default: current user)"
   ui_kv "--force-overwrite" "Allow overwriting conflicting files on restore"
   ui_kv "--no-secrets" "Exclude secrets from backup"
@@ -55,6 +57,12 @@ wslbkup_usage() {
   ui_kv "-T, --top" "Show at most n items (default: 10)"
   printf '\n'
 
+  ui_section "Examples"
+  ui_item note "linuxbkup inspect"
+  ui_item note "linuxbkup -o ~/Backups/linuxbkup/host.tar.zst backup"
+  ui_item note "linuxbkup verify ~/Backups/linuxbkup/host.tar.zst"
+  printf '\n'
+
   ui_section "Also"
   ui_kv "-h, --help" "Show help"
   ui_kv "-V, --version" "Show version"
@@ -66,15 +74,15 @@ wslbkup_usage() {
 }
 
 # Per-command help. Args: command name
-wslbkup_cmd_help() {
+linuxbkup_cmd_help() {
   local cmd="$1"
   case "${cmd}" in
     inspect)
-      ui_heading "wslbkup inspect"
+      ui_heading "linuxbkup inspect"
       ui_item note "Read-only environment scan — distro, users, tools, sizes, classification."
       printf '\n'
       ui_section "Usage"
-      ui_item note "wslbkup [globals] inspect"
+      ui_item note "linuxbkup [globals] inspect"
       printf '\n'
       ui_section "Requires"
       ui_item note "du, find  (optional: timeout, numfmt, age, tar, zstd, rsync, …)"
@@ -87,17 +95,17 @@ wslbkup_cmd_help() {
       ui_kv "--no-color/--no-links" "Output styling"
       ;;
     backup)
-      ui_heading "wslbkup backup"
+      ui_heading "linuxbkup backup"
       ui_item note "Stage metadata + APT manuals + allowlisted home/config, pack tar.zst."
       printf '\n'
       ui_section "Usage"
-      ui_item note "wslbkup [globals] backup"
+      ui_item note "linuxbkup [globals] backup"
       printf '\n'
       ui_section "Requires"
       ui_item note "tar, zstd, rsync, du, sha256sum  (optional: age)"
       printf '\n'
       ui_section "Useful globals"
-      ui_kv "-o, --output" "Archive destination (default: Windows Downloads)"
+      ui_kv "-o, --output" "Archive destination (see platform defaults)"
       ui_kv "--dry-run" "Plan without writing"
       ui_kv "-y, --yes" "Accept copy confirmation"
       ui_kv "--user" "Home to back up"
@@ -105,11 +113,11 @@ wslbkup_cmd_help() {
       ui_kv "--include/--exclude" "Path constraints"
       ;;
     restore)
-      ui_heading "wslbkup restore"
-      ui_item note "Reconstruct environment from a backup (Phase 4+)."
+      ui_heading "linuxbkup restore"
+      ui_item note "Reconstruct environment from a backup (later phase)."
       printf '\n'
       ui_section "Usage"
-      ui_item note "wslbkup [globals] restore <backup>"
+      ui_item note "linuxbkup [globals] restore <backup>"
       printf '\n'
       ui_section "Requires"
       ui_item note "tar, zstd, rsync, sha256sum  (optional: age)"
@@ -120,35 +128,35 @@ wslbkup_cmd_help() {
       ui_kv "-y, --yes" "Safe defaults (not overwrite)"
       ;;
     verify)
-      ui_heading "wslbkup verify"
+      ui_heading "linuxbkup verify"
       ui_item note "Verify archive integrity / manifests."
       printf '\n'
       ui_section "Usage"
-      ui_item note "wslbkup [globals] verify <backup>"
+      ui_item note "linuxbkup [globals] verify <backup>"
       ;;
     list)
-      ui_heading "wslbkup list"
+      ui_heading "linuxbkup list"
       ui_item note "List backup contents at a high level."
       printf '\n'
       ui_section "Usage"
-      ui_item note "wslbkup [globals] list <backup>"
+      ui_item note "linuxbkup [globals] list <backup>"
       ui_kv "-T/--top, -F/--full" "How many entries to show"
       ;;
     deps)
-      ui_heading "wslbkup deps"
+      ui_heading "linuxbkup deps"
       ui_item note "Dependency status, install, and How-To guides."
       printf '\n'
       ui_section "Usage"
-      ui_item note "wslbkup deps [status]"
-      ui_item note "wslbkup deps install [all|<tool>…]"
-      ui_item note "wslbkup deps howto <tool>"
+      ui_item note "linuxbkup deps [status]"
+      ui_item note "linuxbkup deps install [all|<tool>…]"
+      ui_item note "linuxbkup deps howto <tool>"
       printf '\n'
       ui_section "Tips"
       ui_item note "Already-installed tools are skipped — never run apt for nothing."
       ui_item note "Guides: guides/tools/<name>.guide"
       ;;
     help|version)
-      wslbkup_usage
+      linuxbkup_usage
       ;;
     *)
       log_fatal "No help for unknown command: ${cmd}"
@@ -159,7 +167,7 @@ wslbkup_cmd_help() {
 }
 
 # Shared: if first args are -h/--help/help, print cmd help and return 0.
-# Usage in commands: cmd_want_help "$@" && { wslbkup_cmd_help inspect; return 0; }
+# Usage in commands: cmd_want_help "$@" && { linuxbkup_cmd_help inspect; return 0; }
 cmd_want_help() {
   case "${1:-}" in
     -h|--help|help) return 0 ;;

@@ -2,7 +2,7 @@
 # Copy allowlisted home/config paths into staging.
 
 # shellcheck source=lib/constraints/backup_paths.sh
-source "${WSLBKUP_ROOT}/lib/constraints/backup_paths.sh"
+source "${LINUXBKUP_ROOT}/lib/constraints/backup_paths.sh"
 
 # Build effective backup path list for a home.
 backup_home_paths() {
@@ -13,7 +13,7 @@ backup_home_paths() {
 
   for p in "${CONSTRAINTS_BACKUP_ETC[@]+"${CONSTRAINTS_BACKUP_ETC[@]}"}"; do
     [[ -e "${p}" ]] || continue
-    if constraints_matches_any_regex "${p}" WSLBKUP_EXCLUDE_REGEXES; then
+    if constraints_matches_any_regex "${p}" LINUXBKUP_EXCLUDE_REGEXES; then
       continue
     fi
     printf '%s\n' "${p}"
@@ -67,14 +67,14 @@ backup_copy_home() {
   fi
   printf '\n'
   ui_item note "Regeneratable trees (node_modules, .venv, caches, …) excluded via rsync"
-  if [[ "${WSLBKUP_NO_SECRETS:-0}" -eq 1 ]]; then
+  if [[ "${LINUXBKUP_NO_SECRETS:-0}" -eq 1 ]]; then
     ui_item note "Secrets excluded (--no-secrets)"
   else
     ui_item note "Sensitive paths staged under secrets/ (encrypt in Phase 3)"
   fi
   printf '\n'
 
-  if [[ "${WSLBKUP_DRY_RUN:-0}" -eq 1 ]]; then
+  if [[ "${LINUXBKUP_DRY_RUN:-0}" -eq 1 ]]; then
     log_info "dry-run — would rsync ${#paths[@]} paths into staging"
     return 0
   fi
@@ -114,7 +114,7 @@ backup_copy_home() {
     esac
 
     if constraints_is_secret_path "${path}"; then
-      if [[ "${WSLBKUP_NO_SECRETS:-0}" -eq 1 ]]; then
+      if [[ "${LINUXBKUP_NO_SECRETS:-0}" -eq 1 ]]; then
         log_skip "secrets excluded: ${path}"
         skipped=$((skipped + 1))
         continue

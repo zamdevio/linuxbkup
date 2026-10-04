@@ -2,7 +2,7 @@
 # APT / dpkg manifest capture.
 
 apt_available() {
-  wslbkup_require_cmd apt-mark && wslbkup_require_cmd dpkg
+  linuxbkup_require_cmd apt-mark && linuxbkup_require_cmd dpkg
 }
 
 # Write package manifests into staging/packages/
@@ -15,7 +15,7 @@ apt_capture_manifests() {
     return 0
   fi
 
-  if [[ "${WSLBKUP_DRY_RUN:-0}" -eq 1 ]]; then
+  if [[ "${LINUXBKUP_DRY_RUN:-0}" -eq 1 ]]; then
     log_info "dry-run — would capture apt-mark showmanual + dpkg -l"
     return 0
   fi

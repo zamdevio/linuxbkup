@@ -3,8 +3,8 @@
 
 # Resolve target Linux username (not Windows).
 env_resolve_user() {
-  if [[ -n "${WSLBKUP_USER:-}" ]]; then
-    printf '%s\n' "${WSLBKUP_USER}"
+  if [[ -n "${LINUXBKUP_USER:-}" ]]; then
+    printf '%s\n' "${LINUXBKUP_USER}"
     return 0
   fi
   printf '%s\n' "${USER:-$(id -un)}"
@@ -44,7 +44,7 @@ env_print_users() {
 
   ui_section "Users"
   ui_kv "Login" "${current}"
-  if [[ -n "${WSLBKUP_USER:-}" ]]; then
+  if [[ -n "${LINUXBKUP_USER:-}" ]]; then
     ui_kv "Target" "${selected} (--user)"
   else
     ui_kv "Target" "${selected} (default)"
@@ -71,7 +71,7 @@ env_print_users() {
 
   if [[ "${count}" -eq 0 ]]; then
     ui_item note "(none)"
-  elif [[ "${count}" -gt 1 && -z "${WSLBKUP_USER:-}" ]]; then
+  elif [[ "${count}" -gt 1 && -z "${LINUXBKUP_USER:-}" ]]; then
     log_info "Multiple homes detected — pass --user <name> to target another."
   fi
 }
