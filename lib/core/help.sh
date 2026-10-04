@@ -22,6 +22,7 @@ linuxbkup_usage() {
 
   ui_section "Commands"
   ui_kv "inspect" "Scan environment (distro, users, tools, sizes)"
+  ui_kv "plan" "Show what backup would include/skip (no writes)"
   ui_kv "backup" "Create an intelligent backup archive"
   ui_kv "restore" "Reconstruct from a backup"
   ui_kv "verify" "Verify archive integrity / manifests"
@@ -34,7 +35,8 @@ linuxbkup_usage() {
   ui_section "Global options"
   ui_kv "-y, --yes" "Accept safe defaults (not destructive overwrite)"
   ui_kv "--dry-run" "Plan only; make no modifications"
-  ui_kv "-v, --verbose" "More detail"
+  ui_kv "-v, --verbose" "Human detail (sizes, progress notes)"
+  ui_kv "-d, --debug" "Forensic detail on stderr (implies -v)"
   ui_kv "-q, --quiet" "Less non-essential output"
   ui_kv "--no-color" "Disable ANSI styling"
   ui_kv "--no-links" "Disable OSC 8 path/URL hyperlinks"
@@ -43,8 +45,7 @@ linuxbkup_usage() {
   ui_kv "--force-overwrite" "Allow overwriting conflicting files on restore"
   ui_kv "--no-secrets" "Exclude secrets from backup"
   ui_kv "--secrets-plain" "Include secrets unencrypted (explicit)"
-  ui_kv "--print-plan" "Show home classification plan and exit"
-  ui_kv "--json" "With --print-plan / inspect: also emit TSV plan rows"
+  ui_kv "--json" "Machine-readable output (plan --json)"
   printf '\n'
 
   ui_section "Path constraints"
@@ -60,8 +61,9 @@ linuxbkup_usage() {
   printf '\n'
 
   ui_section "Examples"
-  ui_item note "linuxbkup inspect"
-  ui_item note "linuxbkup -o ~/Backups/linuxbkup/host.tar.zst backup"
+  ui_item note "linuxbkup plan -F"
+  ui_item note "linuxbkup plan --json"
+  ui_item note "linuxbkup -y backup"
   ui_item note "linuxbkup verify ~/Backups/linuxbkup/host.tar.zst"
   printf '\n'
 
@@ -96,9 +98,24 @@ linuxbkup_cmd_help() {
       ui_kv "-T/--top, -F/--full" "List length policy"
       ui_kv "--no-color/--no-links" "Output styling"
       ;;
+    plan)
+      ui_heading "linuxbkup plan"
+      ui_item note "Show the home classification plan backup would use — no files written."
+      printf '\n'
+      ui_section "Usage"
+      ui_item note "linuxbkup [globals] plan"
+      ui_item note "linuxbkup plan --json"
+      printf '\n'
+      ui_section "Useful globals"
+      ui_kv "-F/--full, -T/--top" "List length"
+      ui_kv "-v, --verbose" "Filter-aware sizes"
+      ui_kv "-y, --yes" "Show unexpected as auto-include"
+      ui_kv "--json" "Stable JSON envelope on stdout"
+      ui_kv "--include/--exclude" "Path constraints"
+      ;;
     backup)
       ui_heading "linuxbkup backup"
-      ui_item note "Stage metadata + APT manuals + allowlisted home/config, pack tar.zst."
+      ui_item note "Stage metadata + classified home/config, pack tar.zst."
       printf '\n'
       ui_section "Usage"
       ui_item note "linuxbkup [globals] backup"
@@ -109,10 +126,11 @@ linuxbkup_cmd_help() {
       ui_section "Useful globals"
       ui_kv "-o, --output" "Archive destination (see platform defaults)"
       ui_kv "--dry-run" "Plan without writing"
-      ui_kv "-y, --yes" "Accept copy confirmation"
+      ui_kv "-y, --yes" "Accept copy confirmation; soft-skip unreadable files"
       ui_kv "--user" "Home to back up"
       ui_kv "--no-secrets" "Skip sensitive paths"
       ui_kv "--include/--exclude" "Path constraints"
+      ui_item note "Full include/skip table: linuxbkup plan"
       ;;
     restore)
       ui_heading "linuxbkup restore"

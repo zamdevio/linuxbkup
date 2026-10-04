@@ -1,0 +1,14 @@
+SUMMARY=Optional fuzzy finder for interactive multi-select during --ask (phase 03).
+APT=fzf
+DNF=fzf
+YUM=fzf
+PACMAN=fzf
+APK=fzf
+BREW=fzf
+HOW_APT=sudo apt update && sudo apt install -y fzf
+HOW_DNF=sudo dnf install -y fzf
+HOW_YUM=sudo yum install -y fzf
+HOW_PACMAN=sudo pacman -S --needed fzf
+HOW_APK=sudo apk add fzf
+HOW_BREW=brew install fzf
+NOTE=Optional. Bash numbered multi-select always works without fzf.

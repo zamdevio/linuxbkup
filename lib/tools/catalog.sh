@@ -17,6 +17,7 @@ LINUXBKUP_DEPS_OPTIONAL=(
   timeout
   numfmt
   realpath
+  fzf
 )
 
 # All deps that have (or should have) a guide — union of core + optional + any extra guides.

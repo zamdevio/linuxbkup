@@ -25,14 +25,14 @@
 - [x] **02.3** Classifier outputs: path, class, size, suggested action, reason
 - [x] **02.4** Unexpected reporter + optional TSV via `--json`
 - [x] **02.5** Wire non-TTY / `--yes` auto-include for unexpected
-- [x] **02.6** `inspect` / `backup --print-plan` share the same plan
+- [x] **02.6** `inspect` classify preview / `plan` share the same engine
 - [x] **02.7** Constraints *rules* in `lib/constraints/rules.sh` (basenames/classes)
 
 ## Acceptance
 
 - Custom dir like `/home/user/.local/custom-dir` appears as unexpected and is included under `--yes`
 - No host-shaped dirname allowlist as the product default
-- `inspect` and `backup --print-plan` agree on classes
+- `inspect` classify preview and `plan` agree on classes
 - Reported sizes match filter stack when sized (`-v`)
 
 ## After ship

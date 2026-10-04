@@ -13,7 +13,7 @@ docs/
   concepts.md            # regenerate vs backup, safety, portability
   guide.md               # inspect → plan → backup → verify → restore
   profiles.md
-  ask-and-automation.md  # --ask, --yes, non-TTY, --json, --print-plan
+  ask-and-automation.md  # --ask, --yes, non-TTY, plan --json
   platforms.md           # desktop / VPS / WSL — same tool
   schema.md              # archive layout + schema.json
   secrets.md
@@ -46,7 +46,7 @@ docs/
 
 ## Acceptance
 
-- Someone can install and run a dry `--print-plan` from docs alone
+- Someone can install and run `linuxbkup plan` from docs alone
 - No personal paths; no maintainer links in `docs/`
 - Tree matches what phase 07 sidebar will list
 

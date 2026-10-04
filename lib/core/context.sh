@@ -43,6 +43,9 @@ cmd_context_begin() {
   home="$(getent passwd "${user}" 2>/dev/null | cut -d: -f6 || true)"
   [[ -n "${home}" ]] || home="/home/${user}"
 
+  log_verbose "command=${command} user=${user}"
+  log_debug "context begin required=[${required[*]:-}] optional=[${optional[*]:-}]"
+
   ui_heading "linuxbkup ${command}"
   [[ -n "${desc}" ]] && ui_item note "${desc}"
   ui_kv "Version" "${LINUXBKUP_VERSION}"
@@ -50,6 +53,8 @@ cmd_context_begin() {
   ui_kv_path "Home" "${home}"
   [[ "${LINUXBKUP_DRY_RUN:-0}" -eq 1 ]] && ui_kv "Mode" "dry-run"
   [[ "${LINUXBKUP_YES:-0}" -eq 1 ]] && ui_kv "Yes" "enabled (safe defaults only)"
+  [[ "${LINUXBKUP_VERBOSE:-0}" -eq 1 ]] && ui_kv "Verbose" "on"
+  [[ "${LINUXBKUP_DEBUG:-0}" -eq 1 ]] && ui_kv "Debug" "on"
   [[ "${LINUXBKUP_NO_DEFAULTS:-0}" -eq 1 ]] && ui_kv "Defaults" "off (--no-defaults)"
   if [[ "${LINUXBKUP_LIST_FULL:-0}" -eq 1 ]]; then
     ui_kv "List" "full"

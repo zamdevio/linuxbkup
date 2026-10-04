@@ -36,27 +36,16 @@ backup_copy_home() {
   local shown=0 limit
   local p class action size reason
 
-  # shellcheck source=lib/fs/sizes.sh
-  source "${LINUXBKUP_ROOT}/lib/fs/sizes.sh"
   # shellcheck source=lib/classify/plan.sh
   source "${LINUXBKUP_ROOT}/lib/classify/plan.sh"
 
-  # Sizes are informational; skip du unless -v
-  if [[ "${LINUXBKUP_VERBOSE:-0}" -ne 1 ]]; then
-    LINUXBKUP_INSPECT_QUICK=1
-  fi
-
-  classify_print_plan "${home}"
-  printf '\n'
-
-  if [[ "${LINUXBKUP_PRINT_PLAN:-0}" -eq 1 ]]; then
-    log_ok "print-plan only — no copy"
-    return 0
-  fi
+  log_verbose "building include list from classification scan"
+  log_debug "backup_copy_home home=${home} stage=${stage}"
 
   # Collect ask-class unexpected for interactive confirm
   while IFS=$'\t' read -r p class action size reason; do
     [[ -z "${p:-}" ]] && continue
+    log_debug "scan ${class}/${action} ${p}"
     if [[ "${class}" == "unexpected" && "${action}" == "ask" ]]; then
       unexpected_ask+=("${p}")
     fi
@@ -71,6 +60,7 @@ backup_copy_home() {
     if safety_confirm "Include these unexpected paths in the backup?" "y"; then
       LINUXBKUP_CLASSIFY_INCLUDE_ASK=1
       export LINUXBKUP_CLASSIFY_INCLUDE_ASK
+      log_verbose "unexpected paths: include"
     else
       log_info "unexpected paths will be skipped"
       LINUXBKUP_CLASSIFY_INCLUDE_ASK=0
@@ -79,6 +69,7 @@ backup_copy_home() {
 
   mapfile -t paths < <(backup_home_paths "${home}")
   backup_plan_excludes
+  log_verbose "include paths: ${#paths[@]}"
 
   ui_section "Paths to copy"
   if [[ "${#paths[@]}" -eq 0 ]]; then
@@ -104,6 +95,7 @@ backup_copy_home() {
   else
     ui_item note "Sensitive paths staged under secrets/ (encrypt in a later phase)"
   fi
+  ui_item note "Full plan anytime: linuxbkup plan"
   printf '\n'
 
   if [[ "${LINUXBKUP_DRY_RUN:-0}" -eq 1 ]]; then
@@ -119,6 +111,7 @@ backup_copy_home() {
   for path in "${paths[@]}"; do
     if [[ ! -e "${path}" ]]; then
       skipped=$((skipped + 1))
+      log_debug "missing path skipped: ${path}"
       continue
     fi
 
@@ -126,9 +119,13 @@ backup_copy_home() {
       dest="${stage}/config/etc/${path#/etc/}"
       mkdir -p "$(dirname "${dest}")"
       if [[ -d "${path}" ]]; then
-        rsync -a "${BACKUP_RSYNC_EXCLUDES[@]}" "${path}/" "${dest}/"
+        if ! backup_rsync_run -a "${BACKUP_RSYNC_EXCLUDES[@]}" "${path}/" "${dest}/"; then
+          return 1
+        fi
       else
-        rsync -a "${path}" "${dest}"
+        if ! backup_rsync_run -a "${path}" "${dest}"; then
+          return 1
+        fi
       fi
       count=$((count + 1))
       continue
@@ -157,14 +154,19 @@ backup_copy_home() {
     fi
 
     mkdir -p "$(dirname "${dest}")"
+    log_verbose "rsync ${path} → ${dest}"
     if [[ -d "${path}" ]]; then
       mkdir -p "${dest}"
-      rsync -a "${BACKUP_RSYNC_EXCLUDES[@]}" "${path}/" "${dest}/"
+      if ! backup_rsync_run -a "${BACKUP_RSYNC_EXCLUDES[@]}" "${path}/" "${dest}/"; then
+        return 1
+      fi
     else
-      rsync -a "${path}" "${dest}"
+      if ! backup_rsync_run -a "${path}" "${dest}"; then
+        return 1
+      fi
     fi
     count=$((count + 1))
   done
 
-  log_ok "copied ${count} paths (${skipped} skipped)"
+  log_ok "copied ${count} paths (${skipped} skipped, ${LINUXBKUP_PERM_SKIPS:-0} soft-skips)"
 }

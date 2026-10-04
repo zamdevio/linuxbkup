@@ -23,4 +23,4 @@ Built-in **rules**, listing policy, and the **filter stack**. Phase **02** full-
 - Unexpected paths: report always; `--yes` / non-TTY → include; TTY backup asks.
 - **No host-shaped home dirnames** in shipped rules.
 - Sizing / rsync share regenerable globs from `CONSTRAINTS_DU_EXCLUDE_GLOBS`.
-- `--print-plan` / dry-run skip per-path `du` unless `-v`.
+- `plan` / dry-run skip per-path `du` unless `-v`.

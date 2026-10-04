@@ -47,33 +47,46 @@ Select to BACKUP (others keep suggestion):
 
 Optional **fzf** multi-select if installed (`linuxbkup deps install fzf`). Same semantics.
 
-## Useful flags (locked in)
+## Commands / flags (locked in)
 
-| Flag | Behavior |
+| Item | Behavior |
 |------|----------|
-| `--print-plan` | Final include/skip/secret/reclaim table → exit 0 (no backup) |
+| `plan` | Dedicated command: include/skip/secret/unexpected table (no writes). `-F`/`-T` apply. |
+| `plan --json` | Stable `linuxbkup.plan/v1` JSON envelope on stdout |
+| `backup` | Always runs for real (or `--dry-run`); ends with short summary + tip to run `plan` |
+| `-v` / `--verbose` | Human detail (sizes, progress) |
+| `-d` / `--debug` | Forensic why/commands on stderr (implies `-v`) |
 | `--keep-stage` | Do not delete staging after successful pack |
 | `--stage-dir <path>` | Staging root (space planning / tmpfs / big disk) |
-| `--json` | Machine-readable plan or command status on stdout |
 
 Also: `--exclude` / `--include`, `--no-dotfiles` / `--only-dotfiles`, `-o/--output`.
+
+**Removed:** `--print-plan` (use `plan`).
+
+## Permission policy (locked)
+
+- **Never auto-sudo** for reading/copying files.
+- Unreadable / partial rsync (`rc` 23/24): soft-skip, WARN, continue.
+- `--yes` / non-TTY: auto soft-skip.
+- TTY: ask once (“skip further denials?”); then skip-all for the run.
+- Package install guides may show `sudo` — that is install-only, not backup runtime.
 
 ## Slices
 
 - [ ] **03.1** Parse `--profile`, `--ask`, `--yes`; implement ask>yes log line
 - [ ] **03.2** Bash multi-select module under `lib/core/terminal/` (or `lib/ask/`)
-- [ ] **03.3** Optional fzf path when present
-- [ ] **03.4** `--print-plan` + `--json` plan envelope
+- [ ] **03.3** Optional fzf path when present (`guides/tools/fzf.guide` required)
+- [x] **03.4** `plan` + `plan --json` envelope (landed pre-03)
 - [ ] **03.5** `--keep-stage` / `--stage-dir` wired through backup
 - [ ] **03.6** Help + generic examples
-- [ ] **03.7** Smoke: ask>yes precedence; print-plan exits without archive
+- [ ] **03.7** Smoke: ask>yes precedence; `plan` never writes
 
 ## Acceptance
 
 - `linuxbkup backup --ask --yes` logs ignore and prompts
 - Strict + `--ask` can still backup a “suggested skip” large path
 - Zero-fzf install still fully usable
-- `--print-plan` never writes an archive
+- `linuxbkup plan` never writes an archive; `backup` does not hijack into plan-only mode
 
 ## After ship
 

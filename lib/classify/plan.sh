@@ -3,8 +3,10 @@
 
 # shellcheck source=lib/classify/scan.sh
 source "${LINUXBKUP_ROOT}/lib/classify/scan.sh"
+# shellcheck source=lib/classify/json.sh
+source "${LINUXBKUP_ROOT}/lib/classify/json.sh"
 
-# Print classification plan. Args: home
+# Print classification plan (human). Args: home
 classify_print_plan() {
   local home="$1"
   local path class action size reason
@@ -12,15 +14,16 @@ classify_print_plan() {
   local n_un=0 n_in=0 n_sk=0 n_se=0
 
   ui_section "Home classification plan"
-  ui_item note "Shallow scan of \$HOME + ~/.local/* — regenerable sizes use filter stack"
+  ui_item note "Shallow scan of \$HOME + ~/.local/* — what backup would copy"
   printf '\n'
 
   if [[ "${LINUXBKUP_INSPECT_QUICK:-0}" -eq 1 ]]; then
-    ui_item note "sizes skipped — LINUXBKUP_INSPECT_QUICK=1"
+    ui_item note "sizes omitted (pass -v for filter-aware sizes)"
   fi
 
   while IFS=$'\t' read -r path class action size reason; do
     [[ -z "${path:-}" ]] && continue
+    log_debug "plan row class=${class} action=${action} path=${path} reason=${reason}"
     case "${class}" in
       unexpected)
         unexpected+=("$(printf '  %8s  %-10s  %s  (%s)' "${size}" "${action}" "$(term_path_link "${path}")" "${reason}")")
@@ -78,10 +81,35 @@ classify_print_plan() {
     fi
   fi
 
-  if [[ "${LINUXBKUP_JSON:-0}" -eq 1 ]]; then
-    printf '\n'
-    ui_section "Plan (TSV)"
-    printf 'path\tclass\taction\tsize\treason\n'
-    classify_scan_home "${home}"
+  log_verbose "plan counts include=${n_in} secret=${n_se} skip=${n_sk} unexpected=${n_un}"
+}
+
+# Short end-of-backup summary (not a full plan dump).
+classify_print_backup_summary() {
+  local home="$1"
+  local path class action size reason
+  local n_un=0 n_in=0 n_sk=0 n_se=0 n_copy=0
+
+  while IFS=$'\t' read -r path class action size reason; do
+    [[ -z "${path:-}" ]] && continue
+    case "${class}" in
+      unexpected) n_un=$((n_un + 1)) ;;
+      secret) n_se=$((n_se + 1)) ;;
+      skip) n_sk=$((n_sk + 1)) ;;
+      include) n_in=$((n_in + 1)) ;;
+    esac
+    [[ "${action}" == "include" || ( "${action}" == "ask" && "${LINUXBKUP_CLASSIFY_INCLUDE_ASK:-0}" -eq 1 ) ]] && n_copy=$((n_copy + 1))
+  done < <(classify_scan_home "${home}")
+
+  ui_section "Backup summary"
+  ui_kv "Copy candidates" "${n_copy}"
+  ui_kv "Known include" "${n_in}"
+  ui_kv "Secrets" "${n_se}"
+  ui_kv "Skipped" "${n_sk}"
+  ui_kv "Unexpected" "${n_un}"
+  if [[ "${LINUXBKUP_PERM_SKIPS:-0}" -gt 0 ]]; then
+    ui_kv "Soft-skips" "${LINUXBKUP_PERM_SKIPS} (permission/partial)"
   fi
+  ui_item note "Full plan: linuxbkup plan   or   linuxbkup plan -F"
+  ui_item note "JSON plan:  linuxbkup plan --json"
 }

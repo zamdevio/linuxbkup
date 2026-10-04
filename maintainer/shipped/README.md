@@ -16,7 +16,8 @@ What has actually landed (not aspirational). Binary: **`linuxbkup`**. Env: **`LI
 | Phase 00 | Identity `linuxbkup` + `LINUXBKUP_*`; `lib/core/platform/` (detect, paths, windows, fs_space); native dest `~/Backups/linuxbkup/`; smoke identity gate |
 | UX | Portable backup/important lists (no host-shaped dirnames); filter stack for `du` + rsync; broader inspect capability probes |
 | Phase 01 | `verify` accepts staging dirs or `*.tar.zst`; fixture + smoke |
-| Phase 02 | Full-home shallow scan + classify; unexpected auto-include (`--yes`/non-TTY); `--print-plan` |
+| Phase 02 | Full-home shallow scan + classify; unexpected auto-include (`--yes`/non-TTY) |
+| UX | `plan` + `plan --json`; drop `--print-plan`; `-v`/`-d`; soft-skip permissions; `fzf` guide + `systems/guides.md` |
 
 ## Not shipped yet (redesign track)
 

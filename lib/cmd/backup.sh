@@ -26,6 +26,10 @@ linuxbkup_cmd_backup() {
   source "${LINUXBKUP_ROOT}/lib/archive/checksums.sh"
   # shellcheck source=lib/archive/pack.sh
   source "${LINUXBKUP_ROOT}/lib/archive/pack.sh"
+  # shellcheck source=lib/classify/plan.sh
+  source "${LINUXBKUP_ROOT}/lib/classify/plan.sh"
+
+  LINUXBKUP_PERM_SKIPS=0
 
   cmd_context_begin backup \
     --desc "Create an intelligent backup archive." \
@@ -46,29 +50,14 @@ linuxbkup_cmd_backup() {
   fi
   dest_dir="$(dirname "${dest}")"
 
-  ui_heading "Backup plan"
+  log_verbose "backup target user=${user} home=${home}"
+  log_debug "dest=${dest} dry_run=${LINUXBKUP_DRY_RUN:-0} yes=${LINUXBKUP_YES:-0}"
+
+  ui_heading "Backup"
   ui_kv_path "Home" "${home}"
   ui_kv_path "Destination" "${dest}"
   [[ "${LINUXBKUP_DRY_RUN:-0}" -eq 1 ]] && ui_kv "Mode" "dry-run"
-  [[ "${LINUXBKUP_PRINT_PLAN:-0}" -eq 1 ]] && ui_kv "Mode" "print-plan"
   printf '\n'
-
-  # shellcheck source=lib/fs/sizes.sh
-  source "${LINUXBKUP_ROOT}/lib/fs/sizes.sh"
-
-  # Plan/dry-run: skip per-path du unless -v (real homes are huge)
-  if [[ "${LINUXBKUP_VERBOSE:-0}" -ne 1 ]]; then
-    if [[ "${LINUXBKUP_PRINT_PLAN:-0}" -eq 1 || "${LINUXBKUP_DRY_RUN:-0}" -eq 1 ]]; then
-      LINUXBKUP_INSPECT_QUICK=1
-    fi
-  fi
-
-  if [[ "${LINUXBKUP_PRINT_PLAN:-0}" -eq 1 ]]; then
-    backup_copy_home "${home}" "/tmp/linuxbkup.print-plan.placeholder" || true
-    printf '\n'
-    log_ok "print-plan complete"
-    return 0
-  fi
 
   if [[ "${LINUXBKUP_DRY_RUN:-0}" -ne 1 ]]; then
     if ! safety_confirm "Proceed with backup?" "y"; then
@@ -89,8 +78,8 @@ linuxbkup_cmd_backup() {
     backup_write_metadata "${stage}" "${user}" "${home}" || true
     apt_capture_manifests "${stage}" || true
     backup_copy_home "${home}" "${stage}" || true
-    archive_write_checksums "${stage}" || true
-    archive_pack_tar_zst "${stage}" "${dest}" || true
+    printf '\n'
+    classify_print_backup_summary "${home}"
     printf '\n'
     log_ok "backup complete (dry-run)"
     return 0
@@ -100,6 +89,7 @@ linuxbkup_cmd_backup() {
   LINUXBKUP_BACKUP_STAGE="${stage}"
   LINUXBKUP_BACKUP_OK=0
   log_ok "staging: ${stage}"
+  log_debug "staging created at ${stage}"
 
   _linuxbkup_backup_on_exit() {
     local rc=$?
@@ -110,6 +100,7 @@ linuxbkup_cmd_backup() {
     if [[ -n "${LINUXBKUP_BACKUP_STAGE:-}" && -d "${LINUXBKUP_BACKUP_STAGE}" ]]; then
       log_warn "backup did not finish — staging kept at: ${LINUXBKUP_BACKUP_STAGE}"
       log_info "Remove with: rm -rf ${LINUXBKUP_BACKUP_STAGE}"
+      log_info "Or verify: linuxbkup verify ${LINUXBKUP_BACKUP_STAGE}"
     fi
     return "${rc}"
   }
@@ -146,6 +137,8 @@ linuxbkup_cmd_backup() {
   LINUXBKUP_BACKUP_STAGE=""
   trap - EXIT INT TERM
 
+  printf '\n'
+  classify_print_backup_summary "${home}"
   printf '\n'
   log_ok "backup complete"
   ui_kv_path "Archive" "${dest}"

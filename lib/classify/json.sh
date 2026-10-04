@@ -1,0 +1,68 @@
+# shellcheck shell=bash
+# Stable JSON plan envelope for agents (plan --json).
+
+_json_escape() {
+  local s="$1"
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  s="${s//$'\n'/\\n}"
+  s="${s//$'\r'/\\r}"
+  s="${s//$'\t'/\\t}"
+  printf '%s' "${s}"
+}
+
+# Emit JSON object to stdout. Args: home
+classify_print_plan_json() {
+  local home="$1"
+  local path class action size reason
+  local n_un=0 n_in=0 n_sk=0 n_se=0 n_ask=0
+  local -a entries=()
+  local first=1
+  local generated
+
+  generated="$(date -Iseconds 2>/dev/null || date)"
+
+  while IFS=$'\t' read -r path class action size reason; do
+    [[ -z "${path:-}" ]] && continue
+    case "${class}" in
+      unexpected) n_un=$((n_un + 1)) ;;
+      secret) n_se=$((n_se + 1)) ;;
+      skip) n_sk=$((n_sk + 1)) ;;
+      include) n_in=$((n_in + 1)) ;;
+    esac
+    [[ "${action}" == "ask" ]] && n_ask=$((n_ask + 1))
+    entries+=("$(printf '{"path":"%s","class":"%s","action":"%s","size":"%s","reason":"%s"}' \
+      "$(_json_escape "${path}")" \
+      "$(_json_escape "${class}")" \
+      "$(_json_escape "${action}")" \
+      "$(_json_escape "${size}")" \
+      "$(_json_escape "${reason}")")")
+  done < <(classify_scan_home "${home}")
+
+  printf '{\n'
+  printf '  "schema": "linuxbkup.plan/v1",\n'
+  printf '  "version": "%s",\n' "$(_json_escape "${LINUXBKUP_VERSION}")"
+  printf '  "home": "%s",\n' "$(_json_escape "${home}")"
+  printf '  "generated": "%s",\n' "$(_json_escape "${generated}")"
+  printf '  "summary": {\n'
+  printf '    "include": %d,\n' "${n_in}"
+  printf '    "secret": %d,\n' "${n_se}"
+  printf '    "skip": %d,\n' "${n_sk}"
+  printf '    "unexpected": %d,\n' "${n_un}"
+  printf '    "ask": %d\n' "${n_ask}"
+  printf '  },\n'
+  printf '  "entries": [\n'
+  first=1
+  local e
+  for e in "${entries[@]+"${entries[@]}"}"; do
+    if [[ "${first}" -eq 1 ]]; then
+      first=0
+      printf '    %s' "${e}"
+    else
+      printf ',\n    %s' "${e}"
+    fi
+  done
+  [[ "${first}" -eq 0 ]] && printf '\n'
+  printf '  ]\n'
+  printf '}\n'
+}

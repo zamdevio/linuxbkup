@@ -7,6 +7,7 @@ LINUXBKUP_VERSION="${LINUXBKUP_VERSION:-0.1.0-dev}"
 LINUXBKUP_YES=0
 LINUXBKUP_DRY_RUN=0
 LINUXBKUP_VERBOSE=0
+LINUXBKUP_DEBUG=0
 LINUXBKUP_QUIET=0
 LINUXBKUP_NO_COLOR=0
 LINUXBKUP_NO_LINKS=0
@@ -18,11 +19,13 @@ LINUXBKUP_USER=""
 LINUXBKUP_NO_DEFAULTS=0
 LINUXBKUP_LIST_FULL=0
 LINUXBKUP_LIST_TOP=""
-LINUXBKUP_PRINT_PLAN=0
 LINUXBKUP_JSON=0
 LINUXBKUP_INCLUDE_REGEXES=()
 LINUXBKUP_EXCLUDE_REGEXES=()
 LINUXBKUP_POSITIONAL=()
+# Soft-skip counter / skip-all for permission / partial copy issues
+LINUXBKUP_PERM_SKIPS=0
+LINUXBKUP_PERM_SKIP_ALL=0
 
 # Help/version live in lib/core/help.sh (styled).
 
@@ -41,6 +44,11 @@ linuxbkup_parse_globals() {
         shift
         ;;
       -v|--verbose)
+        LINUXBKUP_VERBOSE=1
+        shift
+        ;;
+      -d|--debug)
+        LINUXBKUP_DEBUG=1
         LINUXBKUP_VERBOSE=1
         shift
         ;;
@@ -94,10 +102,6 @@ linuxbkup_parse_globals() {
         ;;
       -F|--full)
         LINUXBKUP_LIST_FULL=1
-        shift
-        ;;
-      --print-plan)
-        LINUXBKUP_PRINT_PLAN=1
         shift
         ;;
       --json)

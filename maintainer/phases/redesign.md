@@ -48,7 +48,7 @@ SCAN home → CLASSIFY → REPORT unexpected/large
 | `--profile easy\|balanced\|strict` | Suggestions + `--yes` hard defaults |
 | `--ask` | Interactive; wins over `--yes` |
 | `-y, --yes` | Non-interactive; ignored if `--ask` present (logged) |
-| `--print-plan` | Show final include/skip/secret table; exit |
+| `plan` / `plan --json` | Show final include/skip/secret table (no writes); JSON envelope |
 | `--keep-stage` | Keep staging after success |
 | `--stage-dir <path>` | Staging location |
 | `--json` | Machine-readable plan/status |

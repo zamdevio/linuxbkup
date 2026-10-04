@@ -23,7 +23,7 @@ else
 fi
 
 help_out="$("${CLI}" --no-color --help 2>/dev/null)" || true
-if [[ "${help_out}" == *"Commands"* && "${help_out}" == *"inspect"* && "${help_out}" == *"deps"* ]]; then
+if [[ "${help_out}" == *"Commands"* && "${help_out}" == *"inspect"* && "${help_out}" == *"deps"* && "${help_out}" == *"plan"* ]]; then
   ok "styled help lists commands"
 else
   bad "styled help lists commands"
@@ -89,7 +89,7 @@ else
 fi
 
 bak_out="$(env LINUXBKUP_YES=1 "${CLI}" --no-color --dry-run -o /tmp/linuxbkup-smoke-dry.tar.zst backup 2>/dev/null)" || true
-if [[ "${bak_out}" == *"dry-run"* && "${bak_out}" == *"Backup plan"* ]]; then
+if [[ "${bak_out}" == *"dry-run"* && "${bak_out}" == *"Backup"* && "${bak_out}" == *"linuxbkup plan"* ]]; then
   ok "backup dry-run plans"
 else
   bad "backup dry-run plans"
@@ -186,10 +186,21 @@ if echo "${plan_out}" | grep -F "${fake_home}/work" | grep -q $'unexpected\tincl
 else
   bad "classify: unexpected top-level work auto-include with --yes"
 fi
-if "${CLI}" --no-color --no-links --print-plan backup >/dev/null 2>&1; then
-  ok "backup --print-plan exits 0"
+if "${CLI}" --no-color --no-links plan >/dev/null 2>&1; then
+  ok "plan exits 0"
 else
-  bad "backup --print-plan exits 0"
+  bad "plan exits 0"
+fi
+json_out="$("${CLI}" --no-color --json plan 2>/dev/null)" || true
+if [[ "${json_out}" == *'"schema": "linuxbkup.plan/v1"'* && "${json_out}" == *'"entries"'* ]]; then
+  ok "plan --json envelope"
+else
+  bad "plan --json envelope"
+fi
+if [[ -f "${ROOT}/guides/tools/fzf.guide" ]]; then
+  ok "fzf guide present"
+else
+  bad "fzf guide present"
 fi
 rm -rf "${fake_home}"
 

@@ -28,4 +28,4 @@ Typical: `--dry-run`, `--yes` / `-y`, `--force-overwrite`, path filters (`--incl
 
 ## Redesign (not live)
 
-See [phase 03](../phases/03-profiles-ask-flags.md): `--profile`, `--ask` (wins over `--yes`), `--print-plan`, `--keep-stage`, `--stage-dir`, `--json`, reclaim/secret flags.
+Live: `plan` / `plan --json`, `-v` / `-d`. See [phase 03](../phases/03-profiles-ask-flags.md): `--profile`, `--ask` (wins over `--yes`), `--keep-stage`, `--stage-dir`.

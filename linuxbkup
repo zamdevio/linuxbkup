@@ -46,7 +46,7 @@ case "${cmd}" in
     linuxbkup_print_version
     exit 0
     ;;
-  inspect|backup|restore|verify|list|deps)
+  inspect|backup|plan|restore|verify|list|deps)
     # shellcheck source=/dev/null
     source "${LINUXBKUP_ROOT}/lib/cmd/${cmd}.sh"
     "linuxbkup_cmd_${cmd}" "$@"

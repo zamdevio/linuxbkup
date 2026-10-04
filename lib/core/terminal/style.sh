@@ -68,8 +68,17 @@ log_fatal() {
   printf '%s %s\n' "$(_log_tag FATAL "${UI_RED}")" "$*" >&2
 }
 
+# Human detail (-v/--verbose). Also enabled when -d/--debug.
+log_verbose() {
+  [[ "${LINUXBKUP_VERBOSE:-0}" -eq 1 || "${LINUXBKUP_DEBUG:-0}" -eq 1 ]] || return 0
+  [[ "${LINUXBKUP_QUIET:-0}" -eq 1 ]] && return 0
+  _ui_ensure
+  printf '%s %s\n' "$(_log_tag VERBOSE "${UI_CYAN}")" "$*" >&2
+}
+
+# Forensic detail (-d/--debug only): why/class/commands. stderr so --json stdout stays clean.
 log_debug() {
-  [[ "${LINUXBKUP_VERBOSE:-0}" -eq 1 ]] || return 0
+  [[ "${LINUXBKUP_DEBUG:-0}" -eq 1 ]] || return 0
   _ui_ensure
   printf '%s %s\n' "$(_log_tag DEBUG "${UI_DIM}")" "$*" >&2
 }

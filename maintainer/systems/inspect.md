@@ -1,6 +1,6 @@
 # System — inspect
 
-Command: `linuxbkup inspect`. `--print-plan` shows only the home classification plan (same as `backup --print-plan`).
+Command: `linuxbkup inspect`. For backup include/skip table use `linuxbkup plan` (not inspect).
 
 ## Sources (live)
 
@@ -14,4 +14,4 @@ Command: `linuxbkup inspect`. `--print-plan` shows only the home classification 
 | `lib/core/platform/paths.sh` | default archive dest preview |
 | `lib/core/context.sh` | banner + required tools (`du`, `find`) |
 
-Read-only. Supports `--include` / `--exclude` / `--no-defaults` / `-F` / `-T` / `--print-plan` / `--json` / `-v`.
+Read-only. Supports `--include` / `--exclude` / `--no-defaults` / `-F` / `-T` / `-v` / `-d`.

@@ -8,7 +8,7 @@
 
 | Priority | Vertical | Notes |
 |----------|----------|-------|
-| 1 | — | slot free (phase 02 shipped) |
+| 1 | — | slot free (`plan`, `-v`/`-d`, guides, perm soft-skip shipped) |
 | 2 | — | slot free |
 | 3 | — | slot free |
 
@@ -16,13 +16,12 @@
 
 | # | Item | Why parked |
 |---|------|------------|
-| 1 | Phase 03 profiles / ask / flags | Next redesign slice |
-| 2 | Phases 04–05 reclaim/secrets/space/schema | After 03 |
-| 3 | Phases 06–07 docs + VitePress | Content then site |
+| 1 | Phase 03 profiles / ask UI | Next |
+| 2 | Phases 04–05 | After 03 |
+| 3 | Phases 06–07 docs + VitePress | Later |
 
 ## Next task
 
-1. Open Focus on **phase 03** when ready.
-2. Keep `shipped/` + `systems/` current after each ship.
+Open Focus on **phase 03** when ready.
 
-Umbrella: [`redesign.md`](./redesign.md). Tracker: [`roadmap.md`](./roadmap.md).
+Umbrella: [`redesign.md`](./redesign.md).
