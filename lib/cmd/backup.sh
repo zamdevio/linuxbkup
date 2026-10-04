@@ -138,8 +138,13 @@ linuxbkup_cmd_backup() {
   fi
 
   LINUXBKUP_BACKUP_OK=1
-  backup_stage_cleanup "${stage}"
-  LINUXBKUP_BACKUP_STAGE=""
+  if [[ "${LINUXBKUP_KEEP_STAGE:-0}" -eq 1 ]]; then
+    log_info "keeping staging (--keep-stage): ${stage}"
+    LINUXBKUP_BACKUP_STAGE=""
+  else
+    backup_stage_cleanup "${stage}"
+    LINUXBKUP_BACKUP_STAGE=""
+  fi
   trap - EXIT INT TERM
 
   printf '\n'

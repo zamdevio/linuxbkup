@@ -5,6 +5,7 @@ LINUXBKUP_VERSION="${LINUXBKUP_VERSION:-0.1.0-dev}"
 
 # Globals set by linuxbkup_parse_globals
 LINUXBKUP_YES=0
+LINUXBKUP_ASK=0
 LINUXBKUP_DRY_RUN=0
 LINUXBKUP_VERBOSE=0
 LINUXBKUP_DEBUG=0
@@ -21,6 +22,9 @@ LINUXBKUP_LIST_FULL=0
 LINUXBKUP_LIST_TOP=""
 LINUXBKUP_JSON=0
 LINUXBKUP_MAX_SIZE_BYTES=""
+LINUXBKUP_PROFILE="balanced"
+LINUXBKUP_KEEP_STAGE=0
+LINUXBKUP_STAGE_DIR=""
 LINUXBKUP_INCLUDE_REGEXES=()
 LINUXBKUP_EXCLUDE_REGEXES=()
 LINUXBKUP_POSITIONAL=()
@@ -39,6 +43,24 @@ linuxbkup_parse_globals() {
       -y|--yes)
         LINUXBKUP_YES=1
         shift
+        ;;
+      --ask)
+        LINUXBKUP_ASK=1
+        shift
+        ;;
+      --profile)
+        [[ $# -ge 2 ]] || { log_fatal "--profile requires easy|balanced|strict"; exit 2; }
+        LINUXBKUP_PROFILE="$2"
+        shift 2
+        ;;
+      --keep-stage)
+        LINUXBKUP_KEEP_STAGE=1
+        shift
+        ;;
+      --stage-dir)
+        [[ $# -ge 2 ]] || { log_fatal "--stage-dir requires a path"; exit 2; }
+        LINUXBKUP_STAGE_DIR="$2"
+        shift 2
         ;;
       --dry-run)
         LINUXBKUP_DRY_RUN=1
@@ -148,6 +170,11 @@ linuxbkup_parse_globals() {
         ;;
     esac
   done
+
+  # shellcheck source=lib/core/profile.sh
+  source "${LINUXBKUP_ROOT}/lib/core/profile.sh"
+  linuxbkup_profile_validate || exit 2
+  linuxbkup_apply_ask_yes_precedence
 }
 
 linuxbkup_require_cmd() {

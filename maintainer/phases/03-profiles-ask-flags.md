@@ -73,13 +73,13 @@ Also: `--exclude` / `--include`, `--no-dotfiles` / `--only-dotfiles`, `-o/--outp
 
 ## Slices
 
-- [ ] **03.1** Parse `--profile`, `--ask`, `--yes`; implement ask>yes log line
-- [ ] **03.2** Bash multi-select module under `lib/core/terminal/` (or `lib/ask/`)
-- [ ] **03.3** Optional fzf path when present (`guides/tools/fzf.guide` required)
+- [x] **03.1** Parse `--profile`, `--ask`, `--yes`; implement ask>yes log line
+- [x] **03.2** Bash multi-select module under `lib/ask/select.sh`
+- [x] **03.3** Optional fzf path when present (`guides/tools/fzf.guide` required)
 - [x] **03.4** `plan` + `plan --json` envelope (landed pre-03)
-- [ ] **03.5** `--keep-stage` / `--stage-dir` wired through backup
-- [ ] **03.6** Help + generic examples
-- [ ] **03.7** Smoke: ask>yes precedence; `plan` never writes
+- [x] **03.5** `--keep-stage` / `--stage-dir` wired through backup
+- [x] **03.6** Help + generic examples
+- [x] **03.7** Smoke: ask>yes precedence; `plan` never writes
 
 ## Acceptance
 

@@ -4,8 +4,8 @@ Surface: root **`linuxbkup`** bin. Env: `LINUXBKUP_*`.
 
 ## Flow
 
-1. Parse global flags — `lib/core/common.sh`
-2. Terminal UI — `lib/core/terminal/{style,links,control}.sh`
+1. Parse global flags — `lib/core/common.sh` (+ `lib/core/profile.sh` ask>yes)
+2. Terminal UI — `lib/core/terminal/{style,links,control,progress,notify}.sh`
 3. Safety — `lib/core/safety.sh`
 4. Help/version — `lib/core/help.sh`
 5. Platform (when needed) — `lib/core/platform/` via commands
@@ -16,16 +16,15 @@ Surface: root **`linuxbkup`** bin. Env: `LINUXBKUP_*`.
 | Command | State |
 |---------|--------|
 | `inspect` | Live |
-| `backup` | Live v1 (allowlisted paths) |
-| `verify` | Live for `*.tar.zst` only |
+| `plan` | Live (+ `--json`) |
+| `backup` | Live (classify → stage → checksum → tar.zst) |
+| `verify` | Live for archive **or** staging |
 | `deps` | Live |
 | `list` | Thin / early |
 | `restore` | Stub |
 
 ## Global flags (today)
 
-Typical: `--dry-run`, `--yes` / `-y`, `--force-overwrite`, path filters (`--include` / `--exclude` / `--no-defaults`), `-F`/`-T`, `-o`/`--output` where wired.
+`--dry-run`, `-y/--yes`, `--ask` (wins over `--yes`), `--profile easy|balanced|strict`, `--keep-stage`, `--stage-dir`, `--max-size`, `--force-overwrite`, `--include` / `--exclude` / `--no-defaults`, `-F`/`-T`, `-o`/`--output`, `-v`/`-d`, `--json`.
 
-## Redesign (not live)
-
-Live: `plan` / `plan --json`, `-v` / `-d`. See [phase 03](../phases/03-profiles-ask-flags.md): `--profile`, `--ask` (wins over `--yes`), `--keep-stage`, `--stage-dir`.
+Ask UI: `lib/ask/select.sh` (numbered + optional fzf).

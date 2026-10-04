@@ -20,6 +20,7 @@ What has actually landed (not aspirational). Binary: **`linuxbkup`**. Env: **`LI
 | UX | `plan` + `plan --json`; drop `--print-plan`; `-v`/`-d`; soft-skip permissions; `fzf` guide + `systems/guides.md` |
 | Phase 08 | Terminal progress + notify; flag tips; live stage size; lists large→small |
 | UX | Default-skip `~/go`; `/tmp` off default size scan; `--max-size` (staged bytes) |
+| Phase 03 | `--profile` / `--ask`>`--yes` / Bash+fzf ask UI / `--keep-stage` / `--stage-dir` |
 
 ## Not shipped yet (redesign track)
 

@@ -298,6 +298,41 @@ else
   bad "plan tip includes flagged backup command"
 fi
 
+# Phase 03: --ask wins over --yes
+ask_out="$("${CLI}" --no-color --ask -y plan 2>&1)" || true
+if [[ "${ask_out}" == *"ignoring --yes because --ask is set"* && "${ask_out}" == *"Ask"* ]]; then
+  ok "ask>yes precedence logged"
+else
+  bad "ask>yes precedence logged"
+fi
+help03="$("${CLI}" --no-color --help 2>/dev/null)" || true
+if [[ "${help03}" == *"--profile"* && "${help03}" == *"--ask"* && "${help03}" == *"--keep-stage"* ]]; then
+  ok "help lists profile/ask/keep-stage"
+else
+  bad "help lists profile/ask/keep-stage"
+fi
+# shellcheck source=/dev/null
+source "${ROOT}/lib/core/profile.sh"
+LINUXBKUP_PROFILE=strict
+if ! profile_yes_include_large && [[ "$(profile_suggest_large)" == "skip" ]]; then
+  ok "profile strict skips large by default"
+else
+  bad "profile strict skips large by default"
+fi
+# --stage-dir creates under parent
+# shellcheck source=/dev/null
+source "${ROOT}/lib/backup/stage.sh"
+stage_parent="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-smoke-stageparent.XXXXXX")"
+LINUXBKUP_STAGE_DIR="${stage_parent}"
+stage_path="$(backup_stage_create)" || stage_path=""
+if [[ -n "${stage_path}" && -d "${stage_path}" && "${stage_path}" == "${stage_parent}/linuxbkup."* ]]; then
+  ok "stage-dir creates under parent"
+else
+  bad "stage-dir creates under parent"
+fi
+rm -rf "${stage_parent}"
+unset LINUXBKUP_STAGE_DIR
+
 rm -rf "${fake_home}"
 
 exit "${fail}"

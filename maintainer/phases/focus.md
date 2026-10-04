@@ -8,7 +8,7 @@
 
 | Priority | Vertical | Notes |
 |----------|----------|-------|
-| 1 | — | slot free (go/tmp/max-size + rich lists shipping) |
+| 1 | — | slot free (phase 03 shipped) |
 | 2 | — | slot free |
 | 3 | — | slot free |
 
@@ -16,7 +16,7 @@
 
 | # | Item | Why parked |
 |---|------|------------|
-| 1 | Phase 03 profiles / ask UI (`--profile`, `--ask`, keep-stage) | **Next** |
-| 2 | Phases 04–07 | Later |
+| 1 | Phase 04 reclaim + secrets/`age` | **Next** |
+| 2 | Phases 05–07 | Later |
 
 Umbrella: [`redesign.md`](./redesign.md).

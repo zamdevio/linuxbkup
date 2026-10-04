@@ -8,6 +8,11 @@ source "${LINUXBKUP_ROOT}/lib/constraints/rules.sh"
 # Decide action for unexpected paths.
 # --yes or non-TTY → include; interactive TTY → ask (backup confirms).
 classify_unexpected_action() {
+  # --ask always defers to interactive decide step
+  if [[ "${LINUXBKUP_ASK:-0}" -eq 1 ]]; then
+    printf '%s\n' "ask"
+    return 0
+  fi
   if [[ "${LINUXBKUP_YES:-0}" -eq 1 ]]; then
     printf '%s\n' "include"
     return 0

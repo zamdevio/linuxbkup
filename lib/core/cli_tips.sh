@@ -19,7 +19,11 @@ linuxbkup_flags_plan_relevant() {
   eval "${__name}=()"
   local inc ex
 
+  if [[ "${LINUXBKUP_ASK:-0}" -eq 1 ]]; then _tips_push "${__name}" --ask; fi
   if [[ "${LINUXBKUP_YES:-0}" -eq 1 ]]; then _tips_push "${__name}" -y; fi
+  if [[ -n "${LINUXBKUP_PROFILE:-}" && "${LINUXBKUP_PROFILE}" != "balanced" ]]; then
+    _tips_push "${__name}" --profile "${LINUXBKUP_PROFILE}"
+  fi
   if [[ "${LINUXBKUP_VERBOSE:-0}" -eq 1 && "${LINUXBKUP_DEBUG:-0}" -ne 1 ]]; then
     _tips_push "${__name}" -v
   fi
@@ -54,6 +58,12 @@ linuxbkup_flags_backup_relevant() {
   fi
   if [[ -n "${LINUXBKUP_MAX_SIZE_BYTES:-}" && "${LINUXBKUP_MAX_SIZE_BYTES}" -gt 0 ]]; then
     _tips_push "${__name}" --max-size "${LINUXBKUP_MAX_SIZE_BYTES}"
+  fi
+  if [[ "${LINUXBKUP_KEEP_STAGE:-0}" -eq 1 ]]; then
+    _tips_push "${__name}" --keep-stage
+  fi
+  if [[ -n "${LINUXBKUP_STAGE_DIR:-}" ]]; then
+    _tips_push "${__name}" --stage-dir "${LINUXBKUP_STAGE_DIR}"
   fi
   if [[ "${LINUXBKUP_DRY_RUN:-0}" -eq 1 ]]; then
     _tips_push "${__name}" --dry-run

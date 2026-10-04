@@ -2,30 +2,56 @@
 # Backup staging directory lifecycle.
 
 backup_stage_create() {
-  local prefix base
-  # Prefer platform helper when loaded; else same default.
-  if declare -F platform_staging_prefix >/dev/null 2>&1; then
+  local prefix base parent
+  if [[ -n "${LINUXBKUP_STAGE_DIR:-}" ]]; then
+    parent="${LINUXBKUP_STAGE_DIR}"
+    mkdir -p "${parent}" || {
+      log_fatal "cannot create --stage-dir: ${parent}"
+      return 1
+    }
+    prefix="${parent%/}/linuxbkup"
+  elif declare -F platform_staging_prefix >/dev/null 2>&1; then
     prefix="$(platform_staging_prefix)"
   else
     prefix="${TMPDIR:-/tmp}/linuxbkup"
   fi
   base="${prefix}.$$.$RANDOM"
-  mkdir -p "${base}"/{metadata,packages,services,config,home,secrets}
+  mkdir -p "${base}"/{metadata,packages,services,config,home,secrets} || {
+    log_fatal "cannot create staging: ${base}"
+    return 1
+  }
   printf '%s\n' "${base}"
+}
+
+# True if path looks like a linuxbkup staging dir we may remove.
+backup_stage_is_ours() {
+  local stage="$1"
+  case "${stage}" in
+    /tmp/linuxbkup.*|"${TMPDIR:-/tmp}"/linuxbkup.*) return 0 ;;
+  esac
+  if [[ -n "${LINUXBKUP_STAGE_DIR:-}" ]]; then
+    case "${stage}" in
+      "${LINUXBKUP_STAGE_DIR%/}"/linuxbkup.*) return 0 ;;
+    esac
+  fi
+  return 1
 }
 
 backup_stage_cleanup() {
   local stage="${1:-}"
   [[ -n "${stage}" && -d "${stage}" ]] || return 0
-  case "${stage}" in
-    /tmp/linuxbkup.*|"${TMPDIR:-/tmp}"/linuxbkup.*)
-      rm -rf "${stage}"
-      log_debug "staging removed: ${stage}"
-      ;;
-    *)
-      log_warn "refusing to remove unexpected staging path: ${stage}"
-      ;;
-  esac
+
+  if [[ "${LINUXBKUP_KEEP_STAGE:-0}" -eq 1 ]]; then
+    log_info "keeping staging (--keep-stage): ${stage}"
+    return 0
+  fi
+
+  if backup_stage_is_ours "${stage}"; then
+    rm -rf "${stage}"
+    log_debug "staging removed: ${stage}"
+  else
+    log_warn "refusing to remove unexpected staging path: ${stage}"
+  fi
 }
 
 backup_write_metadata() {
@@ -44,6 +70,7 @@ backup_write_metadata() {
     printf 'user=%s\n' "${user}"
     printf 'home=%s\n' "${home}"
     printf 'hostname=%s\n' "$(hostname 2>/dev/null || echo unknown)"
+    printf 'profile=%s\n' "${LINUXBKUP_PROFILE:-balanced}"
   } >"${meta}/backup.env"
 
   # shellcheck source=lib/env/distro.sh

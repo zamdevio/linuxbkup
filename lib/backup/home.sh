@@ -5,6 +5,10 @@
 source "${LINUXBKUP_ROOT}/lib/classify/scan.sh"
 # shellcheck source=lib/fs/sizes.sh
 source "${LINUXBKUP_ROOT}/lib/fs/sizes.sh"
+# shellcheck source=lib/core/profile.sh
+source "${LINUXBKUP_ROOT}/lib/core/profile.sh"
+# shellcheck source=lib/ask/select.sh
+source "${LINUXBKUP_ROOT}/lib/ask/select.sh"
 
 # Build effective backup path list from classification plan.
 backup_home_paths() {
@@ -90,55 +94,126 @@ backup_check_max_size() {
   return 0
 }
 
+# Resolve human/bytes for a classify size field + path.
+backup_resolve_size() {
+  local path="$1" size="$2"
+  local bytes=0 human mode
+  human="${size:-?}"
+  if [[ "${LINUXBKUP_INSPECT_QUICK:-0}" -eq 1 ]]; then
+    bytes=0
+  elif [[ -n "${size}" && "${size}" != "?" ]]; then
+    bytes="$(fs_parse_size_to_bytes "${size}" 2>/dev/null || printf '0')"
+    human="${size}"
+  else
+    mode="filtered"
+    constraints_is_regenerable_path "${path}" && mode="raw"
+    if bytes="$(fs_du_bytes "${path}" "${mode}" 2>/dev/null)"; then
+      human="$(fs_bytes_human "${bytes}")"
+    else
+      bytes=0
+      human="?"
+    fi
+  fi
+  [[ "${bytes}" =~ ^[0-9]+$ ]] || bytes=0
+  printf '%s\t%s\n' "${bytes}" "${human}"
+}
+
 backup_copy_home() {
   local home="$1" stage="$2"
   local path rel dest
-  local -a paths=() unexpected_ask=() ranked=()
+  local -a paths=() ranked=() decide_rows=() ask_picked=()
   local count=0 skipped=0
   local shown=0 limit
   local p class action size reason
   local i total bytes human est=0 esth maxh
-  local row line
+  local row line suggested need_ask=0
+  local is_unexp is_lg display_class
+  local -A include_set=()
 
   # shellcheck source=lib/classify/plan.sh
   source "${LINUXBKUP_ROOT}/lib/classify/plan.sh"
 
   log_verbose "building include list from classification scan"
-  log_debug "backup_copy_home home=${home} stage=${stage}"
+  log_debug "backup_copy_home home=${home} stage=${stage} profile=${LINUXBKUP_PROFILE:-balanced} ask=${LINUXBKUP_ASK:-0}"
 
   local -a scan_rows=()
   while IFS=$'\t' read -r p class action size reason; do
     [[ -z "${p:-}" ]] && continue
     log_debug "scan ${class}/${action} ${p}"
     scan_rows+=("$(printf '%s\t%s\t%s\t%s\t%s' "${p}" "${class}" "${action}" "${size}" "${reason}")")
-    if [[ "${class}" == "unexpected" && "${action}" == "ask" ]]; then
-      unexpected_ask+=("${p}")
-    fi
   done < <(classify_scan_home "${home}")
 
-  if [[ "${#unexpected_ask[@]}" -gt 0 ]]; then
-    ui_section "Unexpected paths (decide)"
-    for path in "${unexpected_ask[@]}"; do
-      ui_item note "$(term_path_link "${path}")"
-    done
-    printf '\n'
-    if safety_confirm "Include these unexpected paths in the backup?" "y"; then
-      LINUXBKUP_CLASSIFY_INCLUDE_ASK=1
-      export LINUXBKUP_CLASSIFY_INCLUDE_ASK
-      log_verbose "unexpected paths: include"
-    else
-      log_info "unexpected paths will be skipped"
-      LINUXBKUP_CLASSIFY_INCLUDE_ASK=0
+  # Build decide set + default includes (profile + --ask / --yes rules).
+  for row in "${scan_rows[@]+"${scan_rows[@]}"}"; do
+    [[ -z "${row}" ]] && continue
+    IFS=$'\t' read -r p class action size reason <<<"${row}" || true
+    case "${action}" in
+      include|ask) ;;
+      *) continue ;;
+    esac
+    IFS=$'\t' read -r bytes human <<<"$(backup_resolve_size "${p}" "${size}")" || true
+
+    is_unexp=0
+    is_lg=0
+    display_class="${class}"
+    [[ "${class}" == "unexpected" ]] && is_unexp=1
+    if profile_is_large "${p}" "${bytes}"; then
+      is_lg=1
+      display_class="${class}+large"
     fi
+    suggested="include"
+    if [[ "${is_unexp}" -eq 1 || "${is_lg}" -eq 1 ]]; then
+      suggested="$(profile_suggest_large)"
+    fi
+
+    if [[ "${LINUXBKUP_ASK:-0}" -eq 1 ]]; then
+      if [[ "${is_unexp}" -eq 1 || "${is_lg}" -eq 1 ]]; then
+        decide_rows+=("$(printf '%s\t%s\t%s\t%s' "${p}" "${human}" "${display_class}" "${suggested}")")
+        need_ask=1
+      else
+        include_set["${p}"]=1
+      fi
+      continue
+    fi
+
+    if [[ "${LINUXBKUP_YES:-0}" -eq 1 ]]; then
+      [[ "${action}" == "ask" ]] && continue
+      if [[ "${is_lg}" -eq 1 ]] && ! profile_yes_include_large; then
+        log_verbose "profile ${LINUXBKUP_PROFILE}: skip large ${p} (${human})"
+        continue
+      fi
+      include_set["${p}"]=1
+      continue
+    fi
+
+    # TTY without --ask/--yes: prompt unexpected (action=ask); keep other includes
+    if [[ "${action}" == "ask" ]]; then
+      decide_rows+=("$(printf '%s\t%s\t%s\t%s' "${p}" "${human}" "${display_class}" "${suggested}")")
+      need_ask=1
+      continue
+    fi
+    include_set["${p}"]=1
+  done
+
+  if [[ "${need_ask}" -eq 1 && "${#decide_rows[@]}" -gt 0 ]]; then
+    if ! ask_select_backup_paths decide_rows ask_picked \
+      "Large / unexpected items  (profile: ${LINUXBKUP_PROFILE:-balanced})"; then
+      return 1
+    fi
+    for path in "${ask_picked[@]+"${ask_picked[@]}"}"; do
+      include_set["${path}"]=1
+    done
+    LINUXBKUP_CLASSIFY_INCLUDE_ASK=1
+    export LINUXBKUP_CLASSIFY_INCLUDE_ASK
   fi
 
   local -a raw_ranked=()
   for row in "${scan_rows[@]+"${scan_rows[@]}"}"; do
     [[ -z "${row}" ]] && continue
     IFS=$'\t' read -r p class action size reason <<<"${row}" || true
-    if line="$(backup_rank_row "${p}" "${class}" "${action}" "${size}")"; then
-      [[ -n "${line}" ]] && raw_ranked+=("${line}")
-    fi
+    [[ -n "${include_set[${p}]+x}" ]] || continue
+    IFS=$'\t' read -r bytes human <<<"$(backup_resolve_size "${p}" "${size}")" || true
+    raw_ranked+=("$(printf '%s\t%s\t%s\t%s' "${bytes}" "${human}" "${class}" "${p}")")
   done
   if [[ "${#raw_ranked[@]}" -gt 0 ]]; then
     mapfile -t ranked < <(printf '%s\n' "${raw_ranked[@]}" | sort -t$'\t' -k1,1nr)

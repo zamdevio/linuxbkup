@@ -11,20 +11,21 @@
 | APT manuals | `modules/apt.sh` (and backup orchestration) |
 | Default dest | `lib/core/platform/paths.sh` — native `~/Backups/linuxbkup/` or Windows Downloads when mounted |
 | Verify | `lib/cmd/verify.sh` — **archive** (`*.tar.zst`) **or staging directory** with `checksums.sha256` |
-| Failure UX | Staging kept if pack fails; INDEX write hardened (`32b5b11`) |
+| Profiles / ask | `lib/core/profile.sh` + `lib/ask/select.sh` |
+| Failure UX | Staging kept if pack fails; INDEX write ignores `find\|head` SIGPIPE |
 
-Home/config comes from **full-home classification** (`lib/classify/` + `lib/constraints/rules.sh`). Unexpected paths auto-include on `--yes`/non-TTY; TTY asks. Regenerables skipped (rsync filter stack).
+Home/config from **full-home classification**. Decisions: `--ask` interactive (unexpected + large); `--yes` uses profile large defaults; non-TTY ≈ `--yes`. Regenerables skipped (rsync filter stack). `--keep-stage` / `--stage-dir` control staging lifecycle.
 
 ## Stub / missing
 
 - `restore` — not Near-full
-- Secrets/`age` encrypt pipeline
-- `schema.json` + decisions log
-- Space preflight
-- Profiles / ask / reclaim
+- Secrets/`age` encrypt pipeline (phase 04)
+- `schema.json` + decisions log (phase 05)
+- Space preflight (phase 05)
+- Reclaim regenerables (phase 04)
 
 ## Redesign target
 
 SCAN → CLASSIFY → REPORT unexpected → DECIDE → RECLAIM/SECRET → SPACE → STAGE → schema → checksum → `tar.zst`.
 
-Track: [`../phases/redesign.md`](../phases/redesign.md) phases **02–05**. Docs site: **06–07**.
+Track: [`../phases/redesign.md`](../phases/redesign.md).
