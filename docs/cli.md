@@ -32,7 +32,8 @@ Install guides: `guides/tools/<name>.guide`.
 
 ```bash
 linuxbkup inspect --exclude '\.cache' -T 5
-linuxbkup backup --include /home/user/src --include /home/user/work
+linuxbkup --print-plan backup
+linuxbkup -y backup --include /home/user/extra-pattern
 ```
 
-Built-in defaults are portable (shell/dotfiles, `.config`, `.local/bin`, `.ssh`). Extra home trees: `--include` until phase 02 full-home scan. Lists live in `lib/constraints/`.
+Full `$HOME` shallow scan classifies known / secret / skip / unexpected. Unexpected auto-includes with `-y` or non-TTY. Rules live in `lib/constraints/rules.sh`.
