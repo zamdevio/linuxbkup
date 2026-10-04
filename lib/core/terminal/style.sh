@@ -44,67 +44,81 @@ _log_tag() {
   printf '%s[%s]%s' "${color}" "${level}" "${UI_RESET}"
 }
 
+_log_emit() {
+  local level="$1" color=""
+  shift
+  declare -F term_live_park >/dev/null 2>&1 && term_live_park
+  _ui_ensure
+  case "${level}" in
+    INFO) color="${UI_BLUE}" ;;
+    OK) color="${UI_GREEN}" ;;
+    WARN) color="${UI_YELLOW}" ;;
+    SKIP|DEBUG) color="${UI_DIM}" ;;
+    FATAL) color="${UI_RED}" ;;
+    VERBOSE) color="${UI_CYAN}" ;;
+    *) color="${UI_DIM}" ;;
+  esac
+  printf '%s %s\n' "$(_log_tag "${level}" "${color}")" "$*" >&2
+}
+
 log_info() {
   [[ "${LINUXBKUP_QUIET:-0}" -eq 1 ]] && return 0
-  _ui_ensure
-  printf '%s %s\n' "$(_log_tag INFO "${UI_BLUE}")" "$*"
+  _log_emit INFO "$@"
 }
 
 log_ok() {
   [[ "${LINUXBKUP_QUIET:-0}" -eq 1 ]] && return 0
-  _ui_ensure
-  printf '%s %s\n' "$(_log_tag OK "${UI_GREEN}")" "$*"
+  _log_emit OK "$@"
 }
 
 log_warn() {
-  _ui_ensure
-  printf '%s %s\n' "$(_log_tag WARN "${UI_YELLOW}")" "$*" >&2
+  _log_emit WARN "$@"
 }
 
 log_skip() {
   [[ "${LINUXBKUP_QUIET:-0}" -eq 1 ]] && return 0
-  _ui_ensure
-  printf '%s %s\n' "$(_log_tag SKIP "${UI_DIM}")" "$*"
+  _log_emit SKIP "$@"
 }
 
 log_fatal() {
-  _ui_ensure
-  printf '%s %s\n' "$(_log_tag FATAL "${UI_RED}")" "$*" >&2
+  _log_emit FATAL "$@"
 }
 
 # Human detail (-v/--verbose). Also enabled when -d/--debug.
 log_verbose() {
   [[ "${LINUXBKUP_VERBOSE:-0}" -eq 1 || "${LINUXBKUP_DEBUG:-0}" -eq 1 ]] || return 0
   [[ "${LINUXBKUP_QUIET:-0}" -eq 1 ]] && return 0
-  _ui_ensure
-  printf '%s %s\n' "$(_log_tag VERBOSE "${UI_CYAN}")" "$*" >&2
+  _log_emit VERBOSE "$@"
 }
 
 # Forensic detail (-d/--debug only): why/class/commands. stderr so --json stdout stays clean.
 log_debug() {
   [[ "${LINUXBKUP_DEBUG:-0}" -eq 1 ]] || return 0
-  _ui_ensure
-  printf '%s %s\n' "$(_log_tag DEBUG "${UI_DIM}")" "$*" >&2
+  _log_emit DEBUG "$@"
 }
 
 ui_rule() {
+  declare -F term_live_park >/dev/null 2>&1 && term_live_park
   _ui_ensure
   printf '%s────────────────────────────────────────%s\n' "${UI_DIM}" "${UI_RESET}"
 }
 
 ui_heading() {
+  declare -F term_live_park >/dev/null 2>&1 && term_live_park
   _ui_ensure
   printf '\n%s%s%s\n' "${UI_BOLD}" "$*" "${UI_RESET}"
   ui_rule
 }
 
 ui_section() {
+  declare -F term_live_park >/dev/null 2>&1 && term_live_park
   _ui_ensure
   printf '%s%s%s\n' "${UI_BOLD}" "$*" "${UI_RESET}"
 }
 
 ui_kv() {
   local key="$1" value="$2"
+  declare -F term_live_park >/dev/null 2>&1 && term_live_park
   _ui_ensure
   printf '  %s%-14s%s %s\n' "${UI_DIM}" "${key}" "${UI_RESET}" "${value}"
 }
@@ -113,6 +127,7 @@ ui_kv() {
 ui_kv_path() {
   local key="$1" path="$2"
   local linked
+  declare -F term_live_park >/dev/null 2>&1 && term_live_park
   _ui_ensure
   linked="$(term_path_link "${path}")"
   printf '  %s%-14s%s %s\n' "${UI_DIM}" "${key}" "${UI_RESET}" "${linked}"
@@ -122,6 +137,7 @@ ui_item() {
   # ui_item ok|warn|off|note <text>
   local kind="$1"
   shift
+  declare -F term_live_park >/dev/null 2>&1 && term_live_park
   _ui_ensure
   case "${kind}" in
     ok)   printf '  %s✓%s %s\n' "${UI_GREEN}" "${UI_RESET}" "$*" ;;

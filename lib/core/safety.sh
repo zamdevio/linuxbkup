@@ -72,72 +72,158 @@ safety_secrets_mode_for_yes() {
 
 # --- Signals -----------------------------------------------------------------
 
-LINUXBKUP_INT_BUSY=0
+# shellcheck source=lib/core/interrupt.sh
+source "${LINUXBKUP_ROOT}/lib/core/interrupt.sh"
 
-# Restore terminal after interrupt/suspend mid-progress.
 _safety_ui_cleanup() {
-  declare -F term_progress_end >/dev/null 2>&1 && term_progress_end
-  declare -F term_cursor_show >/dev/null 2>&1 && term_cursor_show
+  if declare -F term_live_park >/dev/null 2>&1; then
+    term_live_park
+  else
+    declare -F term_cursor_show >/dev/null 2>&1 && term_cursor_show
+  fi
 }
 
-# Ctrl+C — confirm on TTY to avoid accidental abort; non-TTY exits immediately.
+# Ops that apply LINUXBKUP_INTERRUPT_ACTION after the current syscall returns.
+_linuxbkup_op_has_waiter() {
+  case "${LINUXBKUP_OP_STEP:-}" in
+    classify|checksum|pack|copy|snapshot|apt-capture|verify|verify-extract|plan|inspect)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+# TERM children (not INT — monitor mode can re-raise INT as a second Ctrl+C).
+_safety_stop_children() {
+  local pid
+  for pid in $(jobs -p 2>/dev/null); do
+    kill -TERM "${pid}" 2>/dev/null || true
+  done
+  if command -v pkill >/dev/null 2>&1; then
+    pkill -TERM -P $$ 2>/dev/null || true
+  else
+    for pid in $(ps -o pid= --ppid $$ 2>/dev/null); do
+      [[ -z "${pid}" || "${pid}" == "$$" ]] && continue
+      kill -TERM "${pid}" 2>/dev/null || true
+    done
+  fi
+}
+
+# Ctrl+C — menu (never silent continue). Second Ctrl+C in menu → hard quit.
 safety_on_int() {
   if [[ "${LINUXBKUP_INT_BUSY:-0}" -eq 1 ]]; then
     _safety_ui_cleanup
-    log_fatal "Interrupted"
+    log_fatal "Interrupted (forced)"
     exit 130
   fi
   LINUXBKUP_INT_BUSY=1
-  printf '\n' >&2
+  LINUXBKUP_WAS_INTERRUPTED=1
   _safety_ui_cleanup
+  _safety_stop_children
 
   if [[ ! -t 0 && ! -c /dev/tty ]]; then
-    log_fatal "Interrupted (non-TTY)"
+    log_fatal "Interrupted (non-TTY) — exiting"
     exit 130
   fi
 
-  # Nested INT during confirm → exit
-  trap 'log_fatal "Interrupted"; exit 130' INT
-  if safety_confirm "Stop linuxbkup and exit?" "n"; then
-    log_fatal "Interrupted by user"
-    exit 130
-  fi
+  trap 'log_fatal "Interrupted (forced)"; exit 130' INT
+  linuxbkup_interrupt_menu
   trap 'safety_on_int' INT
-  LINUXBKUP_INT_BUSY=0
-  log_info "Continuing…"
+
+  case "${LINUXBKUP_INTERRUPT_ACTION}" in
+    quit|quit_clean)
+      LINUXBKUP_INT_BUSY=0
+      linuxbkup_interrupt_apply >/dev/null
+      ;;
+    *)
+      LINUXBKUP_INT_BUSY=0
+      if [[ -n "${TERM_PROGRESS_T0+x}" ]]; then
+        TERM_PROGRESS_T0="$(date +%s)"
+      fi
+      # Waiters leave ACTION for the caller. Idle: consume now so set -e
+      # does not see status 130 and kill the process after the menu.
+      if [[ "${LINUXBKUP_OP_CAN_SKIP:-0}" -eq 1 && -n "${LINUXBKUP_OP_ITEM:-}" ]]; then
+        log_info "Paused — will ${LINUXBKUP_INTERRUPT_ACTION} when the current copy returns"
+      elif _linuxbkup_op_has_waiter; then
+        if [[ "${LINUXBKUP_INTERRUPT_ACTION}" == "retry" || "${LINUXBKUP_OP_REDO:-0}" -eq 1 ]]; then
+          log_info "Paused — will retry ${LINUXBKUP_OP_STEP} (discard partial)"
+        else
+          log_info "Paused — will ${LINUXBKUP_INTERRUPT_ACTION} ${LINUXBKUP_OP_STEP}"
+        fi
+      else
+        log_info "Continuing…"
+        LINUXBKUP_INTERRUPT_ACTION=""
+        LINUXBKUP_WAS_INTERRUPTED=0
+        LINUXBKUP_OP_REDO=0
+      fi
+      if [[ "${TERM_PROGRESS_ACTIVE:-0}" -eq 1 ]]; then
+        declare -F term_progress_resume_paint >/dev/null 2>&1 && term_progress_resume_paint
+      fi
+      ;;
+  esac
 }
 
-# SIGTERM — no confirm (external kill)
 safety_on_term() {
   _safety_ui_cleanup
+  declare -F term_progress_end >/dev/null 2>&1 && term_progress_end
+  declare -F linuxbkup_tty_restore >/dev/null 2>&1 && linuxbkup_tty_restore
   log_fatal "Terminated (SIGTERM)"
   exit 143
 }
 
-# Ctrl+Z — allow suspend; guide resume with fg (TTY-aware).
-# After fg, reinstall trap and continue.
-safety_on_tstp() {
-  printf '\n' >&2
-  _safety_ui_cleanup
-  if [[ -t 0 || -t 1 || -c /dev/tty ]]; then
-    log_info "Stopped (Ctrl+Z) — job suspended in this shell"
-    log_info "Resume with: fg"
-    log_info "If a prompt/password was pending, use fg (not bg) so the TTY can attach again"
+# Prefer /dev/tty — live progress often owns stderr.
+_safety_tty_msg() {
+  if [[ -c /dev/tty ]]; then
+    printf '%s\n' "$*" >/dev/tty 2>/dev/null || printf '%s\n' "$*" >&2
   else
-    log_info "Stopped (SIGTSTP)"
+    printf '%s\n' "$*" >&2
   fi
-  # Deliver real stop; when fg resumes, execution continues below
-  trap - TSTP
-  kill -s TSTP "$$" 2>/dev/null || kill -STOP "$$"
-  trap 'safety_on_tstp' TSTP
-  log_info "Resumed (fg)"
 }
 
-# Install process-wide handlers. Safe to call once from the entry binary.
+LINUXBKUP_WAS_SUSPENDED=0
+
+# Ctrl+Z — park UI, STOP process group (bash + children). Needs set -m;
+# otherwise only the child stops and bash wedges in wait. Not a kill path.
+safety_on_tstp() {
+  LINUXBKUP_WAS_SUSPENDED=1
+  printf '\033[?25h' >/dev/tty 2>/dev/null || true
+  _safety_ui_cleanup
+  declare -F term_cursor_show >/dev/null 2>&1 && term_cursor_show
+  _safety_tty_msg ""
+  _safety_tty_msg "[INFO] Suspended (Ctrl+Z) — back at your shell"
+  _safety_tty_msg "[INFO] Resume: fg     |  background: bg"
+  if [[ -n "${LINUXBKUP_OP_STEP:-}" ]]; then
+    _safety_tty_msg "[INFO] Step: ${LINUXBKUP_OP_STEP}${LINUXBKUP_OP_ITEM:+ — ${LINUXBKUP_OP_ITEM}}"
+  fi
+
+  trap - TSTP
+  kill -STOP 0 2>/dev/null || kill -STOP -$$ 2>/dev/null || kill -STOP "$$" 2>/dev/null || true
+  trap 'safety_on_tstp' TSTP
+}
+
+# After fg/bg+CONT: reset ETA and redraw progress.
+safety_on_cont() {
+  [[ "${LINUXBKUP_WAS_SUSPENDED:-0}" -eq 1 ]] || return 0
+  LINUXBKUP_WAS_SUSPENDED=0
+  if [[ -n "${TERM_PROGRESS_T0+x}" ]]; then
+    TERM_PROGRESS_T0="$(date +%s)"
+  fi
+  _safety_tty_msg "[INFO] Resumed — ETA clock reset"
+  if [[ "${TERM_PROGRESS_ACTIVE:-0}" -eq 1 ]]; then
+    declare -F term_progress_resume_paint >/dev/null 2>&1 && term_progress_resume_paint
+  fi
+}
+
 linuxbkup_install_traps() {
+  # Monitor mode so tty ^Z suspends the whole job group (not only the child).
+  set -m 2>/dev/null || true
   trap 'safety_on_int' INT
   trap 'safety_on_term' TERM
   trap 'safety_on_tstp' TSTP
+  trap 'safety_on_cont' CONT
+  trap 'linuxbkup_tty_restore' EXIT
 }
 
 # Permission / unreadable path policy. Never auto-sudo.
@@ -167,6 +253,7 @@ safety_permission_policy() {
 }
 
 # Run rsync; treat partial transfer (23/24) as soft-skip, not fatal.
+# Returns: 0 ok, 1 hard fail, 20 interrupted (SIGINT / user menu pending).
 backup_rsync_run() {
   local -a args=("$@")
   local rc=0 err
@@ -181,6 +268,13 @@ backup_rsync_run() {
   if [[ "${rc}" -eq 0 ]]; then
     rm -f "${err}"
     return 0
+  fi
+
+  # 20 = SIGINT — never soft-skip
+  if [[ "${rc}" -eq 20 || "${LINUXBKUP_WAS_INTERRUPTED:-0}" -eq 1 ]]; then
+    rm -f "${err}"
+    LINUXBKUP_WAS_INTERRUPTED=1
+    return 20
   fi
 
   local label="${args[$((${#args[@]} - 1))]:-rsync}"
@@ -205,4 +299,15 @@ backup_rsync_run() {
   decision="$(safety_permission_policy "${label}" "rsync failed rc=${rc}")"
   [[ "${decision}" == "abort" ]] && return 1
   return 0
+}
+
+# After rsync: 0 + LINUXBKUP_INTERRUPT_RESULT if interrupt; 1 if not.
+backup_handle_interrupt() {
+  local rc="${1:-0}"
+  if [[ "${rc}" -eq 20 || "${LINUXBKUP_WAS_INTERRUPTED:-0}" -eq 1 || -n "${LINUXBKUP_INTERRUPT_ACTION:-}" ]]; then
+    LINUXBKUP_WAS_INTERRUPTED=1
+    linuxbkup_interrupt_resolve
+    return 0
+  fi
+  return 1
 }

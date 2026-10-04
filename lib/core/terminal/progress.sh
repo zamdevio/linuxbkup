@@ -1,6 +1,5 @@
 # shellcheck shell=bash
-# Live progress line for long-running ops (TTY). Non-TTY → INFO steps.
-# Rich extras: optional staging footprint + max-size headroom + ETA.
+# Live progress on TTY stderr (\r + EL2); park before durable logs. Non-TTY → INFO.
 
 TERM_PROGRESS_ACTIVE=0
 TERM_PROGRESS_TOTAL=0
@@ -10,10 +9,11 @@ TERM_PROGRESS_STAGE=""
 TERM_PROGRESS_STAGE_BYTES=0
 TERM_PROGRESS_T0=0
 TERM_PROGRESS_EXTRA=""
+TERM_PROGRESS_ITEM_H=""
 
 term_progress_enabled() {
   [[ "${LINUXBKUP_QUIET:-0}" -eq 1 ]] && return 1
-  [[ -t 1 ]] || return 1
+  [[ -t 2 ]] || return 1
   return 0
 }
 
@@ -77,7 +77,9 @@ term_progress_begin() {
   TERM_PROGRESS_LABEL="${2:-}"
   TERM_PROGRESS_ACTIVE=0
   TERM_PROGRESS_STAGE_BYTES=0
+  TERM_PROGRESS_ITEM_H=""
   TERM_PROGRESS_T0="$(date +%s)"
+  TERM_LIVE_ACTIVE=0
 
   if ! term_progress_enabled; then
     [[ -n "${TERM_PROGRESS_LABEL}" ]] && log_info "${TERM_PROGRESS_LABEL} (0/${TERM_PROGRESS_TOTAL})"
@@ -87,41 +89,39 @@ term_progress_begin() {
   TERM_PROGRESS_ACTIVE=1
   term_cursor_hide
   if [[ -n "${TERM_PROGRESS_LABEL}" ]]; then
-    printf '  %s\n' "${TERM_PROGRESS_LABEL}"
+    printf '  %s\n' "${TERM_PROGRESS_LABEL}" >&2
   fi
 }
 
-# Update. Args: current [path_label] [item_size_human]
-# Example: 19%  19/96  path (713M) · ETA 1m12s · 4w · stage 5.1GB
-term_progress_update() {
+_term_progress_compose() {
   local cur="$1" label="${2:-}" item_h="${3:-}"
-  local pct=0 width=28 filled empty i bar
-  local short stage_h="" max_h="" mid="" extra=""
+  local pct=0 short stage_h="" max_h="" mid="" extra=""
   local now elapsed eta_sec
 
-  TERM_PROGRESS_CUR="${cur}"
   [[ -n "${label}" ]] && TERM_PROGRESS_LABEL="${label}"
+  [[ -n "${item_h}" ]] && TERM_PROGRESS_ITEM_H="${item_h}"
 
   if [[ "${TERM_PROGRESS_TOTAL}" -gt 0 ]]; then
     pct=$((cur * 100 / TERM_PROGRESS_TOTAL))
     ((pct > 100)) && pct=100
   fi
 
-  short="$(term_progress_truncate "${label}" 36)"
+  short="$(term_progress_truncate "${TERM_PROGRESS_LABEL}" 36)"
   if [[ -n "${short}" ]]; then
     mid="${short}"
-    if [[ -n "${item_h}" && "${item_h}" != "?" ]]; then
-      mid+=" (${item_h})"
+    if [[ -n "${TERM_PROGRESS_ITEM_H}" && "${TERM_PROGRESS_ITEM_H}" != "?" ]]; then
+      mid+=" (${TERM_PROGRESS_ITEM_H})"
     fi
   fi
 
-  # ETA from elapsed / completion ratio (after a few items so rate stabilizes)
   now="$(date +%s)"
   elapsed=$((now - TERM_PROGRESS_T0))
-  if [[ "${cur}" -ge 3 && "${TERM_PROGRESS_TOTAL}" -gt 0 && "${elapsed}" -gt 0 && "${cur}" -lt "${TERM_PROGRESS_TOTAL}" ]]; then
+  if [[ "${cur}" -ge 3 && "${TERM_PROGRESS_TOTAL}" -gt 0 && "${elapsed}" -ge 2 && "${cur}" -lt "${TERM_PROGRESS_TOTAL}" ]]; then
     eta_sec=$(((TERM_PROGRESS_TOTAL - cur) * elapsed / cur))
-    extra=" · ETA $(term_progress_fmt_duration "${eta_sec}")"
-  elif [[ "${cur}" -ge "${TERM_PROGRESS_TOTAL}" && "${TERM_PROGRESS_TOTAL}" -gt 0 && "${elapsed}" -gt 0 ]]; then
+    if [[ "${eta_sec}" -lt $((48 * 3600)) ]]; then
+      extra=" · ETA $(term_progress_fmt_duration "${eta_sec}")"
+    fi
+  elif [[ "${cur}" -ge "${TERM_PROGRESS_TOTAL}" && "${TERM_PROGRESS_TOTAL}" -gt 0 && "${elapsed}" -gt 0 && "${elapsed}" -lt $((48 * 3600)) ]]; then
     extra=" · $(term_progress_fmt_duration "${elapsed}")"
   fi
   if [[ -n "${TERM_PROGRESS_EXTRA}" ]]; then
@@ -129,7 +129,6 @@ term_progress_update() {
   fi
 
   if [[ -n "${TERM_PROGRESS_STAGE}" ]]; then
-    # Throttle stage du: every 8 updates or first/last
     if [[ "${cur}" -le 1 || "${cur}" -ge "${TERM_PROGRESS_TOTAL}" || $((cur % 8)) -eq 0 ]]; then
       term_progress_sample_stage >/dev/null || true
     fi
@@ -149,14 +148,15 @@ term_progress_update() {
     fi
   fi
 
-  if ! term_progress_enabled || [[ "${TERM_PROGRESS_ACTIVE}" -ne 1 ]]; then
-    if [[ "${LINUXBKUP_QUIET:-0}" -ne 1 ]]; then
-      if [[ "${TERM_PROGRESS_TOTAL}" -le 20 ]] || (( cur == TERM_PROGRESS_TOTAL || cur % 5 == 0 )); then
-        log_info "progress ${cur}/${TERM_PROGRESS_TOTAL} ${mid}${extra}"
-      fi
-    fi
-    return 0
-  fi
+  TERM_PROGRESS_CUR="${cur}"
+  TERM_PROGRESS__PCT="${pct}"
+  TERM_PROGRESS__MID="${mid}"
+  TERM_PROGRESS__EXTRA="${extra}"
+}
+
+term_progress_paint() {
+  local pct="${TERM_PROGRESS__PCT:-0}" mid="${TERM_PROGRESS__MID:-}" extra="${TERM_PROGRESS__EXTRA:-}"
+  local width=28 filled empty i bar
 
   filled=$((pct * width / 100))
   empty=$((width - filled))
@@ -165,22 +165,45 @@ term_progress_update() {
   for ((i = 0; i < empty; i++)); do bar+="░"; done
 
   _ui_ensure
-  printf '\r  %s[%s]%s %3d%%  %s/%s  %s%s' \
+  term_clear_line
+  printf '  %s[%s]%s %3d%%  %s/%s  %s%s' \
     "${UI_DIM}" "${bar}" "${UI_RESET}" \
-    "${pct}" "${cur}" "${TERM_PROGRESS_TOTAL}" "${mid}" "${extra}"
-  term_clear_eol
+    "${pct}" "${TERM_PROGRESS_CUR}" "${TERM_PROGRESS_TOTAL}" "${mid}" "${extra}" >&2
+  TERM_LIVE_ACTIVE=1
+  term_cursor_hide
 }
 
-# Finish progress line (newline + show cursor).
+# Update. Args: current [path_label] [item_size_human]
+term_progress_update() {
+  local cur="$1" label="${2:-}" item_h="${3:-}"
+
+  _term_progress_compose "${cur}" "${label}" "${item_h}"
+
+  if ! term_progress_enabled || [[ "${TERM_PROGRESS_ACTIVE}" -ne 1 ]]; then
+    if [[ "${LINUXBKUP_QUIET:-0}" -ne 1 ]]; then
+      if [[ "${TERM_PROGRESS_TOTAL}" -le 20 ]] || (( cur == TERM_PROGRESS_TOTAL || cur % 5 == 0 )); then
+        log_info "progress ${cur}/${TERM_PROGRESS_TOTAL} ${TERM_PROGRESS__MID}${TERM_PROGRESS__EXTRA}"
+      fi
+    fi
+    return 0
+  fi
+
+  term_progress_paint
+}
+
 term_progress_end() {
   if [[ "${TERM_PROGRESS_ACTIVE}" -eq 1 ]]; then
-    printf '\n'
+    if [[ "${TERM_LIVE_ACTIVE:-0}" -eq 1 ]]; then
+      printf '\n' >&2
+    fi
     term_cursor_show
   fi
   TERM_PROGRESS_ACTIVE=0
+  TERM_LIVE_ACTIVE=0
   TERM_PROGRESS_STAGE=""
   TERM_PROGRESS_STAGE_BYTES=0
   TERM_PROGRESS_EXTRA=""
+  TERM_PROGRESS_ITEM_H=""
   TERM_PROGRESS_T0=0
 }
 
@@ -189,9 +212,18 @@ term_progress_status() {
   local msg="$1"
   if term_progress_enabled; then
     _ui_ensure
-    printf '\r  %s·%s %s' "${UI_CYAN}" "${UI_RESET}" "$(term_progress_truncate "${msg}" 72)"
-    term_clear_eol
+    term_clear_line
+    printf '  %s·%s %s' "${UI_CYAN}" "${UI_RESET}" "$(term_progress_truncate "${msg}" 72)" >&2
+    TERM_LIVE_ACTIVE=1
+    term_cursor_hide
   else
     log_info "${msg}"
   fi
+}
+
+term_progress_resume_paint() {
+  [[ "${TERM_PROGRESS_ACTIVE:-0}" -eq 1 ]] || return 0
+  term_progress_enabled || return 0
+  _term_progress_compose "${TERM_PROGRESS_CUR}" "${TERM_PROGRESS_LABEL}" "${TERM_PROGRESS_ITEM_H}"
+  term_progress_paint
 }

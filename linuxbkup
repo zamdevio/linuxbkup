@@ -54,7 +54,14 @@ case "${cmd}" in
     linuxbkup_install_traps
     # shellcheck source=/dev/null
     source "${LINUXBKUP_ROOT}/lib/cmd/${cmd}.sh"
+    # Drop -e for command body: handled Ctrl+C leaves status 130; commands
+    # already fatal/return on real errors.
+    set +e
     "linuxbkup_cmd_${cmd}" "$@"
+    _lb_rc=$?
+    set -e
+    declare -F linuxbkup_tty_restore >/dev/null 2>&1 && linuxbkup_tty_restore
+    exit "${_lb_rc}"
     ;;
   *)
     log_fatal "Unknown command: ${cmd}"

@@ -54,6 +54,10 @@ cmd_context_begin() {
   log_verbose "command=${command} user=${user}"
   log_debug "context begin required=[${required[*]:-}] optional=[${optional[*]:-}]"
 
+  if declare -F linuxbkup_op_begin >/dev/null 2>&1; then
+    linuxbkup_op_begin "setup" "${command}" 0 1
+  fi
+
   ui_heading "linuxbkup ${command}"
   [[ -n "${desc}" ]] && ui_item note "${desc}"
   ui_kv "Version" "${LINUXBKUP_VERSION}"
@@ -122,4 +126,7 @@ cmd_context_begin() {
     ui_item ok "operation probes passed (${uniq[*]})"
   fi
   printf '\n'
+  if declare -F linuxbkup_op_end >/dev/null 2>&1; then
+    linuxbkup_op_end
+  fi
 }
