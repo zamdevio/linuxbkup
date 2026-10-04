@@ -9,6 +9,14 @@ source "${LINUXBKUP_ROOT}/lib/fs/sizes.sh"
 source "${LINUXBKUP_ROOT}/lib/core/profile.sh"
 # shellcheck source=lib/ask/select.sh
 source "${LINUXBKUP_ROOT}/lib/ask/select.sh"
+# shellcheck source=lib/backup/reclaim.sh
+source "${LINUXBKUP_ROOT}/lib/backup/reclaim.sh"
+# shellcheck source=lib/backup/secrets_crypt.sh
+source "${LINUXBKUP_ROOT}/lib/backup/secrets_crypt.sh"
+
+# Paths reclaimed from regenerable skips (full rsync, no strip excludes).
+declare -A BACKUP_RECLAIMED=()
+declare -A BACKUP_MARKED_SECRET=()
 
 # Build effective backup path list from classification plan.
 backup_home_paths() {
@@ -207,6 +215,25 @@ backup_copy_home() {
     export LINUXBKUP_CLASSIFY_INCLUDE_ASK
   fi
 
+  BACKUP_RECLAIMED=()
+  if ! backup_apply_reclaim scan_rows include_set; then
+    return 1
+  fi
+
+  # --mark-secret: force path into include + secrets staging
+  BACKUP_MARKED_SECRET=()
+  local ms expanded
+  for ms in "${LINUXBKUP_MARK_SECRET[@]+"${LINUXBKUP_MARK_SECRET[@]}"}"; do
+    [[ -z "${ms}" ]] && continue
+    expanded="$(constraints_normalize_user_path "${ms}")"
+    [[ -e "${expanded}" ]] || {
+      log_warn "mark-secret path missing: ${expanded}"
+      continue
+    }
+    include_set["${expanded}"]=1
+    BACKUP_MARKED_SECRET["${expanded}"]=1
+  done
+
   local -a raw_ranked=()
   for row in "${scan_rows[@]+"${scan_rows[@]}"}"; do
     [[ -z "${row}" ]] && continue
@@ -265,8 +292,13 @@ backup_copy_home() {
   ui_item note "Regeneratable trees (node_modules, .venv, caches, …) excluded via rsync"
   if [[ "${LINUXBKUP_NO_SECRETS:-0}" -eq 1 ]]; then
     ui_item note "Secrets excluded (--no-secrets)"
+  elif [[ "${LINUXBKUP_SECRETS_PLAIN:-0}" -eq 1 ]]; then
+    ui_item note "Secrets staged plaintext (--secrets-plain)"
   else
-    ui_item note "Sensitive paths staged under secrets/ (encrypt in a later phase)"
+    ui_item note "Sensitive paths staged under secrets/ then age-encrypted"
+  fi
+  if [[ "${#BACKUP_RECLAIMED[@]}" -gt 0 ]]; then
+    ui_item note "Reclaimed regenerables: ${#BACKUP_RECLAIMED[@]}"
   fi
   linuxbkup_tip_run plan
   printf '\n'
@@ -332,7 +364,7 @@ backup_copy_home() {
         ;;
     esac
 
-    if constraints_is_secret_path "${path}"; then
+    if constraints_is_secret_path "${path}" || [[ -n "${BACKUP_MARKED_SECRET[${path}]+x}" ]]; then
       if [[ "${LINUXBKUP_NO_SECRETS:-0}" -eq 1 ]]; then
         log_skip "secrets excluded: ${path}"
         skipped=$((skipped + 1))
@@ -347,7 +379,13 @@ backup_copy_home() {
     log_debug "rsync ${path} → ${dest}"
     if [[ -d "${path}" ]]; then
       mkdir -p "${dest}"
-      if ! backup_rsync_run "${BACKUP_RSYNC_ARGS[@]}" "${path}/" "${dest}/"; then
+      if [[ -n "${BACKUP_RECLAIMED[${path}]+x}" ]]; then
+        # Full tree for reclaimed regenerables (no strip excludes)
+        if ! backup_rsync_run -a "${path}/" "${dest}/"; then
+          term_progress_end
+          return 1
+        fi
+      elif ! backup_rsync_run "${BACKUP_RSYNC_ARGS[@]}" "${path}/" "${dest}/"; then
         term_progress_end
         return 1
       fi

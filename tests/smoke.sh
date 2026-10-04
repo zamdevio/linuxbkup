@@ -333,6 +333,54 @@ fi
 rm -rf "${stage_parent}"
 unset LINUXBKUP_STAGE_DIR
 
+# Phase 04: reclaim candidates + secrets encrypt (expect-driven when available)
+# shellcheck source=/dev/null
+source "${ROOT}/lib/backup/reclaim.sh"
+# shellcheck source=/dev/null
+source "${ROOT}/lib/backup/secrets_crypt.sh"
+mkdir -p "${fake_home}/.cache/x" "${fake_home}/.ssh"
+printf 'k\n' >"${fake_home}/.ssh/id_test"
+printf 'c\n' >"${fake_home}/.cache/x/f"
+# shellcheck source=/dev/null
+source "${ROOT}/lib/classify/scan.sh"
+reclaim_scan=()
+while IFS= read -r line; do reclaim_scan+=("${line}"); done < <(LINUXBKUP_YES=1 LINUXBKUP_INSPECT_QUICK=1 classify_scan_home "${fake_home}")
+reclaim_cands=()
+backup_reclaim_candidates reclaim_scan reclaim_cands
+if [[ "${#reclaim_cands[@]}" -ge 1 ]]; then
+  ok "reclaim candidates from skip set"
+else
+  bad "reclaim candidates from skip set"
+fi
+if command -v age >/dev/null 2>&1 && command -v age-keygen >/dev/null 2>&1 && command -v openssl >/dev/null 2>&1; then
+  sec_stage="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-smoke-sec.XXXXXX")"
+  mkdir -p "${sec_stage}/secrets/.ssh" "${sec_stage}/metadata"
+  printf 'secret\n' >"${sec_stage}/secrets/.ssh/id_test"
+  # Clear tip-test globals that would force exclude/plain
+  LINUXBKUP_NO_SECRETS=0
+  LINUXBKUP_SECRETS_PLAIN=0
+  LINUXBKUP_DRY_RUN=0
+  export LINUXBKUP_SECRETS_PASS="smoke-pass-$$"
+  if backup_secrets_encrypt_stage "${sec_stage}" \
+    && [[ -f "${sec_stage}/secrets.tar.age" ]] \
+    && [[ -f "${sec_stage}/secrets.agekey.enc" ]] \
+    && [[ ! -d "${sec_stage}/secrets" ]]; then
+    ok "age encrypts secrets and wipes plaintext"
+  else
+    bad "age encrypts secrets and wipes plaintext"
+  fi
+  unset LINUXBKUP_SECRETS_PASS
+  rm -rf "${sec_stage}"
+else
+  bad "age encrypts secrets and wipes plaintext (need age+age-keygen+openssl)"
+fi
+help04="$("${CLI}" --no-color --help 2>/dev/null)" || true
+if [[ "${help04}" == *"--reclaim"* && "${help04}" == *"--mark-secret"* ]]; then
+  ok "help lists reclaim/mark-secret"
+else
+  bad "help lists reclaim/mark-secret"
+fi
+
 rm -rf "${fake_home}"
 
 exit "${fail}"

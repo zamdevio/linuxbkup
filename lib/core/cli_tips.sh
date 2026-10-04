@@ -65,6 +65,15 @@ linuxbkup_flags_backup_relevant() {
   if [[ -n "${LINUXBKUP_STAGE_DIR:-}" ]]; then
     _tips_push "${__name}" --stage-dir "${LINUXBKUP_STAGE_DIR}"
   fi
+  if [[ "${LINUXBKUP_RECLAIM_ALL:-0}" -eq 1 ]]; then
+    _tips_push "${__name}" --reclaim-all
+  elif [[ "${LINUXBKUP_RECLAIM:-0}" -eq 1 ]]; then
+    _tips_push "${__name}" --reclaim
+  fi
+  local ms
+  for ms in "${LINUXBKUP_MARK_SECRET[@]+"${LINUXBKUP_MARK_SECRET[@]}"}"; do
+    _tips_push "${__name}" --mark-secret "${ms}"
+  done
   if [[ "${LINUXBKUP_DRY_RUN:-0}" -eq 1 ]]; then
     _tips_push "${__name}" --dry-run
   fi

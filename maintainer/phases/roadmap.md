@@ -28,7 +28,7 @@ Clean `linuxbkup` / `LINUXBKUP_*` identity (phase 00).
 | 01 | [Verify staging](./01-verify-staging.md) | **done** |
 | 02 | [Home scan + classify](./02-home-scan-classify.md) | **done** |
 | 03 | [Profiles, ask, flags](./03-profiles-ask-flags.md) | **done** |
-| 04 | [Reclaim + secrets](./04-reclaim-secrets.md) | planned |
+| 04 | [Reclaim + secrets](./04-reclaim-secrets.md) | **done** (encrypt side; restore decrypt stubbed) |
 | 05 | [Space + schema](./05-space-schema.md) | planned |
 | 06 | [Docs content](./06-docs-content.md) | planned |
 | 07 | [VitePress → pages.dev](./07-vitepress.md) | planned |

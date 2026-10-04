@@ -60,6 +60,11 @@ cmd_context_begin() {
   ui_kv "Profile" "${LINUXBKUP_PROFILE:-balanced}"
   [[ "${LINUXBKUP_KEEP_STAGE:-0}" -eq 1 ]] && ui_kv "Keep stage" "yes"
   [[ -n "${LINUXBKUP_STAGE_DIR:-}" ]] && ui_kv_path "Stage dir" "${LINUXBKUP_STAGE_DIR}"
+  [[ "${LINUXBKUP_RECLAIM_ALL:-0}" -eq 1 ]] && ui_kv "Reclaim" "all regenerables"
+  [[ "${LINUXBKUP_RECLAIM:-0}" -eq 1 && "${LINUXBKUP_RECLAIM_ALL:-0}" -ne 1 ]] && ui_kv "Reclaim" "interactive"
+  if [[ "${#LINUXBKUP_MARK_SECRET[@]}" -gt 0 ]]; then
+    ui_kv "Mark secret" "$(IFS=', '; echo "${LINUXBKUP_MARK_SECRET[*]}")"
+  fi
   [[ "${LINUXBKUP_VERBOSE:-0}" -eq 1 ]] && ui_kv "Verbose" "on"
   [[ "${LINUXBKUP_DEBUG:-0}" -eq 1 ]] && ui_kv "Debug" "on"
   [[ "${LINUXBKUP_NO_DEFAULTS:-0}" -eq 1 ]] && ui_kv "Defaults" "off (--no-defaults)"

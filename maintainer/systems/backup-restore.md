@@ -19,10 +19,10 @@ Home/config from **full-home classification**. Decisions: `--ask` interactive (u
 ## Stub / missing
 
 - `restore` — not Near-full
-- Secrets/`age` encrypt pipeline (phase 04)
+- Restore decrypt for `secrets.tar.age` (phase 04.5)
 - `schema.json` + decisions log (phase 05)
 - Space preflight (phase 05)
-- Reclaim regenerables (phase 04)
+- Multi-PM capture beyond APT (after 08.8 snapshot UI)
 
 ## Redesign target
 

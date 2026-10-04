@@ -17,6 +17,7 @@
 - Notifications never required for correctness (`LINUXBKUP_NO_NOTIFY=1` disables)
 - **Use rich data:** lists show size + class + path; order large → small when sizes known
 - Progress samples staging dir (`du -sb`) and shows `--max-size` headroom when set
+- **Upstream → downstream:** probe/classify once → UI + manifests share the same snapshot. Backup should show inspect-class capability sections before staging (slices 08.8–08.10); capture modules (APT today, more later) run *after* that display.
 
 ## Flag tips
 

@@ -20,6 +20,8 @@ linuxbkup_cmd_backup() {
   source "${LINUXBKUP_ROOT}/lib/backup/stage.sh"
   # shellcheck source=lib/backup/home.sh
   source "${LINUXBKUP_ROOT}/lib/backup/home.sh"
+  # shellcheck source=lib/backup/secrets_crypt.sh
+  source "${LINUXBKUP_ROOT}/lib/backup/secrets_crypt.sh"
   # shellcheck source=modules/apt.sh
   source "${LINUXBKUP_ROOT}/modules/apt.sh"
   # shellcheck source=lib/archive/checksums.sh
@@ -80,6 +82,7 @@ linuxbkup_cmd_backup() {
     backup_write_metadata "${stage}" "${user}" "${home}" || true
     apt_capture_manifests "${stage}" || true
     backup_copy_home "${home}" "${stage}" || true
+    backup_secrets_encrypt_stage "${stage}" || true
     printf '\n'
     classify_print_backup_summary "${home}"
     printf '\n'
@@ -114,6 +117,11 @@ linuxbkup_cmd_backup() {
 
   if ! backup_copy_home "${home}" "${stage}"; then
     log_fatal "home/config copy aborted"
+    return 1
+  fi
+
+  if ! backup_secrets_encrypt_stage "${stage}"; then
+    log_fatal "secrets encrypt step failed"
     return 1
   fi
 

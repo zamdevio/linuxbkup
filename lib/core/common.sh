@@ -25,6 +25,9 @@ LINUXBKUP_MAX_SIZE_BYTES=""
 LINUXBKUP_PROFILE="balanced"
 LINUXBKUP_KEEP_STAGE=0
 LINUXBKUP_STAGE_DIR=""
+LINUXBKUP_RECLAIM=0
+LINUXBKUP_RECLAIM_ALL=0
+LINUXBKUP_MARK_SECRET=()
 LINUXBKUP_INCLUDE_REGEXES=()
 LINUXBKUP_EXCLUDE_REGEXES=()
 LINUXBKUP_POSITIONAL=()
@@ -60,6 +63,19 @@ linuxbkup_parse_globals() {
       --stage-dir)
         [[ $# -ge 2 ]] || { log_fatal "--stage-dir requires a path"; exit 2; }
         LINUXBKUP_STAGE_DIR="$2"
+        shift 2
+        ;;
+      --reclaim)
+        LINUXBKUP_RECLAIM=1
+        shift
+        ;;
+      --reclaim-all)
+        LINUXBKUP_RECLAIM_ALL=1
+        shift
+        ;;
+      --mark-secret)
+        [[ $# -ge 2 ]] || { log_fatal "--mark-secret requires a path"; exit 2; }
+        LINUXBKUP_MARK_SECRET+=("$2")
         shift 2
         ;;
       --dry-run)
