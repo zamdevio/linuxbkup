@@ -26,7 +26,8 @@ lib/
   classify/             # uses constraints (no hardcoded lists)
   constraints/          # built-in path lists + list policy
   tools/                # require + How-To from guides/
-  # later: archive/  manifest/  secrets/
+  backup/               # staging + home copy
+  archive/              # tar.zst pack + checksums
 guides/tools/           # per-tool install guides (*.guide)
 modules/                # apt, python, node, … (phased)
 tests/
