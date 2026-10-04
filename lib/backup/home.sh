@@ -187,7 +187,7 @@ backup_copy_home() {
   local p class action size reason
   local i total bytes human est=0 esth maxh used usedh delta pct
   local row line suggested need_ask=0
-  local is_unexp is_lg display_class decision
+  local is_unexp is_lg display_class decision copy_rc
   local -A include_set=()
   BACKUP_ESTIMATE_BYTES=0
   BACKUP_SIZE_CACHE=()
@@ -198,12 +198,35 @@ backup_copy_home() {
   log_verbose "building include list from classification scan"
   log_debug "backup_copy_home home=${home} stage=${stage} profile=${LINUXBKUP_PROFILE:-balanced} ask=${LINUXBKUP_ASK:-0}"
 
+  # Full home scan — Ctrl+C mid-scan must retry (partial path lists are unsafe).
   local -a scan_rows=()
-  while IFS=$'\t' read -r p class action size reason; do
-    [[ -z "${p:-}" ]] && continue
-    log_debug "scan ${class}/${action} ${p}"
-    scan_rows+=("$(printf '%s\t%s\t%s\t%s\t%s' "${p}" "${class}" "${action}" "${size}" "${reason}")")
-  done < <(classify_scan_home "${home}")
+  local scan_action=""
+  while true; do
+    linuxbkup_op_begin "classify" "" 0 1
+    scan_rows=()
+    while IFS=$'\t' read -r p class action size reason; do
+      [[ -z "${p:-}" ]] && continue
+      log_debug "scan ${class}/${action} ${p}"
+      scan_rows+=("$(printf '%s\t%s\t%s\t%s\t%s' "${p}" "${class}" "${action}" "${size}" "${reason}")")
+    done < <(classify_scan_home "${home}")
+
+    if linuxbkup_interrupt_resolve; then
+      scan_action="${LINUXBKUP_INTERRUPT_RESULT}"
+      case "${scan_action}" in
+        retry|continue|skip)
+          log_warn "classification interrupted — re-scanning (partial list discarded)"
+          linuxbkup_op_end
+          continue
+          ;;
+        *)
+          linuxbkup_op_end
+          return 1
+          ;;
+      esac
+    fi
+    linuxbkup_op_end
+    break
+  done
 
   # Build decide set + default includes (profile + --ask / --yes rules).
   for row in "${scan_rows[@]+"${scan_rows[@]}"}"; do
@@ -415,6 +438,94 @@ backup_copy_home() {
   total="${#paths[@]}"
   term_progress_set_stage "${stage}"
   term_progress_begin "${total}" "Copying into staging"
+  linuxbkup_op_begin "copy" "" 1 1
+
+  # Copy one path with interrupt-aware retry. Uses globals: path, home, stage, …
+  # Returns 0 ok, 1 abort command, 2 skipped.
+  _backup_copy_one() {
+    local path="$1" human="$2"
+    local dest rel rc=0 action=""
+    local -a rargs=()
+
+    if [[ ! -e "${path}" ]]; then
+      log_debug "missing path skipped: ${path}"
+      return 2
+    fi
+
+    if [[ "${path}" == /etc/* ]]; then
+      dest="${stage}/config/etc/${path#/etc/}"
+      mkdir -p "$(dirname "${dest}")"
+      if [[ -d "${path}" ]]; then
+        rargs=("${BACKUP_RSYNC_ARGS[@]}" "${path}/" "${dest}/")
+      else
+        rargs=(-a "${path}" "${dest}")
+      fi
+    else
+      case "${path}" in
+        "${home}"/*) rel="${path#"${home}"/}" ;;
+        *)
+          log_warn "skip path outside home/etc: ${path}"
+          return 2
+          ;;
+      esac
+      if constraints_is_secret_path "${path}" || [[ -n "${BACKUP_MARKED_SECRET[${path}]+x}" ]]; then
+        if [[ "${LINUXBKUP_NO_SECRETS:-0}" -eq 1 ]]; then
+          log_skip "secrets excluded: ${path}"
+          return 2
+        fi
+        dest="${stage}/secrets/${rel}"
+      else
+        dest="${stage}/home/${rel}"
+      fi
+      mkdir -p "$(dirname "${dest}")"
+      if [[ -d "${path}" ]]; then
+        mkdir -p "${dest}"
+        if [[ -n "${BACKUP_RECLAIMED[${path}]+x}" ]]; then
+          rargs=(-a "${path}/" "${dest}/")
+        else
+          rargs=("${BACKUP_RSYNC_ARGS[@]}" "${path}/" "${dest}/")
+        fi
+      else
+        rargs=(-a "${path}" "${dest}")
+      fi
+    fi
+
+    linuxbkup_op_item "${path}"
+    while true; do
+      log_debug "rsync ${path} → ${dest}"
+      set +e
+      backup_rsync_run "${rargs[@]}"
+      rc=$?
+      set -e
+      if [[ "${rc}" -eq 0 ]]; then
+        return 0
+      fi
+      if backup_handle_interrupt "${rc}"; then
+        action="${LINUXBKUP_INTERRUPT_RESULT}"
+        case "${action}" in
+          retry)
+            if [[ -d "${dest}" && "${dest}" == "${stage}/"* ]]; then
+              rm -rf "${dest}"
+              mkdir -p "${dest}"
+            elif [[ -e "${dest}" && "${dest}" == "${stage}/"* ]]; then
+              rm -f "${dest}"
+            fi
+            TERM_PROGRESS_T0="$(date +%s)"
+            log_info "retrying copy: ${path}"
+            continue
+            ;;
+          skip|continue)
+            log_warn "skipped after interrupt: ${path}"
+            return 2
+            ;;
+          *)
+            return 1
+            ;;
+        esac
+      fi
+      return 1
+    done
+  }
 
   i=0
   for row in "${ranked[@]}"; do
@@ -423,81 +534,29 @@ backup_copy_home() {
     i=$((i + 1))
     term_progress_update "${i}" "${path}" "${human}"
 
-    if [[ ! -e "${path}" ]]; then
-      skipped=$((skipped + 1))
-      log_debug "missing path skipped: ${path}"
-      continue
-    fi
-
-    if [[ "${path}" == /etc/* ]]; then
-      dest="${stage}/config/etc/${path#/etc/}"
-      mkdir -p "$(dirname "${dest}")"
-      if [[ -d "${path}" ]]; then
-        if ! backup_rsync_run "${BACKUP_RSYNC_ARGS[@]}" "${path}/" "${dest}/"; then
+    set +e
+    _backup_copy_one "${path}" "${human}"
+    copy_rc=$?
+    set -e
+    case "${copy_rc}" in
+      0)
+        if ! backup_check_max_size "${stage}"; then
+          linuxbkup_op_end
           term_progress_end
           return 1
         fi
-      else
-        if ! backup_rsync_run -a "${path}" "${dest}"; then
-          term_progress_end
-          return 1
-        fi
-      fi
-      if ! backup_check_max_size "${stage}"; then
-        return 1
-      fi
-      count=$((count + 1))
-      continue
-    fi
-
-    case "${path}" in
-      "${home}"/*)
-        rel="${path#"${home}"/}"
+        count=$((count + 1))
         ;;
+      2) skipped=$((skipped + 1)) ;;
       *)
-        log_warn "skip path outside home/etc: ${path}"
-        skipped=$((skipped + 1))
-        continue
+        linuxbkup_op_end
+        term_progress_end
+        return 1
         ;;
     esac
-
-    if constraints_is_secret_path "${path}" || [[ -n "${BACKUP_MARKED_SECRET[${path}]+x}" ]]; then
-      if [[ "${LINUXBKUP_NO_SECRETS:-0}" -eq 1 ]]; then
-        log_skip "secrets excluded: ${path}"
-        skipped=$((skipped + 1))
-        continue
-      fi
-      dest="${stage}/secrets/${rel}"
-    else
-      dest="${stage}/home/${rel}"
-    fi
-
-    mkdir -p "$(dirname "${dest}")"
-    log_debug "rsync ${path} → ${dest}"
-    if [[ -d "${path}" ]]; then
-      mkdir -p "${dest}"
-      if [[ -n "${BACKUP_RECLAIMED[${path}]+x}" ]]; then
-        # Full tree for reclaimed regenerables (no strip excludes)
-        if ! backup_rsync_run -a "${path}/" "${dest}/"; then
-          term_progress_end
-          return 1
-        fi
-      elif ! backup_rsync_run "${BACKUP_RSYNC_ARGS[@]}" "${path}/" "${dest}/"; then
-        term_progress_end
-        return 1
-      fi
-    else
-      if ! backup_rsync_run -a "${path}" "${dest}"; then
-        term_progress_end
-        return 1
-      fi
-    fi
-    if ! backup_check_max_size "${stage}"; then
-      return 1
-    fi
-    count=$((count + 1))
   done
 
+  linuxbkup_op_end
   term_progress_end
   log_ok "copied ${count} paths (${skipped} skipped, ${LINUXBKUP_PERM_SKIPS:-0} soft-skips)"
   if [[ -d "${stage}" ]]; then

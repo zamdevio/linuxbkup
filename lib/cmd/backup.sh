@@ -39,14 +39,14 @@ linuxbkup_cmd_backup() {
 
   LINUXBKUP_PERM_SKIPS=0
 
-  cmd_context_begin backup \
-    --desc "Create an intelligent backup archive." \
-    --required tar zstd rsync du sha256sum \
-    --optional age
+  local user home stage dest dest_dir snap_action=""
 
-  local user home stage dest dest_dir
-  user="$(env_resolve_user)"
-  if ! home="$(env_user_home "${user}")"; then
+  # Resolve identity + archive path BEFORE the tools banner so a Ctrl+C during
+  # setup cannot leave dest="" (dirname "" → "." → zstd writing nowhere).
+  linuxbkup_op_begin "resolve" "" 0 1
+  user="$(linuxbkup_interrupt_shield env_resolve_user)"
+  if ! home="$(linuxbkup_interrupt_shield env_user_home "${user}")"; then
+    linuxbkup_op_end
     log_fatal "No home directory for user: ${user}"
     return 1
   fi
@@ -56,9 +56,27 @@ linuxbkup_cmd_backup() {
   if [[ -n "${LINUXBKUP_OUTPUT:-}" ]]; then
     dest="${LINUXBKUP_OUTPUT}"
   else
-    dest="$(platform_default_archive_path)"
+    dest="$(linuxbkup_interrupt_shield platform_default_archive_path)"
+    # Coalesced SIGINT can abort $(…) to empty — retry once under shield
+    if [[ -z "${dest}" ]]; then
+      dest="$(linuxbkup_interrupt_shield platform_default_archive_path)"
+    fi
   fi
-  dest_dir="$(dirname "${dest}")"
+  if [[ -z "${dest}" ]]; then
+    linuxbkup_op_end
+    log_fatal "could not resolve archive destination — pass -o/--output PATH"
+    return 1
+  fi
+  dest_dir="$(dirname -- "${dest}")"
+  LINUXBKUP_BACKUP_DEST="${dest}"
+  export LINUXBKUP_BACKUP_DEST
+  linuxbkup_op_end
+  linuxbkup_interrupt_clear
+
+  cmd_context_begin backup \
+    --desc "Create an intelligent backup archive." \
+    --required tar zstd rsync du sha256sum \
+    --optional age
 
   log_verbose "backup target user=${user} home=${home}"
   log_debug "dest=${dest} dry_run=${LINUXBKUP_DRY_RUN:-0} yes=${LINUXBKUP_YES:-0}"
@@ -81,7 +99,6 @@ linuxbkup_cmd_backup() {
   else
     stage_parent="${TMPDIR:-/tmp}"
   fi
-  LINUXBKUP_BACKUP_DEST="${dest}"
   # Early floor check (full estimate runs again inside copy with real sizes)
   if [[ "${LINUXBKUP_DRY_RUN:-0}" -ne 1 ]]; then
     if ! backup_space_preflight "${dest}" "${stage_parent}" 0; then
@@ -91,7 +108,20 @@ linuxbkup_cmd_backup() {
   printf '\n'
 
   # 08.8 — detect (shared snapshot) after preflight clears
-  env_print_snapshot backup
+  while true; do
+    linuxbkup_op_begin "snapshot" "" 0 1
+    env_print_snapshot backup
+    if linuxbkup_interrupt_resolve; then
+      snap_action="${LINUXBKUP_INTERRUPT_RESULT}"
+      case "${snap_action}" in
+        retry) linuxbkup_op_end; continue ;;
+        continue|skip) break ;;
+        *) linuxbkup_op_end; return 1 ;;
+      esac
+    fi
+    break
+  done
+  linuxbkup_op_end
 
   if [[ "${LINUXBKUP_DRY_RUN:-0}" -ne 1 ]]; then
     if ! safety_confirm "Proceed with backup?" "y"; then
@@ -128,6 +158,8 @@ linuxbkup_cmd_backup() {
 
   _linuxbkup_backup_on_exit() {
     local rc=$?
+    # Replaces install_traps EXIT — always restore cursor here too
+    declare -F linuxbkup_tty_restore >/dev/null 2>&1 && linuxbkup_tty_restore
     if [[ "${LINUXBKUP_BACKUP_OK:-0}" -eq 1 ]]; then
       backup_stage_cleanup "${LINUXBKUP_BACKUP_STAGE:-}"
       return 0
@@ -144,7 +176,20 @@ linuxbkup_cmd_backup() {
 
   backup_write_metadata "${stage}" "${user}" "${home}"
   backup_write_schema "${stage}" "${user}" "${home}"
+  linuxbkup_op_begin "apt-capture" "" 0 1
   apt_capture_manifests "${stage}"
+  if linuxbkup_interrupt_resolve; then
+    snap_action="${LINUXBKUP_INTERRUPT_RESULT}"
+    case "${snap_action}" in
+      retry)
+        linuxbkup_op_end
+        apt_capture_manifests "${stage}"
+        ;;
+      continue|skip) ;;
+      *) linuxbkup_op_end; return 1 ;;
+    esac
+  fi
+  linuxbkup_op_end
 
   if ! backup_copy_home "${home}" "${stage}"; then
     log_fatal "home/config copy aborted"
@@ -171,6 +216,10 @@ linuxbkup_cmd_backup() {
     return 1
   fi
 
+  if [[ -z "${dest}" ]]; then
+    log_fatal "archive destination is empty — pass -o/--output (refusing to pack)"
+    return 1
+  fi
   if ! archive_pack_tar_zst "${stage}" "${dest}"; then
     log_fatal "archive pack failed"
     return 1

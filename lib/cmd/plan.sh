@@ -36,6 +36,7 @@ linuxbkup_cmd_plan() {
     return 0
   fi
 
+  linuxbkup_op_begin "plan" "" 0 1
   cmd_context_begin plan \
     --desc "Show what backup would include/skip (no files written)." \
     --required find \
@@ -49,6 +50,7 @@ linuxbkup_cmd_plan() {
 
   classify_print_plan "${home}"
   printf '\n'
+  linuxbkup_op_end
   log_ok "plan complete"
   # Prefer -y in tip when unexpected would ask (so tip matches “execute with these defaults”)
   if [[ "${LINUXBKUP_YES:-0}" -ne 1 ]] && [[ -t 0 ]]; then

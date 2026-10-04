@@ -49,6 +49,7 @@ linuxbkup_cmd_verify() {
   ui_kv "Kind" "${kind}"
   ui_kv_path "Target" "${target}"
   printf '\n'
+  linuxbkup_op_begin "verify" "${target}" 0 1
 
   local root="" tmp=""
   local ck_rc=0
@@ -62,14 +63,39 @@ linuxbkup_cmd_verify() {
       log_warn "unexpected extension — attempting tar.zst read anyway"
     fi
     tmp="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-verify.XXXXXX")"
-    trap 'rm -rf "'"${tmp}"'"' EXIT INT TERM
+    # EXIT only — INT stays with safety_on_int (menu); cleanup on quit via EXIT
+    trap 'rm -rf "'"${tmp}"'"' EXIT
     ui_section "Extract (temp)"
-    if ! zstd -dcq "${target}" | tar -C "${tmp}" -xf -; then
+    linuxbkup_op_begin "verify-extract" "${target}" 0 1
+    set +e
+    zstd -dcq "${target}" | tar -C "${tmp}" -xf -
+    local extract_rc=$?
+    set -e
+    if linuxbkup_interrupt_pending || [[ "${extract_rc}" -ne 0 && "${LINUXBKUP_WAS_INTERRUPTED:-0}" -eq 1 ]]; then
+      LINUXBKUP_WAS_INTERRUPTED=1
+      local vaction
+      linuxbkup_interrupt_resolve
+      vaction="${LINUXBKUP_INTERRUPT_RESULT}"
+      case "${vaction}" in
+        retry|continue|skip)
+          rm -rf "${tmp}"
+          trap - EXIT
+          linuxbkup_op_end
+          linuxbkup_cmd_verify "${target}"
+          return $?
+          ;;
+        *)
+          return 1
+          ;;
+      esac
+    fi
+    if [[ "${extract_rc}" -ne 0 ]]; then
       log_fatal "failed to extract archive"
       return 1
     fi
     log_ok "extracted for verification"
     root="${tmp}"
+    linuxbkup_op_begin "verify" "${target}" 0 1
   fi
 
   ck_rc=0
@@ -94,9 +120,10 @@ linuxbkup_cmd_verify() {
 
   if [[ -n "${tmp}" ]]; then
     rm -rf "${tmp}"
-    trap - EXIT INT TERM
+    trap - EXIT
   fi
 
   printf '\n'
+  linuxbkup_op_end
   log_ok "verify complete"
 }

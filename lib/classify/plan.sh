@@ -49,6 +49,7 @@ classify_print_plan() {
   local -a unexpected=() include_rows=() skip_rows=() secret_rows=()
   local n_un=0 n_in=0 n_sk=0 n_se=0
   local b_in=0 b_se=0 b_sk=0 b_un=0 b_copy=0
+  local plan_action=""
 
   ui_section "Home classification plan"
   ui_item note "Shallow scan of \$HOME + ~/.local/* — what backup would copy"
@@ -59,36 +60,59 @@ classify_print_plan() {
     ui_item note "sizes omitted (pass -v for filter-aware sizes)"
   fi
 
-  while IFS=$'\t' read -r path class action size reason; do
-    [[ -z "${path:-}" ]] && continue
-    log_debug "plan row class=${class} action=${action} path=${path} reason=${reason}"
-    CLASSIFY_LAST_BYTES=0
-    case "${class}" in
-      unexpected)
-        _classify_plan_push_row unexpected "${size}" "${action}" "${path}" "${reason}"
-        n_un=$((n_un + 1))
-        b_un=$((b_un + CLASSIFY_LAST_BYTES))
-        ;;
-      secret)
-        _classify_plan_push_row secret_rows "${size}" "${action}" "${path}" "${reason}"
-        n_se=$((n_se + 1))
-        b_se=$((b_se + CLASSIFY_LAST_BYTES))
-        ;;
-      skip)
-        _classify_plan_push_row skip_rows "${size}" "${action}" "${path}" "${reason}"
-        n_sk=$((n_sk + 1))
-        b_sk=$((b_sk + CLASSIFY_LAST_BYTES))
-        ;;
-      include)
-        _classify_plan_push_row include_rows "${size}" "${action}" "${path}" "${reason}"
-        n_in=$((n_in + 1))
-        b_in=$((b_in + CLASSIFY_LAST_BYTES))
-        ;;
-    esac
-    if [[ "${action}" == "include" ]] || [[ "${action}" == "ask" && ( "${LINUXBKUP_YES:-0}" -eq 1 || ! -t 0 ) ]]; then
-      b_copy=$((b_copy + CLASSIFY_LAST_BYTES))
+  while true; do
+    linuxbkup_op_begin "classify" "" 0 1
+    unexpected=() include_rows=() skip_rows=() secret_rows=()
+    n_un=0 n_in=0 n_sk=0 n_se=0
+    b_in=0 b_se=0 b_sk=0 b_un=0 b_copy=0
+    while IFS=$'\t' read -r path class action size reason; do
+      [[ -z "${path:-}" ]] && continue
+      log_debug "plan row class=${class} action=${action} path=${path} reason=${reason}"
+      CLASSIFY_LAST_BYTES=0
+      case "${class}" in
+        unexpected)
+          _classify_plan_push_row unexpected "${size}" "${action}" "${path}" "${reason}"
+          n_un=$((n_un + 1))
+          b_un=$((b_un + CLASSIFY_LAST_BYTES))
+          ;;
+        secret)
+          _classify_plan_push_row secret_rows "${size}" "${action}" "${path}" "${reason}"
+          n_se=$((n_se + 1))
+          b_se=$((b_se + CLASSIFY_LAST_BYTES))
+          ;;
+        skip)
+          _classify_plan_push_row skip_rows "${size}" "${action}" "${path}" "${reason}"
+          n_sk=$((n_sk + 1))
+          b_sk=$((b_sk + CLASSIFY_LAST_BYTES))
+          ;;
+        include)
+          _classify_plan_push_row include_rows "${size}" "${action}" "${path}" "${reason}"
+          n_in=$((n_in + 1))
+          b_in=$((b_in + CLASSIFY_LAST_BYTES))
+          ;;
+      esac
+      if [[ "${action}" == "include" ]] || [[ "${action}" == "ask" && ( "${LINUXBKUP_YES:-0}" -eq 1 || ! -t 0 ) ]]; then
+        b_copy=$((b_copy + CLASSIFY_LAST_BYTES))
+      fi
+    done < <(classify_scan_home "${home}")
+
+    if linuxbkup_interrupt_resolve; then
+      plan_action="${LINUXBKUP_INTERRUPT_RESULT}"
+      case "${plan_action}" in
+        retry|continue|skip)
+          log_warn "plan scan interrupted — re-scanning (partial list discarded)"
+          linuxbkup_op_end
+          continue
+          ;;
+        *)
+          linuxbkup_op_end
+          return 1
+          ;;
+      esac
     fi
-  done < <(classify_scan_home "${home}")
+    linuxbkup_op_end
+    break
+  done
 
   printf '  Known include (%d):\n' "${n_in}"
   _classify_plan_print_sorted include_rows "known include"

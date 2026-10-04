@@ -28,6 +28,8 @@ linuxbkup_cmd_inspect() {
     --required du find \
     --optional timeout numfmt age tar zstd rsync sha256sum
 
+  linuxbkup_op_begin "inspect" "" 0 1
+
   local user home
   user="$(env_resolve_user)"
   if ! home="$(env_user_home "${user}")"; then
@@ -77,5 +79,6 @@ linuxbkup_cmd_inspect() {
 
   platform_print_backup_destination
   printf '\n'
+  linuxbkup_op_end
   log_ok "inspect complete"
 }

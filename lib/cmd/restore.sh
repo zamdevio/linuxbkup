@@ -21,6 +21,8 @@ linuxbkup_cmd_restore() {
     --required tar zstd rsync sha256sum \
     --optional age
 
+  linuxbkup_op_begin "restore" "${backup}" 0 1
   ui_kv "Archive" "${backup}"
   linuxbkup_phase_stub "4" "Restore"
+  linuxbkup_op_end
 }

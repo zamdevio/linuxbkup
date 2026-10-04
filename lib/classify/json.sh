@@ -18,45 +18,66 @@ classify_print_plan_json() {
   local n_un=0 n_in=0 n_sk=0 n_se=0 n_ask=0
   local -a entries=()
   local first=1
-  local generated
+  local generated json_action=""
 
   generated="$(date -Iseconds 2>/dev/null || date)"
 
-  while IFS=$'\t' read -r path class action size reason; do
-    [[ -z "${path:-}" ]] && continue
-    case "${class}" in
-      unexpected) n_un=$((n_un + 1)) ;;
-      secret) n_se=$((n_se + 1)) ;;
-      skip) n_sk=$((n_sk + 1)) ;;
-      include) n_in=$((n_in + 1)) ;;
-    esac
-    [[ "${action}" == "ask" ]] && n_ask=$((n_ask + 1))
-    # size column is bytes; expose human in JSON for readability + size_bytes
-    size_h="${size}"
-    size_b=""
-    if [[ "${size}" =~ ^[0-9]+$ ]]; then
-      size_b="${size}"
-      if declare -F fs_bytes_human >/dev/null 2>&1; then
-        size_h="$(fs_bytes_human "${size}")"
+  while true; do
+    linuxbkup_op_begin "classify" "" 0 1
+    entries=()
+    n_un=0 n_in=0 n_sk=0 n_se=0 n_ask=0
+    while IFS=$'\t' read -r path class action size reason; do
+      [[ -z "${path:-}" ]] && continue
+      case "${class}" in
+        unexpected) n_un=$((n_un + 1)) ;;
+        secret) n_se=$((n_se + 1)) ;;
+        skip) n_sk=$((n_sk + 1)) ;;
+        include) n_in=$((n_in + 1)) ;;
+      esac
+      [[ "${action}" == "ask" ]] && n_ask=$((n_ask + 1))
+      # size column is bytes; expose human in JSON for readability + size_bytes
+      size_h="${size}"
+      size_b=""
+      if [[ "${size}" =~ ^[0-9]+$ ]]; then
+        size_b="${size}"
+        if declare -F fs_bytes_human >/dev/null 2>&1; then
+          size_h="$(fs_bytes_human "${size}")"
+        fi
       fi
+      if [[ -n "${size_b}" ]]; then
+        entries+=("$(printf '{"path":"%s","class":"%s","action":"%s","size":"%s","size_bytes":%s,"reason":"%s"}' \
+          "$(_json_escape "${path}")" \
+          "$(_json_escape "${class}")" \
+          "$(_json_escape "${action}")" \
+          "$(_json_escape "${size_h}")" \
+          "${size_b}" \
+          "$(_json_escape "${reason}")")")
+      else
+        entries+=("$(printf '{"path":"%s","class":"%s","action":"%s","size":"%s","reason":"%s"}' \
+          "$(_json_escape "${path}")" \
+          "$(_json_escape "${class}")" \
+          "$(_json_escape "${action}")" \
+          "$(_json_escape "${size_h}")" \
+          "$(_json_escape "${reason}")")")
+      fi
+    done < <(classify_scan_home "${home}")
+
+    if linuxbkup_interrupt_resolve; then
+      json_action="${LINUXBKUP_INTERRUPT_RESULT}"
+      case "${json_action}" in
+        retry|continue|skip)
+          linuxbkup_op_end
+          continue
+          ;;
+        *)
+          linuxbkup_op_end
+          return 1
+          ;;
+      esac
     fi
-    if [[ -n "${size_b}" ]]; then
-      entries+=("$(printf '{"path":"%s","class":"%s","action":"%s","size":"%s","size_bytes":%s,"reason":"%s"}' \
-        "$(_json_escape "${path}")" \
-        "$(_json_escape "${class}")" \
-        "$(_json_escape "${action}")" \
-        "$(_json_escape "${size_h}")" \
-        "${size_b}" \
-        "$(_json_escape "${reason}")")")
-    else
-      entries+=("$(printf '{"path":"%s","class":"%s","action":"%s","size":"%s","reason":"%s"}' \
-        "$(_json_escape "${path}")" \
-        "$(_json_escape "${class}")" \
-        "$(_json_escape "${action}")" \
-        "$(_json_escape "${size_h}")" \
-        "$(_json_escape "${reason}")")")
-    fi
-  done < <(classify_scan_home "${home}")
+    linuxbkup_op_end
+    break
+  done
 
   printf '{\n'
   printf '  "schema": "linuxbkup.plan/v1",\n'
