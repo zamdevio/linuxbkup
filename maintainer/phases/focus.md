@@ -8,23 +8,22 @@
 
 | Priority | Vertical | Notes |
 |----------|----------|-------|
-| 1 | Phase 2 backup core | APT manifests + allowlisted home/config + tar.zst → Downloads |
-| 2 | Deps / inspect polish | Live — only touch if something breaks |
+| 1 | Phase 3 secrets/age | Encrypt `secrets/` with passphrase; `--yes` rules |
+| 2 | Phase 2 backup | Live v1 — harden / triage UX as needed |
 | 3 | — | slot free |
 
 ## Queued — do not start
 
 | # | Item | Why parked |
 |---|------|------------|
-| 1 | Phase 3 secrets/age | Needs backup staging |
-| 2 | Phase 4 restore | Needs archive format |
-| 3 | Phase 5 language modules | After restore foundation |
-| 4 | Phase 6 systemd + /etc | After language modules |
-| 5 | Phase 7 Docker + polish | Last |
+| 1 | Phase 4 restore | Needs archive format (have it) + secrets story |
+| 2 | Phase 5 language modules | After restore foundation |
+| 3 | Phase 6 systemd + `/etc` | After language modules |
+| 4 | Phase 7 Docker + polish | Last |
 
 ## Next task
 
-1. Phase 2: real `backup` — staging dir, APT manual packages, home/config allowlist, large-item triage, `tar`+`zstd` to Windows Downloads, checksums.
-2. Keep `inspect` / `deps` stable while backup lands.
+1. Phase 3: `age` encrypt secrets subset; interactive passphrase / skip / exclude; `--yes` via env/flags.
+2. Smoke a real (non-dry-run) small backup when convenient.
 
 Full tracker: [`roadmap.md`](./roadmap.md).

@@ -68,10 +68,20 @@ if bash -n "${CLI}" \
   && bash -n "${ROOT}"/lib/windows/*.sh \
   && bash -n "${ROOT}"/lib/classify/*.sh \
   && bash -n "${ROOT}"/lib/constraints/*.sh \
-  && bash -n "${ROOT}"/lib/tools/*.sh; then
+  && bash -n "${ROOT}"/lib/tools/*.sh \
+  && bash -n "${ROOT}"/lib/backup/*.sh \
+  && bash -n "${ROOT}"/lib/archive/*.sh \
+  && bash -n "${ROOT}"/modules/*.sh; then
   ok "bash -n syntax"
 else
   bad "bash -n syntax"
+fi
+
+bak_out="$(env WSLBKUP_YES=1 "${CLI}" --no-color --dry-run -o /tmp/wslbkup-smoke-dry.tar.zst backup 2>/dev/null)" || true
+if [[ "${bak_out}" == *"dry-run"* && "${bak_out}" == *"Backup plan"* ]]; then
+  ok "backup dry-run plans"
+else
+  bad "backup dry-run plans"
 fi
 
 exit "${fail}"

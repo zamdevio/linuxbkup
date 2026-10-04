@@ -88,7 +88,7 @@ wslbkup_cmd_help() {
       ;;
     backup)
       ui_heading "wslbkup backup"
-      ui_item note "Create an intelligent backup archive (Phase 2+)."
+      ui_item note "Stage metadata + APT manuals + allowlisted home/config, pack tar.zst."
       printf '\n'
       ui_section "Usage"
       ui_item note "wslbkup [globals] backup"
@@ -97,9 +97,11 @@ wslbkup_cmd_help() {
       ui_item note "tar, zstd, rsync, du, sha256sum  (optional: age)"
       printf '\n'
       ui_section "Useful globals"
-      ui_kv "-o, --output" "Archive destination"
+      ui_kv "-o, --output" "Archive destination (default: Windows Downloads)"
       ui_kv "--dry-run" "Plan without writing"
+      ui_kv "-y, --yes" "Accept copy confirmation"
       ui_kv "--user" "Home to back up"
+      ui_kv "--no-secrets" "Skip sensitive paths"
       ui_kv "--include/--exclude" "Path constraints"
       ;;
     restore)

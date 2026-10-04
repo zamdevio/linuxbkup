@@ -10,7 +10,7 @@ See also [`focus.md`](./focus.md) (max 3 active).
 | — | Terminal UI | **done** | `lib/core/terminal/`, OSC 8 links, styled help |
 | — | Constraints | **done** | `lib/constraints/`, include/exclude, `--full`/`--top` |
 | — | `deps` | **done** | status / install / howto + guides |
-| 2 | `backup` core | **next** | APT + home/config + tar.zst → Downloads |
+| 2 | `backup` core | **done (v1)** | APT manuals + allowlisted home/config + tar.zst + checksums + verify |
 | 3 | Secrets | queued | `age` passphrase over secrets subset |
 | 4 | `restore` | queued | dry-run, compatibility, honest report |
 | 5 | Language modules | queued | pip/npm/cargo/go/ruby |
