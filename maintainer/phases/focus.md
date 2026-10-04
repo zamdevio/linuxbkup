@@ -8,7 +8,7 @@
 
 | Priority | Vertical | Notes |
 |----------|----------|-------|
-| 1 | — | slot free (portable cleanup + filter stack + probes shipped) |
+| 1 | — | slot free (phase 01 shipped) |
 | 2 | — | slot free |
 | 3 | — | slot free |
 
@@ -16,14 +16,13 @@
 
 | # | Item | Why parked |
 |---|------|------------|
-| 1 | Phase 01 verify staging | Next redesign slice |
-| 2 | Phase 02 full HOME scan | Planned; allowlists already portable |
-| 3 | Phases 03–05 product redesign | After 01–02 |
-| 4 | Phases 06–07 docs + VitePress | Content then site |
+| 1 | Phase 02 full HOME scan | Next redesign slice |
+| 2 | Phases 03–05 product redesign | After 02 |
+| 3 | Phases 06–07 docs + VitePress | Content then site |
 
 ## Next task
 
-1. Open Focus on **phase 01** (verify staging) when ready — or 02 if you prefer full-home next.
+1. Open Focus on **phase 02** (full HOME scan + classify) when ready.
 2. Keep `shipped/` + `systems/` current after each ship.
 
 Umbrella: [`redesign.md`](./redesign.md). Tracker: [`roadmap.md`](./roadmap.md).

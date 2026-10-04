@@ -10,11 +10,11 @@ Pack can fail after staging + INDEX/checksums. Staging is kept on failure today;
 
 ## Slices
 
-- [ ] **01.1** Detect input kind: file archive vs directory staging root
-- [ ] **01.2** Staging path: read `checksums.sha256` (+ metadata) in place; report pass/fail
-- [ ] **01.3** Archive path: extract to temp (or stream) and check as today
-- [ ] **01.4** Clear errors if neither valid staging nor archive
-- [ ] **01.5** Smoke: verify against a tiny fixture staging dir
+- [x] **01.1** Detect input kind: file archive vs directory staging root
+- [x] **01.2** Staging path: read `checksums.sha256` (+ metadata) in place; report pass/fail
+- [x] **01.3** Archive path: extract to temp (or stream) and check as today
+- [x] **01.4** Clear errors if neither valid staging nor archive
+- [x] **01.5** Smoke: verify against a tiny fixture staging dir
 
 ## Acceptance
 

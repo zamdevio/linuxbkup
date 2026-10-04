@@ -25,7 +25,7 @@ Clean `linuxbkup` / `LINUXBKUP_*` identity (phase 00).
 | Phase | Doc | Status |
 |-------|-----|--------|
 | 00 | [Identity + platform](./00-identity-and-platform.md) | **done** |
-| 01 | [Verify staging](./01-verify-staging.md) | planned |
+| 01 | [Verify staging](./01-verify-staging.md) | **done** |
 | 02 | [Home scan + classify](./02-home-scan-classify.md) | planned |
 | 03 | [Profiles, ask, flags](./03-profiles-ask-flags.md) | planned |
 | 04 | [Reclaim + secrets](./04-reclaim-secrets.md) | planned |

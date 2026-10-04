@@ -15,12 +15,12 @@ What has actually landed (not aspirational). Binary: **`linuxbkup`**. Env: **`LI
 | Phase 2 | INDEX write survives `pipefail`; staging kept on pack failure (`32b5b11`) |
 | Phase 00 | Identity `linuxbkup` + `LINUXBKUP_*`; `lib/core/platform/` (detect, paths, windows, fs_space); native dest `~/Backups/linuxbkup/`; smoke identity gate |
 | UX | Portable backup/important lists (no host-shaped dirnames); filter stack for `du` + rsync; broader inspect capability probes |
+| Phase 01 | `verify` accepts staging dirs or `*.tar.zst`; fixture + smoke |
 
 ## Not shipped yet (redesign track)
 
 | Item | Phase doc |
 |------|-----------|
-| Verify staging directories | [01](../phases/01-verify-staging.md) |
 | Full HOME scan + unexpected paths | [02](../phases/02-home-scan-classify.md) |
 | Profiles / ask UI / print-plan / json / stage flags | [03](../phases/03-profiles-ask-flags.md) |
 | Reclaim + secrets/`age` | [04](../phases/04-reclaim-secrets.md) |

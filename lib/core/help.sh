@@ -129,10 +129,19 @@ linuxbkup_cmd_help() {
       ;;
     verify)
       ui_heading "linuxbkup verify"
-      ui_item note "Verify archive integrity / manifests."
+      ui_item note "Verify a finished archive or a staging directory left after a failed pack."
       printf '\n'
       ui_section "Usage"
-      ui_item note "linuxbkup [globals] verify <backup>"
+      ui_item note "linuxbkup [globals] verify <archive.tar.zst>"
+      ui_item note "linuxbkup [globals] verify <staging-dir>"
+      printf '\n'
+      ui_section "Examples"
+      ui_item note "linuxbkup verify ~/Backups/linuxbkup/host-20260101.tar.zst"
+      ui_item note "linuxbkup verify /tmp/linuxbkup.12345.67890"
+      printf '\n'
+      ui_section "Requires"
+      ui_item note "Archive: tar, zstd, sha256sum"
+      ui_item note "Staging: sha256sum (checksums.sha256 required)"
       ;;
     list)
       ui_heading "linuxbkup list"

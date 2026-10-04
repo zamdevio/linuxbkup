@@ -151,4 +151,20 @@ else
   bad "filter stack: du excludes regenerables"
 fi
 
+staging_fixture="${ROOT}/tests/fixtures/staging-ok"
+if [[ -d "${staging_fixture}" && -f "${staging_fixture}/checksums.sha256" ]]; then
+  if "${CLI}" --no-color verify "${staging_fixture}" >/dev/null 2>&1; then
+    ok "verify staging fixture"
+  else
+    bad "verify staging fixture"
+  fi
+  if "${CLI}" --no-color verify "${ROOT}/tests/fixtures/not-staging" >/dev/null 2>&1; then
+    bad "verify rejects non-staging dir"
+  else
+    ok "verify rejects non-staging dir"
+  fi
+else
+  bad "verify staging fixture missing"
+fi
+
 exit "${fail}"
