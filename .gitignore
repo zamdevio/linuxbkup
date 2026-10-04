@@ -1,0 +1,14 @@
+*.log
+.DS_Store
+.env
+.env.*
+*.tar
+*.tar.zst
+*.age
+.tmp/
+.staging/
+
+# scaffolder / agent scratch
+maintainer/temp/**
+!maintainer/temp/
+!maintainer/temp/.gitkeep

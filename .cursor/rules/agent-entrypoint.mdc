@@ -1,0 +1,12 @@
+---
+description: Point agents at root AGENT.md and maintainer control plane
+alwaysApply: true
+---
+
+# Entry
+
+Read root `AGENT.md` first, then `maintainer/phases/focus.md`.
+`maintainer/temp/` is scratch (gitignored).
+
+This repo is **Bash-first** (`wslbkup`, `lib/`, `modules/`). Do not reintroduce a Node/pnpm CLI unless the user asks.
+Build phase by phase; max 3 Focus items.

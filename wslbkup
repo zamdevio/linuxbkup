@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# wslbkup — Bash-first WSL backup / restore CLI
+set -Eeuo pipefail
+
+WSLBKUP_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export WSLBKUP_ROOT
+
+# shellcheck source=lib/core/common.sh
+source "${WSLBKUP_ROOT}/lib/core/common.sh"
+# shellcheck source=lib/core/logging.sh
+source "${WSLBKUP_ROOT}/lib/core/logging.sh"
+# shellcheck source=lib/core/safety.sh
+source "${WSLBKUP_ROOT}/lib/core/safety.sh"
+
+wslbkup_parse_globals "$@"
+set -- "${WSLBKUP_POSITIONAL[@]:-}"
+
+cmd="${1:-}"
+if [[ -n "${cmd}" ]]; then
+  shift
+fi
+
+case "${cmd}" in
+  ""|-h|--help|help)
+    wslbkup_usage
+    exit 0
+    ;;
+  -V|--version|version)
+    printf '%s\n' "${WSLBKUP_VERSION}"
+    exit 0
+    ;;
+  inspect|backup|restore|verify|list)
+    # shellcheck source=/dev/null
+    source "${WSLBKUP_ROOT}/lib/cmd/${cmd}.sh"
+    "wslbkup_cmd_${cmd}" "$@"
+    ;;
+  *)
+    log_fatal "Unknown command: ${cmd}"
+    wslbkup_usage >&2
+    exit 2
+    ;;
+esac
