@@ -130,4 +130,25 @@ else
   bad "native backup dir under Backups/linuxbkup"
 fi
 
+# Portable allowlists: no host-shaped project dirnames in shipped defaults
+# shellcheck source=/dev/null
+source "${ROOT}/lib/constraints/base.sh"
+# shellcheck source=/dev/null
+source "${ROOT}/lib/constraints/backup_paths.sh"
+joined="${CONSTRAINTS_BACKUP_DIRS[*]} ${CONSTRAINTS_IMPORTANT_TARGETS[*]}"
+if [[ "${joined}" == *Projects* || "${joined}" == *Workers* || "${joined}" == *Tools* ]]; then
+  bad "portable: no host-shaped dirnames in backup/important lists"
+else
+  ok "portable: no host-shaped dirnames in backup/important lists"
+fi
+
+# Filter stack produces du --exclude args
+excl=()
+constraints_du_exclude_args excl
+if [[ "${#excl[@]}" -ge 3 && "${excl[*]}" == *node_modules* ]]; then
+  ok "filter stack: du excludes regenerables"
+else
+  bad "filter stack: du excludes regenerables"
+fi
+
 exit "${fail}"

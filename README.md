@@ -11,7 +11,7 @@ Early development. `inspect`, `backup` (v1), `verify`, and `deps` are live. Rede
 ## Quick start
 
 ```bash
-cd ~/Tools/linuxbkup
+cd /path/to/linuxbkup
 ./linuxbkup --help
 ./linuxbkup inspect
 ./tests/smoke.sh

@@ -1,5 +1,6 @@
 # shellcheck shell=bash
 # Default paths included in backup (relative to home unless absolute / {home}).
+# Portable only — no host-shaped project dirnames. Extra trees: --include (phase 02: full HOME scan).
 
 # Dotfiles / shell / git
 CONSTRAINTS_BACKUP_DOTFILES=(
@@ -15,21 +16,14 @@ CONSTRAINTS_BACKUP_DOTFILES=(
   .inputrc
 )
 
-# Config / bin (directories — copied recursively with exclusions applied later)
+# Config / bin / keys (directories — copied recursively with exclusions applied later)
 CONSTRAINTS_BACKUP_DIRS=(
   .config
   .local/bin
   .ssh
-  Projects
-  projects
-  src
-  code
-  Documents
-  Workers
-  Tools
 )
 
-# System-ish snippets we may copy if present (selective — not full /etc)
+# Optional system snippets when present (selective — not full /etc)
 CONSTRAINTS_BACKUP_ETC=(
   /etc/wsl.conf
 )

@@ -42,7 +42,17 @@ linuxbkup_cmd_inspect() {
   printf '\n'
   env_print_package_managers
   printf '\n'
+  env_print_language_tooling
+  printf '\n'
+  env_print_tool_managers
+  printf '\n'
   env_print_services
+  printf '\n'
+  env_print_web_servers
+  printf '\n'
+  env_print_databases
+  printf '\n'
+  env_print_containers_cloud
   printf '\n'
   env_print_dev_environments
   printf '\n'

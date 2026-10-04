@@ -8,6 +8,8 @@ source "${LINUXBKUP_ROOT}/lib/constraints/list.sh"
 source "${LINUXBKUP_ROOT}/lib/constraints/size_targets.sh"
 # shellcheck source=lib/constraints/regenerable.sh
 source "${LINUXBKUP_ROOT}/lib/constraints/regenerable.sh"
+# shellcheck source=lib/constraints/filter.sh
+source "${LINUXBKUP_ROOT}/lib/constraints/filter.sh"
 # shellcheck source=lib/constraints/important.sh
 source "${LINUXBKUP_ROOT}/lib/constraints/important.sh"
 # shellcheck source=lib/constraints/secrets.sh

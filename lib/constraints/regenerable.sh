@@ -38,3 +38,27 @@ CONSTRAINTS_REGENERABLE_REGEXES=(
   '/\.m2/repository(/|$)'
   '/vendor/bundle(/|$)'
 )
+
+# Basename / path-component globs for GNU du --exclude= and rsync --exclude
+# (keep in sync with regenerable intent; used by filter stack)
+CONSTRAINTS_DU_EXCLUDE_GLOBS=(
+  node_modules
+  .venv
+  venv
+  __pycache__
+  target
+  .cache
+  .npm
+  .pnpm-store
+  .yarn
+  .cargo
+  .rustup
+  .pytest_cache
+  .mypy_cache
+  .tox
+  .gradle
+  .m2
+  vendor
+  Trash
+  pipx
+)

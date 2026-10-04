@@ -8,11 +8,11 @@
 
 Borrow layout/patterns from:
 
-| Repo | Steal |
+| Sibling pattern repo (operator) | Steal |
 |------|--------|
-| [`~/Tools/gform/apps/docs`](file:///home/amf/Tools/gform/apps/docs) | Home hero layout, feature grid, command-heavy sidebar, cyan/CLI-adjacent chrome, frosted nav |
-| [`~/Tools/i18nprune/apps/docs`](file:///home/amf/Tools/i18nprune/apps/docs) | SEO/`transformHead`, OG helpers, cleanUrls + `srcDir`, Pages functions if needed |
-| [`~/Tools/expgov/apps/docs`](file:///home/amf/Tools/expgov/apps/docs) | Leaner config.mts + sidebar split — good baseline size for a smaller product |
+| `gform/apps/docs` | Home hero layout, feature grid, command-heavy sidebar, cyan/CLI-adjacent chrome, frosted nav |
+| `i18nprune/apps/docs` | SEO/`transformHead`, OG helpers, cleanUrls + `srcDir`, Pages functions if needed |
+| `expgov/apps/docs` | Leaner config.mts + sidebar split — good baseline size for a smaller product |
 
 **Do not** copy gform/i18nprune brand colors blindly — pick a **linuxbkup** palette (terminal-green / slate; avoid purple-on-white default AI look).
 

@@ -20,21 +20,22 @@ backup_home_paths() {
   done
 }
 
-# Rsync excludes for regeneratable trees inside copied dirs.
+# Rsync excludes for regeneratable trees — driven by CONSTRAINTS_DU_EXCLUDE_GLOBS.
 backup_plan_excludes() {
-  BACKUP_RSYNC_EXCLUDES=(
-    --exclude 'node_modules/'
-    --exclude '.venv/'
-    --exclude 'venv/'
-    --exclude '__pycache__/'
-    --exclude 'target/'
-    --exclude '.cache/'
-    --exclude '.npm/'
+  local g
+  BACKUP_RSYNC_EXCLUDES=()
+  for g in "${CONSTRAINTS_DU_EXCLUDE_GLOBS[@]+"${CONSTRAINTS_DU_EXCLUDE_GLOBS[@]}"}"; do
+    [[ -z "${g}" ]] && continue
+    BACKUP_RSYNC_EXCLUDES+=(--exclude "${g}/")
+  done
+  # Extra path-shaped regenerables rsync should skip
+  BACKUP_RSYNC_EXCLUDES+=(
     --exclude '.cargo/registry/'
     --exclude '.cargo/git/'
-    --exclude '.rustup/'
     --exclude 'go/pkg/mod/'
     --exclude '.local/share/Trash/'
+    --exclude '.yarn/cache/'
+    --exclude '.pnpm-store/'
   )
 }
 
@@ -70,7 +71,7 @@ backup_copy_home() {
   if [[ "${LINUXBKUP_NO_SECRETS:-0}" -eq 1 ]]; then
     ui_item note "Secrets excluded (--no-secrets)"
   else
-    ui_item note "Sensitive paths staged under secrets/ (encrypt in Phase 3)"
+    ui_item note "Sensitive paths staged under secrets/ (encrypt in a later phase)"
   fi
   printf '\n'
 

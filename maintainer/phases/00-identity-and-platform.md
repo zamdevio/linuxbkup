@@ -9,7 +9,7 @@
 - Binary / CLI name: `linuxbkup`
 - Env prefix: `LINUXBKUP_*` only — no shims for any prior prefix
 - Docs, comments, help, smoke scripts: say `linuxbkup` and “Linux (desktop, VPS, WSL)”
-- Repo directory at `~/Tools/linuxbkup` is operator-owned; code identity is this phase’s job
+- Repo directory name/path is operator-owned; code identity is this phase’s job
 
 ## Why `lib/core/platform/`
 

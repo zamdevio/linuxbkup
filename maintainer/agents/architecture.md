@@ -48,6 +48,8 @@ AGENT.md
 - `--dry-run` → zero modifications
 - `--yes` → profile/non-TTY defaults; never silent plaintext secrets; never overwrite without `--force-overwrite`
 - Soft fail detectors (`SKIP`/`WARN`); hard fail destination/corruption (`FATAL`)
+- **Portable defaults:** no host-shaped home dirnames in shipped constraint lists
+- **Filter stack:** `du` / rsync / plan sizes honor regenerable globs + user `--exclude`
 
 ## 4. Health gates
 

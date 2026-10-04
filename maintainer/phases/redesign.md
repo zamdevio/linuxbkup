@@ -14,6 +14,9 @@ After these phase docs are agreed and implementation lands, fold outcomes into [
 | Portability default | Archives + `schema.json` restore across machines/distros of the same family where possible; honest gap reports. |
 | `--ask` > `--yes` | If both set: **ignore `--yes`**, print one log line, proceed interactive. |
 | No personal examples | Placeholders only: `/home/user`, `~/Backups/linuxbkup/…`. |
+| Portable defaults | No host-shaped home dirnames in shipped lists (`Projects`/`Workers`/`Tools`/…). Until phase 02 full scan: backup defaults = shell/dotfiles + `.config` / `.local/bin` / secrets paths; extra trees via `--include`. |
+| Filter stack | `du`, rsync, find, and plan sizes honor regenerable defaults + user `--exclude` (exclude wins). Never report “backup size” that includes ignored regenerables. |
+| Capability probes | Inspect detects common package managers, tool managers, process managers, web servers, databases, containers/cloud CLIs — presence only until restore modules exist. |
 | fzf | Optional. Rich Bash numbered multi-select always. |
 | Tracking | Implement → update `shipped/` + `systems/`; phase status in `roadmap.md`. |
 

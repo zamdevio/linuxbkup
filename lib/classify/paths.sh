@@ -82,6 +82,6 @@ classify_print_summary() {
   else
     printf '%s\n' "${rows[@]}" | constraints_list_apply
     constraints_list_footer "sensitive paths"
-    log_info "Sensitive paths use age passphrase encryption in backup (Phase 3)."
+    log_info "Sensitive paths use age passphrase encryption in backup (later phase)."
   fi
 }

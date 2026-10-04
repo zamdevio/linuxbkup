@@ -32,7 +32,7 @@ Install guides: `guides/tools/<name>.guide`.
 
 ```bash
 linuxbkup inspect --exclude '\.cache' -T 5
-linuxbkup inspect --no-defaults --include Projects
+linuxbkup backup --include /home/user/src --include /home/user/work
 ```
 
-Built-in lists live in `lib/constraints/`.
+Built-in defaults are portable (shell/dotfiles, `.config`, `.local/bin`, `.ssh`). Extra home trees: `--include` until phase 02 full-home scan. Lists live in `lib/constraints/`.

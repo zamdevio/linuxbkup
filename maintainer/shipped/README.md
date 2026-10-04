@@ -14,6 +14,7 @@ What has actually landed (not aspirational). Binary: **`linuxbkup`**. Env: **`LI
 | Phase 2 | `verify` on `*.tar.zst` (extract + `checksums.sha256`) |
 | Phase 2 | INDEX write survives `pipefail`; staging kept on pack failure (`32b5b11`) |
 | Phase 00 | Identity `linuxbkup` + `LINUXBKUP_*`; `lib/core/platform/` (detect, paths, windows, fs_space); native dest `~/Backups/linuxbkup/`; smoke identity gate |
+| UX | Portable backup/important lists (no host-shaped dirnames); filter stack for `du` + rsync; broader inspect capability probes |
 
 ## Not shipped yet (redesign track)
 
