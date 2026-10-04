@@ -24,8 +24,8 @@
 - [x] **09.1** Secrets mode resolved before staging/copy (prompt or fatal under `--yes`)
 - [x] **09.2** Byte-accurate filtered estimates (no sum-of-rounded-human)
 - [x] **09.3** After copy: show estimate vs stage delta when > threshold (e.g. 5% or 50MiB)
-- [ ] **09.4** Preflight banner: secrets mode + gitignore + max-size + profile in one glance
-- [ ] **09.5** Structured step labels align with 08.10 (detect → decide → preflight → stage → …)
+- [x] **09.4** Preflight banner: secrets mode + gitignore + max-size + profile in one glance
+- [x] **09.5** Structured step labels (`ui_step`) — preflight → detect → capture → stage → seal → pack → summary
 - [x] **09.6** Smoke: `--yes` backup without pass fails before any rsync into stage
 
 ## Acceptance

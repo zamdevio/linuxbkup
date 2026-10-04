@@ -116,6 +116,17 @@ ui_section() {
   printf '%s%s%s\n' "${UI_BOLD}" "$*" "${UI_RESET}"
 }
 
+# Structured backup step label: ui_step <n> <total> <label>
+# Example: ui_step 3 7 "capture — apt manifests"
+ui_step() {
+  local n="$1" total="$2" label="$3"
+  declare -F term_live_park >/dev/null 2>&1 && term_live_park
+  _ui_ensure
+  printf '\n  %sStep %s/%s%s  %s%s%s\n' \
+    "${UI_DIM}" "${n}" "${total}" "${UI_RESET}" \
+    "${UI_BOLD}" "${label}" "${UI_RESET}"
+}
+
 ui_kv() {
   local key="$1" value="$2"
   declare -F term_live_park >/dev/null 2>&1 && term_live_park

@@ -16,11 +16,11 @@
 
 Home/config from **full-home classification**. Decisions: `--ask` interactive (unexpected + large); `--yes` uses profile large defaults; non-TTY ≈ `--yes`. Regenerables skipped (rsync filter stack + expanded language/framework/PM globs + `*.pyc` etc.). Per-directory `.gitignore` honored unless `--no-gitignore`.
 
-**Fail-fast (phase 09):** secrets mode + disk floor checked in Preflight **before** snapshot/copy; passphrase required under `--yes` before any heavy work. Estimates use byte-accurate filtered `du` (not summed `du -sh` labels). Space gate (`lib/backup/preflight.sh`) re-checks with estimate+10% before rsync confirm.
+**Fail-fast (phase 09):** secrets mode + disk floor checked in Preflight **before** snapshot/copy; passphrase required under `--yes` before any heavy work. Preflight banner shows profile / gitignore / max-size / secrets at a glance (`backup_preflight_banner`). Backup prints `ui_step` labels: preflight → detect → capture → stage → seal → pack → summary. Estimates use byte-accurate filtered `du`. Space gate (`lib/backup/preflight.sh`) re-checks with estimate+10% before rsync confirm.
 
 Backup prints shared **environment snapshot** (`lib/env/snapshot.sh`) after preflight. `-k/--keep-stage` / `-S/--stage-dir` control staging lifecycle.
 
-Long steps (`classify`, `copy`, `checksum`, `pack`, …) use `linuxbkup_op_begin` + `linuxbkup_interrupt_resolve` (see [`cli.md`](./cli.md)). Copy goes through `backup_handle_interrupt` after `backup_rsync_run`.
+Long steps (`classify`, `copy`, `secrets`, `index`, `checksum`, `pack`, `summary`, …) use `linuxbkup_op_begin` + `linuxbkup_interrupt_resolve` (see [`cli.md`](./cli.md)). Copy/pack long waits run under `linuxbkup_without_monitor` so tty Ctrl+C cannot skip the menu via a child-only process group.
 
 ## Stub / missing
 

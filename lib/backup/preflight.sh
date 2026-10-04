@@ -8,6 +8,23 @@ source "${LINUXBKUP_ROOT}/lib/fs/sizes.sh"
 # shellcheck source=lib/constraints/secrets.sh
 source "${LINUXBKUP_ROOT}/lib/constraints/secrets.sh"
 
+# 09.4 — one-glance policy row before secrets/space numbers.
+backup_preflight_banner() {
+  local gi="honored (per-directory)"
+  local max_h="none"
+  [[ "${LINUXBKUP_NO_GITIGNORE:-0}" -eq 1 ]] && gi="off (--no-gitignore)"
+  if [[ -n "${LINUXBKUP_MAX_SIZE_BYTES:-}" && "${LINUXBKUP_MAX_SIZE_BYTES}" -gt 0 ]]; then
+    if declare -F fs_bytes_human >/dev/null 2>&1; then
+      max_h="$(fs_bytes_human "${LINUXBKUP_MAX_SIZE_BYTES}")"
+    else
+      max_h="${LINUXBKUP_MAX_SIZE_BYTES}B"
+    fi
+  fi
+  ui_kv "Profile" "${LINUXBKUP_PROFILE:-balanced}"
+  ui_kv "Gitignore" "${gi}"
+  ui_kv "Max size" "${max_h}"
+}
+
 # True if home (or --mark-secret) likely stages secret paths.
 backup_secrets_likely() {
   local home="${1:-${LINUXBKUP_HOME:-}}"

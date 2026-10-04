@@ -81,15 +81,19 @@ linuxbkup_cmd_backup() {
   log_verbose "backup target user=${user} home=${home}"
   log_debug "dest=${dest} dry_run=${LINUXBKUP_DRY_RUN:-0} yes=${LINUXBKUP_YES:-0}"
 
+  # Backup pipeline: 7 labeled steps (09.5 / aligns with 08.10 vocabulary).
+  local _bk_steps=7
+
   ui_heading "Backup"
   ui_kv_path "Home" "${home}"
   ui_kv_path "Destination" "${dest}"
   [[ "${LINUXBKUP_DRY_RUN:-0}" -eq 1 ]] && ui_kv "Mode" "dry-run"
-  [[ "${LINUXBKUP_NO_GITIGNORE:-0}" -eq 1 ]] && ui_kv "Gitignore" "off (--no-gitignore)"
   printf '\n'
 
-  # 09.1 — fail-fast before snapshot / staging / copy (never wait then die on passphrase)
+  # 09.1 + 09.4 — fail-fast + one-glance policy before heavy work
+  ui_step 1 "${_bk_steps}" "preflight — secrets, policy, disk"
   ui_section "Preflight"
+  backup_preflight_banner
   if ! backup_secrets_preflight "${home}"; then
     return 1
   fi
@@ -108,6 +112,7 @@ linuxbkup_cmd_backup() {
   printf '\n'
 
   # 08.8 — detect (shared snapshot) after preflight clears
+  ui_step 2 "${_bk_steps}" "detect — environment snapshot"
   while true; do
     linuxbkup_op_begin "snapshot" "" 0 1
     env_print_snapshot backup
@@ -176,6 +181,8 @@ linuxbkup_cmd_backup() {
 
   backup_write_metadata "${stage}" "${user}" "${home}"
   backup_write_schema "${stage}" "${user}" "${home}"
+
+  ui_step 3 "${_bk_steps}" "capture — package manifests"
   linuxbkup_op_begin "apt-capture" "" 0 1
   apt_capture_manifests "${stage}"
   if linuxbkup_interrupt_resolve; then
@@ -191,11 +198,13 @@ linuxbkup_cmd_backup() {
   fi
   linuxbkup_op_end
 
+  ui_step 4 "${_bk_steps}" "stage — classify + copy"
   if ! backup_copy_home "${home}" "${stage}"; then
     log_fatal "home/config copy aborted"
     return 1
   fi
 
+  ui_step 5 "${_bk_steps}" "seal — secrets, INDEX, checksums"
   linuxbkup_op_begin "secrets" "" 0 1
   if ! backup_secrets_encrypt_stage "${stage}"; then
     linuxbkup_op_end
@@ -242,6 +251,7 @@ linuxbkup_cmd_backup() {
     return 1
   fi
 
+  ui_step 6 "${_bk_steps}" "pack — tar.zst archive"
   if [[ -z "${dest}" ]]; then
     log_fatal "archive destination is empty — pass -o/--output (refusing to pack)"
     return 1
@@ -263,6 +273,7 @@ linuxbkup_cmd_backup() {
   # so Ctrl+C during the summary still gets the menu (not raw SIGINT death).
   trap 'linuxbkup_tty_restore' EXIT
 
+  ui_step 7 "${_bk_steps}" "summary"
   printf '\n'
   linuxbkup_op_begin "summary" "" 0 1
   classify_print_backup_summary "${home}"

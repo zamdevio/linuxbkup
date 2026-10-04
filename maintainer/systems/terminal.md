@@ -4,7 +4,7 @@
 
 | File | Role |
 |------|------|
-| `style.sh` | Structured logs + `ui_*` (parks live line before emit) |
+| `style.sh` | Structured logs + `ui_*` + `ui_step` (parks live line before emit) |
 | `links.sh` | OSC 8 path/URL hyperlinks |
 | `control.sh` | CSI on stderr; cursor via `/dev/tty` + `tput cnorm`; `term_live_park` / `linuxbkup_tty_restore` |
 | `progress.sh` | Live `\r`+EL2 bar on **stderr**; stage bytes; INFO steps when piped |

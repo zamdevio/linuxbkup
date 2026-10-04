@@ -452,6 +452,33 @@ if [[ "${snap_out}" == *"Environment snapshot"* && "${snap_out}" == *"Package ma
 else
   bad "backup dry-run prints environment snapshot"
 fi
+# 09.4–09.5 preflight banner + structured step labels
+if [[ "${snap_out}" == *"Preflight"* \
+  && "${snap_out}" == *"Gitignore"* \
+  && "${snap_out}" == *"Max size"* \
+  && "${snap_out}" == *"Profile"* \
+  && "${snap_out}" == *"Step 1/7"* \
+  && "${snap_out}" == *"preflight"* \
+  && "${snap_out}" == *"Step 2/7"* \
+  && "${snap_out}" == *"detect"* ]]; then
+  ok "backup preflight banner + ui_step labels (09.4–09.5)"
+else
+  bad "backup preflight banner + ui_step labels (09.4–09.5)"
+fi
+# shellcheck source=/dev/null
+source "${ROOT}/lib/core/terminal/style.sh"
+if declare -F ui_step >/dev/null && declare -F backup_preflight_banner >/dev/null 2>&1; then
+  ok "ui_step + backup_preflight_banner defined"
+else
+  # backup_preflight_banner lives in preflight.sh
+  # shellcheck source=/dev/null
+  source "${ROOT}/lib/backup/preflight.sh"
+  if declare -F ui_step >/dev/null && declare -F backup_preflight_banner >/dev/null; then
+    ok "ui_step + backup_preflight_banner defined"
+  else
+    bad "ui_step + backup_preflight_banner defined"
+  fi
+fi
 
 # 09.1 secrets fail-fast before copy (--yes, secrets present, no pass)
 # shellcheck source=/dev/null
