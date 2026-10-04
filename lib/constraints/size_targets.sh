@@ -14,7 +14,6 @@ CONSTRAINTS_SIZE_TARGETS=(
   /var
   /var/lib/docker
   /var/cache/apt
-  /tmp
 )
 
 # Extra targets only shown with --verbose

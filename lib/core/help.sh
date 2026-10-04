@@ -46,6 +46,7 @@ linuxbkup_usage() {
   ui_kv "--no-secrets" "Exclude secrets from backup"
   ui_kv "--secrets-plain" "Include secrets unencrypted (explicit)"
   ui_kv "--json" "Machine-readable output (plan --json)"
+  ui_kv "--max-size" "Abort if staging exceeds SIZE (uncompressed; e.g. 2G, 500M)"
   printf '\n'
 
   ui_section "Path constraints"
@@ -106,12 +107,16 @@ linuxbkup_cmd_help() {
       ui_item note "linuxbkup [globals] plan"
       ui_item note "linuxbkup plan --json"
       printf '\n'
-      ui_section "Useful globals"
+      ui_section "Useful globals (same meaning as backup)"
       ui_kv "-F/--full, -T/--top" "List length"
       ui_kv "-v, --verbose" "Filter-aware sizes"
       ui_kv "-y, --yes" "Show unexpected as auto-include"
-      ui_kv "--json" "Stable JSON envelope on stdout"
+      ui_kv "--user" "Target home"
+      ui_kv "--no-secrets / --secrets-plain" "Secret handling"
+      ui_kv "--no-defaults" "Ignore built-in rules"
       ui_kv "--include/--exclude" "Path constraints"
+      ui_kv "--json" "Stable JSON envelope on stdout"
+      ui_item note "Tips replay these flags into a ready-to-run backup command"
       ;;
     backup)
       ui_heading "linuxbkup backup"
@@ -127,9 +132,11 @@ linuxbkup_cmd_help() {
       ui_kv "-o, --output" "Archive destination (see platform defaults)"
       ui_kv "--dry-run" "Plan without writing"
       ui_kv "-y, --yes" "Accept copy confirmation; soft-skip unreadable files"
+      ui_kv "--max-size" "Abort if staging exceeds SIZE (uncompressed footprint)"
       ui_kv "--user" "Home to back up"
       ui_kv "--no-secrets" "Skip sensitive paths"
       ui_kv "--include/--exclude" "Path constraints"
+      ui_item note "Paths to copy listed large → small; progress shows live stage size"
       ui_item note "Full include/skip table: linuxbkup plan"
       ;;
     restore)

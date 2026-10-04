@@ -32,6 +32,7 @@ After these phase docs are agreed and implementation lands, fold outcomes into [
 | [05-space-schema.md](./05-space-schema.md) | Space gates + reversible schema |
 | [06-docs-content.md](./06-docs-content.md) | `docs/*.md` ready for VitePress |
 | [07-vitepress.md](./07-vitepress.md) | `apps/docs` → https://linuxbkup.pages.dev |
+| [08-terminal-ux.md](./08-terminal-ux.md) | Progress, OSC links, notify, flag-aware tips |
 
 ## Discovery → backup (target)
 

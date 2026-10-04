@@ -20,6 +20,7 @@ LINUXBKUP_NO_DEFAULTS=0
 LINUXBKUP_LIST_FULL=0
 LINUXBKUP_LIST_TOP=""
 LINUXBKUP_JSON=0
+LINUXBKUP_MAX_SIZE_BYTES=""
 LINUXBKUP_INCLUDE_REGEXES=()
 LINUXBKUP_EXCLUDE_REGEXES=()
 LINUXBKUP_POSITIONAL=()
@@ -107,6 +108,20 @@ linuxbkup_parse_globals() {
       --json)
         LINUXBKUP_JSON=1
         shift
+        ;;
+      --max-size)
+        [[ $# -ge 2 ]] || { log_fatal "--max-size requires a size (e.g. 2G, 500M)"; exit 2; }
+        # shellcheck source=lib/fs/sizes.sh
+        source "${LINUXBKUP_ROOT}/lib/fs/sizes.sh"
+        if ! LINUXBKUP_MAX_SIZE_BYTES="$(fs_parse_size_to_bytes "$2")"; then
+          log_fatal "invalid --max-size: $2 (use bytes or K/M/G/T)"
+          exit 2
+        fi
+        if [[ "${LINUXBKUP_MAX_SIZE_BYTES}" -le 0 ]]; then
+          log_fatal "--max-size must be > 0"
+          exit 2
+        fi
+        shift 2
         ;;
       -T|--top)
         [[ $# -ge 2 ]] || { log_fatal "--top requires a number"; exit 2; }

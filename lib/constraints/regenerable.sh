@@ -9,6 +9,9 @@ CONSTRAINTS_REGENERABLE_TARGETS=(
   .cargo/git
   .rustup
   .local/share/pipx
+  go
+  go/pkg
+  go/bin
   go/pkg/mod
   /var/cache/apt
 )
@@ -27,6 +30,8 @@ CONSTRAINTS_REGENERABLE_REGEXES=(
   '/\.cargo/registry(/|$)'
   '/\.cargo/git(/|$)'
   '/\.rustup(/|$)'
+  '/go/pkg(/|$)'
+  '/go/bin(/|$)'
   '/go/pkg/mod(/|$)'
   '/\.local/share/pipx(/|$)'
   '/\.local/share/Trash(/|$)'

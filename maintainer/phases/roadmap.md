@@ -32,6 +32,7 @@ Clean `linuxbkup` / `LINUXBKUP_*` identity (phase 00).
 | 05 | [Space + schema](./05-space-schema.md) | planned |
 | 06 | [Docs content](./06-docs-content.md) | planned |
 | 07 | [VitePress → pages.dev](./07-vitepress.md) | planned |
+| 08 | [Terminal UX](./08-terminal-ux.md) | **done** (progress, stage size, rich lists, `--max-size`) |
 
 Later product phases (after redesign foundation): restore polish, language modules, systemd/`/etc`, Docker — re-queue in focus when ready.
 

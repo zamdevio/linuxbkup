@@ -39,6 +39,7 @@ CONSTRAINTS_RULE_SKIP_BASENAMES=(
   .npm-global
   .cargo
   .rustup
+  go
   .bun
   .gradle
   .m2

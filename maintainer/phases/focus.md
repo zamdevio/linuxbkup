@@ -8,7 +8,7 @@
 
 | Priority | Vertical | Notes |
 |----------|----------|-------|
-| 1 | — | slot free (`plan`, `-v`/`-d`, guides, perm soft-skip shipped) |
+| 1 | — | slot free (go/tmp/max-size + rich lists shipping) |
 | 2 | — | slot free |
 | 3 | — | slot free |
 
@@ -16,12 +16,7 @@
 
 | # | Item | Why parked |
 |---|------|------------|
-| 1 | Phase 03 profiles / ask UI | Next |
-| 2 | Phases 04–05 | After 03 |
-| 3 | Phases 06–07 docs + VitePress | Later |
-
-## Next task
-
-Open Focus on **phase 03** when ready.
+| 1 | Phase 03 profiles / ask UI (`--profile`, `--ask`, keep-stage) | **Next** |
+| 2 | Phases 04–07 | Later |
 
 Umbrella: [`redesign.md`](./redesign.md).

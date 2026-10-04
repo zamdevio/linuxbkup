@@ -47,5 +47,9 @@ linuxbkup_cmd_plan() {
   classify_print_plan "${home}"
   printf '\n'
   log_ok "plan complete"
-  ui_item note "Run: linuxbkup -y backup   to execute with these defaults"
+  # Prefer -y in tip when unexpected would ask (so tip matches “execute with these defaults”)
+  if [[ "${LINUXBKUP_YES:-0}" -ne 1 ]] && [[ -t 0 ]]; then
+    ui_item note "Tip: add -y to auto-include unexpected paths"
+  fi
+  linuxbkup_tip_run backup
 }

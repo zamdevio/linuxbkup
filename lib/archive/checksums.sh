@@ -1,11 +1,12 @@
 # shellcheck shell=bash
 
 # Write checksums.sha256 for files under stage (relative paths).
-# Shows progress; never hangs silently on large trees.
+# Shows live progress; never hangs silently on large trees.
 archive_write_checksums() {
   local stage="$1"
   local out="${stage}/checksums.sha256"
-  local list total=0 n=0
+  local list total=0 n=0 rel
+  local oldpwd
 
   if [[ "${LINUXBKUP_DRY_RUN:-0}" -eq 1 ]]; then
     log_info "dry-run — would write checksums.sha256"
@@ -13,11 +14,8 @@ archive_write_checksums() {
   fi
 
   list="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-cksum.XXXXXX")"
-  # Build file list first (no full-tree sort)
   find "${stage}" -type f ! -name 'checksums.sha256' -printf '%P\n' >"${list}" || true
   total="$(wc -l <"${list}" | tr -d ' ')"
-  log_info "computing checksums for ${total} files (can take a while on large homes)…"
-
   : >"${out}"
   if [[ "${total}" -eq 0 ]]; then
     rm -f "${list}"
@@ -25,21 +23,26 @@ archive_write_checksums() {
     return 0
   fi
 
-  (
-    cd "${stage}" || exit 1
-    while IFS= read -r rel || [[ -n "${rel}" ]]; do
-      [[ -z "${rel}" ]] && continue
-      # sha256sum prints "hash  path" — keep relative path
-      sha256sum -- "${rel}" >>"${out}" || {
-        log_warn "checksum failed: ${rel}"
-        continue
-      }
-      n=$((n + 1))
-      if (( n % 200 == 0 || n == total )); then
-        log_info "  … hashed ${n}/${total}"
-      fi
-    done <"${list}"
-  )
+  term_progress_begin "${total}" "Computing checksums"
+  oldpwd="${PWD}"
+  cd "${stage}" || {
+    term_progress_end
+    rm -f "${list}"
+    log_fatal "cannot enter staging: ${stage}"
+    return 1
+  }
+  while IFS= read -r rel || [[ -n "${rel}" ]]; do
+    [[ -z "${rel}" ]] && continue
+    if sha256sum -- "${rel}" >>"${out}"; then
+      :
+    else
+      log_warn "checksum failed: ${rel}"
+    fi
+    n=$((n + 1))
+    term_progress_update "${n}" "${rel}"
+  done <"${list}"
+  cd "${oldpwd}" || true
+  term_progress_end
   rm -f "${list}"
 
   n="$(wc -l <"${out}" | tr -d ' ')"

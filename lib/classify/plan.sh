@@ -5,6 +5,30 @@
 source "${LINUXBKUP_ROOT}/lib/classify/scan.sh"
 # shellcheck source=lib/classify/json.sh
 source "${LINUXBKUP_ROOT}/lib/classify/json.sh"
+# shellcheck source=lib/fs/sizes.sh
+source "${LINUXBKUP_ROOT}/lib/fs/sizes.sh"
+
+# Append sortable display row: bytes<TAB>display-line (large→small when printed).
+_classify_plan_push_row() {
+  local -n _arr="$1"
+  local size="$2" action="$3" path="$4" reason="$5"
+  local bytes=0 line
+  bytes="$(fs_parse_size_to_bytes "${size}" 2>/dev/null || printf '0')"
+  [[ "${bytes}" =~ ^[0-9]+$ ]] || bytes=0
+  line="$(printf '  %8s  %-10s  %s  (%s)' "${size}" "${action}" "$(term_path_link "${path}")" "${reason}")"
+  _arr+=("$(printf '%s\t%s' "${bytes}" "${line}")")
+}
+
+_classify_plan_print_sorted() {
+  local -n _arr="$1"
+  local label="$2"
+  if [[ "${#_arr[@]}" -eq 0 ]]; then
+    ui_item note "none"
+    return 0
+  fi
+  printf '%s\n' "${_arr[@]}" | sort -t$'\t' -k1,1nr | cut -f2- | constraints_list_apply
+  constraints_list_footer "${label}"
+}
 
 # Print classification plan (human). Args: home
 classify_print_plan() {
@@ -15,6 +39,7 @@ classify_print_plan() {
 
   ui_section "Home classification plan"
   ui_item note "Shallow scan of \$HOME + ~/.local/* — what backup would copy"
+  ui_item note "Lists ordered large → small when sizes are known"
   printf '\n'
 
   if [[ "${LINUXBKUP_INSPECT_QUICK:-0}" -eq 1 ]]; then
@@ -26,54 +51,36 @@ classify_print_plan() {
     log_debug "plan row class=${class} action=${action} path=${path} reason=${reason}"
     case "${class}" in
       unexpected)
-        unexpected+=("$(printf '  %8s  %-10s  %s  (%s)' "${size}" "${action}" "$(term_path_link "${path}")" "${reason}")")
+        _classify_plan_push_row unexpected "${size}" "${action}" "${path}" "${reason}"
         n_un=$((n_un + 1))
         ;;
       secret)
-        secret_rows+=("$(printf '  %8s  %-10s  %s  (%s)' "${size}" "${action}" "$(term_path_link "${path}")" "${reason}")")
+        _classify_plan_push_row secret_rows "${size}" "${action}" "${path}" "${reason}"
         n_se=$((n_se + 1))
         ;;
       skip)
-        skip_rows+=("$(printf '  %8s  %-10s  %s  (%s)' "${size}" "${action}" "$(term_path_link "${path}")" "${reason}")")
+        _classify_plan_push_row skip_rows "${size}" "${action}" "${path}" "${reason}"
         n_sk=$((n_sk + 1))
         ;;
       include)
-        include_rows+=("$(printf '  %8s  %-10s  %s  (%s)' "${size}" "${action}" "$(term_path_link "${path}")" "${reason}")")
+        _classify_plan_push_row include_rows "${size}" "${action}" "${path}" "${reason}"
         n_in=$((n_in + 1))
         ;;
     esac
   done < <(classify_scan_home "${home}")
 
   printf '  Known include (%d):\n' "${n_in}"
-  if [[ "${n_in}" -eq 0 ]]; then
-    ui_item note "none"
-  else
-    printf '%s\n' "${include_rows[@]}" | constraints_list_apply
-    constraints_list_footer "known include"
-  fi
+  _classify_plan_print_sorted include_rows "known include"
 
   printf '  Secrets (%d):\n' "${n_se}"
-  if [[ "${n_se}" -eq 0 ]]; then
-    ui_item note "none"
-  else
-    printf '%s\n' "${secret_rows[@]}" | constraints_list_apply
-    constraints_list_footer "secrets"
-  fi
+  _classify_plan_print_sorted secret_rows "secrets"
 
   printf '  Skip / regenerable (%d):\n' "${n_sk}"
-  if [[ "${n_sk}" -eq 0 ]]; then
-    ui_item note "none"
-  else
-    printf '%s\n' "${skip_rows[@]}" | constraints_list_apply
-    constraints_list_footer "skip"
-  fi
+  _classify_plan_print_sorted skip_rows "skip"
 
   printf '  Unexpected (%d):\n' "${n_un}"
-  if [[ "${n_un}" -eq 0 ]]; then
-    ui_item note "none"
-  else
-    printf '%s\n' "${unexpected[@]}" | constraints_list_apply
-    constraints_list_footer "unexpected"
+  _classify_plan_print_sorted unexpected "unexpected"
+  if [[ "${n_un}" -gt 0 ]]; then
     if [[ "${LINUXBKUP_YES:-0}" -eq 1 ]] || [[ ! -t 0 ]]; then
       ui_item note "unexpected → auto-include (--yes or non-TTY)"
     else
@@ -110,6 +117,12 @@ classify_print_backup_summary() {
   if [[ "${LINUXBKUP_PERM_SKIPS:-0}" -gt 0 ]]; then
     ui_kv "Soft-skips" "${LINUXBKUP_PERM_SKIPS} (permission/partial)"
   fi
-  ui_item note "Full plan: linuxbkup plan   or   linuxbkup plan -F"
-  ui_item note "JSON plan:  linuxbkup plan --json"
+  linuxbkup_tip_run plan
+  local -a _json_flags=()
+  linuxbkup_flags_plan_relevant _json_flags
+  if [[ "${#_json_flags[@]}" -gt 0 ]]; then
+    ui_item note "JSON:  linuxbkup ${_json_flags[*]} plan --json"
+  else
+    ui_item note "JSON:  linuxbkup plan --json"
+  fi
 }

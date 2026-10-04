@@ -26,11 +26,17 @@ archive_pack_tar_zst() {
     safety_require_force_overwrite "${dest}" || return 1
   fi
 
-  log_info "packing tar.zst (this can take a while)…"
+  term_progress_status "Packing tar.zst → ${dest}"
   if ! tar -C "${stage}" -cf - . | zstd -T0 -q -o "${dest}"; then
+    term_progress_end
     log_fatal "tar|zstd failed writing ${dest}"
     rm -f "${dest}" 2>/dev/null || true
     return 1
+  fi
+  # clear status line
+  if term_progress_enabled; then
+    printf '\r'
+    term_clear_eol
   fi
 
   if [[ ! -f "${dest}" ]]; then

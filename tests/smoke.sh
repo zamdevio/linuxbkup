@@ -88,8 +88,8 @@ else
   bad "bash -n syntax"
 fi
 
-bak_out="$(env LINUXBKUP_YES=1 "${CLI}" --no-color --dry-run -o /tmp/linuxbkup-smoke-dry.tar.zst backup 2>/dev/null)" || true
-if [[ "${bak_out}" == *"dry-run"* && "${bak_out}" == *"Backup"* && "${bak_out}" == *"linuxbkup plan"* ]]; then
+bak_out="$("${CLI}" --no-color -y --dry-run -o /tmp/linuxbkup-smoke-dry.tar.zst backup 2>/dev/null)" || true
+if [[ "${bak_out}" == *"dry-run"* && "${bak_out}" == *"Backup"* && "${bak_out}" == *"Run:"* && "${bak_out}" == *"plan"* && "${bak_out}" == *"-y"* ]]; then
   ok "backup dry-run plans"
 else
   bad "backup dry-run plans"
@@ -186,6 +186,53 @@ if echo "${plan_out}" | grep -F "${fake_home}/work" | grep -q $'unexpected\tincl
 else
   bad "classify: unexpected top-level work auto-include with --yes"
 fi
+mkdir -p "${fake_home}/go/pkg/mod"
+go_row="$(LINUXBKUP_YES=1 LINUXBKUP_INSPECT_QUICK=1 classify_scan_home "${fake_home}" | grep -F "${fake_home}/go" | head -1 || true)"
+if [[ "${go_row}" == *$'\tskip\t'* ]]; then
+  ok "classify: ~/go default skip"
+else
+  bad "classify: ~/go default skip"
+  echo "${go_row}" || true
+fi
+if ! grep -qE '^\s*/tmp\s*$' "${ROOT}/lib/constraints/size_targets.sh"; then
+  ok "size_targets: /tmp not default-scanned"
+else
+  bad "size_targets: /tmp not default-scanned"
+fi
+# shellcheck source=/dev/null
+source "${ROOT}/lib/fs/sizes.sh"
+if [[ "$(fs_parse_size_to_bytes 2M)" == "2097152" ]]; then
+  ok "fs_parse_size_to_bytes 2M"
+else
+  bad "fs_parse_size_to_bytes 2M"
+fi
+help_max="$("${CLI}" --no-color --help 2>/dev/null)" || true
+if [[ "${help_max}" == *"--max-size"* ]]; then
+  ok "help lists --max-size"
+else
+  bad "help lists --max-size"
+fi
+# --max-size stage gate (unit): staging over limit → fail
+max_stage="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-smoke-stage.XXXXXX")"
+dd if=/dev/zero of="${max_stage}/blob" bs=2048 count=1 status=none 2>/dev/null || head -c 2048 /dev/zero >"${max_stage}/blob"
+# shellcheck source=/dev/null
+source "${ROOT}/lib/constraints/base.sh"
+# shellcheck source=/dev/null
+source "${ROOT}/lib/core/terminal/style.sh"
+# shellcheck source=/dev/null
+source "${ROOT}/lib/core/terminal/control.sh"
+# shellcheck source=/dev/null
+source "${ROOT}/lib/core/terminal/progress.sh"
+# shellcheck source=/dev/null
+source "${ROOT}/lib/backup/home.sh"
+LINUXBKUP_MAX_SIZE_BYTES=100
+if backup_check_max_size "${max_stage}" 2>/dev/null; then
+  bad "backup_check_max_size enforces limit"
+else
+  ok "backup_check_max_size enforces limit"
+fi
+rm -rf "${max_stage}"
+unset LINUXBKUP_MAX_SIZE_BYTES
 if "${CLI}" --no-color --no-links plan >/dev/null 2>&1; then
   ok "plan exits 0"
 else
@@ -202,6 +249,36 @@ if [[ -f "${ROOT}/guides/tools/fzf.guide" ]]; then
 else
   bad "fzf guide present"
 fi
+
+# Flag tips + progress helpers load
+# shellcheck source=/dev/null
+source "${ROOT}/lib/core/cli_tips.sh"
+# shellcheck source=/dev/null
+source "${ROOT}/lib/core/terminal/style.sh"
+tip_flags=()
+LINUXBKUP_YES=1
+LINUXBKUP_NO_SECRETS=1
+linuxbkup_flags_backup_relevant tip_flags
+tip_joined="${tip_flags[*]}"
+if [[ "${tip_joined}" == *-y* && "${tip_joined}" == *no-secrets* ]]; then
+  ok "flag tips replay -y and --no-secrets"
+else
+  bad "flag tips replay -y and --no-secrets"
+fi
+if declare -F term_progress_begin >/dev/null && declare -F term_notify >/dev/null; then
+  ok "terminal progress/notify helpers loaded"
+else
+  bad "terminal progress/notify helpers loaded"
+fi
+
+# plan tip mentions backup with flags
+tip_out="$("${CLI}" --no-color -y --no-secrets plan 2>/dev/null)" || true
+if [[ "${tip_out}" == *"linuxbkup"* && "${tip_out}" == *"backup"* && "${tip_out}" == *"-y"* ]]; then
+  ok "plan tip includes flagged backup command"
+else
+  bad "plan tip includes flagged backup command"
+fi
+
 rm -rf "${fake_home}"
 
 exit "${fail}"

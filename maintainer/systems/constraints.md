@@ -24,3 +24,6 @@ Built-in **rules**, listing policy, and the **filter stack**. Phase **02** full-
 - **No host-shaped home dirnames** in shipped rules.
 - Sizing / rsync share regenerable globs from `CONSTRAINTS_DU_EXCLUDE_GLOBS`.
 - `plan` / dry-run skip per-path `du` unless `-v`.
+- Top-level `go` (GOPATH) default **skip** — regenerable cache; `--include` / phase 04 reclaim to pull back.
+- `/tmp` is **not** a default inspect size target (no special classify rule — simply omitted).
+- `--max-size` limits **uncompressed staging** footprint (see terminal UX / backup).

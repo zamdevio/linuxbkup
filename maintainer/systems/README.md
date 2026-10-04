@@ -10,4 +10,5 @@ How subsystems wire together **as the tree is today**. Redesign targets: [`../ph
 | [constraints.md](./constraints.md) | Live (allowlist-oriented; redesign → rule-based full home) |
 | [tools.md](./tools.md) | Live — deps + guides |
 | [guides.md](./guides.md) | Live — every tool needs a `.guide` |
+| [terminal.md](./terminal.md) | Live — progress, links, notify, tips |
 | [backup-restore.md](./backup-restore.md) | Backup/verify v1 live; restore stub; redesign pending |

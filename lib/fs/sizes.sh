@@ -2,6 +2,85 @@
 # du-based size reporting. Honors filter stack (regenerable + user --exclude).
 # Fast, shallow, best-effort — never abort inspect.
 
+# Parse human size → bytes. Accepts bare ints or IEC suffixes (K/M/G/T, optional i/B).
+# Prints integer bytes; returns 1 on bad input.
+fs_parse_size_to_bytes() {
+  local raw="${1:-}" norm
+  [[ -n "${raw}" ]] || return 1
+  [[ "${raw}" == "?" || "${raw}" == "-" ]] && { printf '0\n'; return 0; }
+
+  norm="$(printf '%s' "${raw}" | tr '[:lower:]' '[:upper:]')"
+  norm="${norm%B}"
+  # 1.5Gi → 1.5G for numfmt --from=iec
+  norm="${norm%I}"
+
+  if [[ "${norm}" =~ ^[0-9]+$ ]]; then
+    printf '%s\n' "${norm}"
+    return 0
+  fi
+
+  if command -v numfmt >/dev/null 2>&1; then
+    if numfmt --from=iec "${norm}" 2>/dev/null; then
+      return 0
+    fi
+  fi
+
+  # Minimal fallback: integer + single letter suffix
+  if [[ "${norm}" =~ ^([0-9]+)([KMGT])$ ]]; then
+    local n="${BASH_REMATCH[1]}" u="${BASH_REMATCH[2]}"
+    case "${u}" in
+      K) printf '%s\n' "$((n * 1024))" ;;
+      M) printf '%s\n' "$((n * 1024 * 1024))" ;;
+      G) printf '%s\n' "$((n * 1024 * 1024 * 1024))" ;;
+      T) printf '%s\n' "$((n * 1024 * 1024 * 1024 * 1024))" ;;
+    esac
+    return 0
+  fi
+  return 1
+}
+
+# Bytes → short human (no trailing B when numfmt missing).
+fs_bytes_human() {
+  local bytes="${1:-0}"
+  [[ "${bytes}" =~ ^[0-9]+$ ]] || bytes=0
+  if command -v numfmt >/dev/null 2>&1; then
+    numfmt --to=iec --suffix=B "${bytes}" 2>/dev/null || printf '%sB\n' "${bytes}"
+  else
+    printf '%sB\n' "${bytes}"
+  fi
+}
+
+# Apparent size in bytes (filter-aware). Prints integer; returns 1 if unreadable.
+# mode: filtered (default) | raw
+fs_du_bytes() {
+  local path="$1"
+  local mode="${2:-filtered}"
+  local out=""
+  local -a excl=()
+  [[ -e "${path}" ]] || return 1
+
+  if [[ "${mode}" != "raw" ]] && ! constraints_is_regenerable_path "${path}"; then
+    constraints_du_exclude_args excl
+  fi
+
+  if linuxbkup_require_cmd timeout; then
+    out="$(timeout 8s du -sb "${excl[@]+"${excl[@]}"}" "${path}" 2>/dev/null || true)"
+  else
+    out="$(du -sb "${excl[@]+"${excl[@]}"}" "${path}" 2>/dev/null || true)"
+  fi
+  [[ -n "${out}" ]] || return 1
+  awk '{print $1; exit}' <<<"${out}"
+}
+
+# Directory footprint in bytes (raw, no filter). Best-effort; 0 if missing.
+fs_dir_bytes() {
+  local path="$1" out
+  [[ -d "${path}" ]] || { printf '0\n'; return 0; }
+  out="$(du -sb "${path}" 2>/dev/null | awk '{print $1; exit}')" || true
+  [[ "${out}" =~ ^[0-9]+$ ]] || out=0
+  printf '%s\n' "${out}"
+}
+
 # Run du -sh; print "SIZE\tPATH".
 # mode: filtered (default) | raw
 # filtered = GNU du --exclude for regenerables + simple user excludes

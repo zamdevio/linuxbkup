@@ -142,4 +142,5 @@ linuxbkup_cmd_backup() {
   printf '\n'
   log_ok "backup complete"
   ui_kv_path "Archive" "${dest}"
+  term_notify "linuxbkup" "Backup complete → ${dest}"
 }
