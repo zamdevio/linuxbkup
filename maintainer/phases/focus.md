@@ -8,22 +8,24 @@
 
 | Priority | Vertical | Notes |
 |----------|----------|-------|
-| 1 | Phase 3 secrets/age | Encrypt `secrets/` with passphrase; `--yes` rules |
-| 2 | Phase 2 backup | Live v1 — harden / triage UX as needed |
+| 1 | Redesign plans | Phase docs written under `maintainer/phases/` — **no feature code until you open a slot** |
+| 2 | — | slot free |
 | 3 | — | slot free |
 
 ## Queued — do not start
 
 | # | Item | Why parked |
 |---|------|------------|
-| 1 | Phase 4 restore | Needs archive format (have it) + secrets story |
-| 2 | Phase 5 language modules | After restore foundation |
-| 3 | Phase 6 systemd + `/etc` | After language modules |
-| 4 | Phase 7 Docker + polish | Last |
+| 1 | Phase 00 identity + `lib/core/platform/` | Waiting Focus + repo move timing |
+| 2 | Phase 01 verify staging | After / with 00 |
+| 3 | Phases 02–05 product redesign | After 00–01 |
+| 4 | Phases 06–07 docs + VitePress | Content then site; CF project `linuxbkup` ready |
+| 5 | Restore polish / language modules / systemd / Docker | After redesign foundation |
 
 ## Next task
 
-1. Phase 3: `age` encrypt secrets subset; interactive passphrase / skip / exclude; `--yes` via env/flags.
-2. Smoke a real (non-dry-run) small backup when convenient.
+1. You: move repo to `~/Tools/linuxbkup` when ready (plans are written).
+2. Open Focus on **phase 00** (rename + platform) when you want code.
+3. After each ship: fold into `shipped/` + `systems/`.
 
-Full tracker: [`roadmap.md`](./roadmap.md).
+Umbrella: [`redesign.md`](./redesign.md). Tracker: [`roadmap.md`](./roadmap.md).

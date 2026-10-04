@@ -1,10 +1,30 @@
-# System — backup / restore (planned)
+# System — backup / restore
 
-Phased. Not fully implemented yet.
+## Live today
 
-- **Inspect** — capability + filesystem intelligence (`du`)
-- **Backup** — manifests + selective data → `tar` + `zstd` under Windows Downloads by default
-- **Secrets** — `age` passphrase over secrets subset
-- **Restore** — dry-run, compatibility, honest reports; `--force-overwrite` for conflicts
+| Piece | Path / behavior |
+|-------|-----------------|
+| Backup cmd | `lib/cmd/backup.sh` |
+| Staging / home copy | `lib/backup/` |
+| Pack + checksums | `lib/archive/` |
+| APT manuals | `modules/apt.sh` (and backup orchestration) |
+| Default dest | Windows Downloads via `lib/windows/` when available |
+| Verify | `lib/cmd/verify.sh` — **archive file only** (`*.tar.zst`) |
+| Failure UX | Staging kept if pack fails; INDEX write hardened (`32b5b11`) |
 
-See phased plan in conversation / user brief; track progress via `maintainer/phases/focus.md`.
+Home/config paths still come largely from **constraints allowlists**, not a full `$HOME` scan.
+
+## Stub / missing
+
+- `restore` — not Near-full
+- Secrets/`age` encrypt pipeline
+- `schema.json` + decisions log
+- Verify against **staging directories**
+- Space preflight
+- Profiles / ask / reclaim
+
+## Redesign target
+
+SCAN → CLASSIFY → REPORT unexpected → DECIDE → RECLAIM/SECRET → SPACE → STAGE → schema → checksum → `tar.zst`.
+
+Track: [`../phases/redesign.md`](../phases/redesign.md) phases **01–05**. Docs site: **06–07**.

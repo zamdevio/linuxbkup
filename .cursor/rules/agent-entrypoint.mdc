@@ -6,7 +6,8 @@ alwaysApply: true
 # Entry
 
 Read root `AGENT.md` first, then `maintainer/phases/focus.md`.
+For redesign work also read `maintainer/phases/redesign.md` and the Focus phase doc (`00`–`07`).
 `maintainer/temp/` is scratch (gitignored).
 
-This repo is **Bash-first** (`wslbkup`, `lib/`, `modules/`). Do not reintroduce a Node/pnpm CLI unless the user asks.
-Build phase by phase; max 3 Focus items.
+This repo is **Bash-first** (binary today `wslbkup` → target `linuxbkup`; `lib/`, `modules/`). Do not reintroduce a Node/pnpm CLI for the core product unless the user asks. VitePress under `apps/docs` is docs-only (phase 07).
+Build phase by phase; max 3 Focus items. After ship, update `maintainer/shipped/` + `maintainer/systems/`.

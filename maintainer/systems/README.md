@@ -1,11 +1,13 @@
-# Systems — wslbkup
+# Systems — current map
 
-Maps of how subsystems wire together. Add one doc per subsystem as it lands.
+How subsystems wire together **as the tree is today**. Redesign targets: [`../phases/redesign.md`](../phases/redesign.md).
 
 | Doc | Status |
 |-----|--------|
-| [cli.md](./cli.md) | Phase 0 live |
-| [inspect.md](./inspect.md) | Phase 1 live |
-| [constraints.md](./constraints.md) | Path lists + list policy |
-| [tools.md](./tools.md) | Tool checks + install guides |
-| [backup-restore.md](./backup-restore.md) | Planned / phased |
+| [cli.md](./cli.md) | Live — `wslbkup` dispatch |
+| [inspect.md](./inspect.md) | Live |
+| [constraints.md](./constraints.md) | Live (allowlist-oriented; redesign → rule-based full home) |
+| [tools.md](./tools.md) | Live — deps + guides |
+| [backup-restore.md](./backup-restore.md) | Backup/verify v1 live; restore stub; redesign pending |
+
+After phase 00: add `platform.md` for `lib/core/platform/`.

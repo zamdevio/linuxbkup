@@ -1,6 +1,6 @@
 # System — constraints
 
-Source of truth for built-in path lists and listing policy.
+Source of truth for built-in path lists and listing policy (**today**: allowlist-oriented). Redesign phase **02** turns this into full-`$HOME` rules + unexpected-path reporting — see [`../phases/02-home-scan-classify.md`](../phases/02-home-scan-classify.md).
 
 | File | Role |
 |------|------|

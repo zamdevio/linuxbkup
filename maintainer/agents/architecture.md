@@ -1,58 +1,54 @@
-# Architecture — wslbkup
+# Architecture
+
+Binary today: **`wslbkup`**. Target: **`linuxbkup`** ([phase 00](../phases/00-identity-and-platform.md)). No legacy shim after rename.
 
 ## 1. Topology
 
 ```text
-wslbkup                 # argv dispatch, sources lib/core + lib/cmd
+wslbkup                 # argv dispatch → linuxbkup after 00
 lib/
-  core/                 # shared plumbing
-    common.sh           # globals, flag parse, usage
+  core/
+    common.sh           # globals, flag parse
     safety.sh           # confirm, force-overwrite, secrets/--yes gates
     context.sh          # per-command banner + tool gates
-    terminal/
-      style.sh          # ANSI + log_* + ui_*
-      links.sh          # OSC 8 file:// / URL hyperlinks
-      control.sh        # CSI/OSC helpers (cursor, reset, …)
-  cmd/                  # one file per command (clean names)
-    inspect.sh
-    backup.sh
-    restore.sh
-    verify.sh
-    list.sh
-    deps.sh
+    help.sh             # styled help / version
+    terminal/           # style, OSC 8 links, control
+    platform/           # PLANNED 00 — detect, paths, windows, fs_space
+  cmd/                  # inspect backup restore verify list deps
   env/                  # distro, users, capabilities
   fs/                   # du / size scans
-  windows/              # Downloads path resolution
-  classify/             # uses constraints (no hardcoded lists)
-  constraints/          # built-in path lists + list policy
+  windows/              # Downloads (fold into platform/ in 00)
+  classify/             # uses constraints
+  constraints/          # path lists + list policy (→ rules in 02)
   tools/                # require + How-To from guides/
   backup/               # staging + home copy
   archive/              # tar.zst pack + checksums
-guides/tools/           # per-tool install guides (*.guide)
-modules/                # apt, python, node, … (phased)
+guides/tools/
+modules/                # apt, … (more phased)
 tests/
-docs/
-maintainer/             # control plane only
+docs/                   # end-user md (VitePress content)
+apps/docs/              # PLANNED 07 — site → linuxbkup.pages.dev
+maintainer/             # phases, systems, agents, shipped, temp
 AGENT.md
 ```
-
-Scaffolded as TS `packages/cli`, then replaced with this Bash layout (user request; scaffolder has no Bash preset).
 
 ## 2. Boundaries
 
 - **CLI host** (`wslbkup` + `lib/cmd/*.sh`) — argv, prompts, orchestration, reports
-- **Core** (`lib/core/`) — flags, logging, safety only
-- **Modules** — capability detection + manifest capture/restore for one ecosystem
-- **Rules** — data-driven classification (not hardcoded only in modules)
-- **Unix tools** — `du`, `rsync`, `tar`, `zstd`, `sha256sum`, `age`, package managers do the heavy lifting
-- **maintainer/** — phases/systems/agents only
+- **Core** (`lib/core/`) — flags, logging, safety, (later) platform
+- **Modules** — ecosystem detect + manifests
+- **Constraints / classify** — what to scan/skip/secret
+- **Unix tools** — `du`, `rsync`, `tar`, `zstd`, `sha256sum`, `age`, package managers
+- **Docs site** — Node/VitePress only under `apps/docs`; **not** a CLI dependency
+- **maintainer/** — control plane only
 
 ## 3. Safety model
 
-- Uncertain → report + ask
+- Uncertain → report + ask (redesign: `--ask`; profile suggests only)
+- `--ask` wins over `--yes` (log ignore) — [phase 03](../phases/03-profiles-ask-flags.md)
 - `--dry-run` → zero modifications
-- `--yes` → safe defaults only; never silent secrets-plain; never overwrite without `--force-overwrite`
-- Optional detectors fail soft (`SKIP`/`WARN`); destination/corruption fail hard (`FATAL`)
+- `--yes` → profile/non-TTY defaults; never silent plaintext secrets; never overwrite without `--force-overwrite`
+- Soft fail detectors (`SKIP`/`WARN`); hard fail destination/corruption (`FATAL`)
 
 ## 4. Health gates
 
@@ -62,4 +58,8 @@ bash -n wslbkup lib/core/*.sh lib/cmd/*.sh
 command -v shellcheck >/dev/null && shellcheck -x wslbkup lib/core/*.sh lib/cmd/*.sh
 ```
 
-No `pnpm` / TypeScript toolchain.
+No Node required to run the CLI.
+
+## 5. Redesign pointer
+
+[`../phases/redesign.md`](../phases/redesign.md) · tracker [`../phases/roadmap.md`](../phases/roadmap.md) · focus [`../phases/focus.md`](../phases/focus.md)

@@ -1,0 +1,80 @@
+# Phase 03 — Profiles, ask UI, flags
+
+**Goal:** `--profile`, rich Bash ask UI (fzf optional), and planning/ops flags. Safety + user choice.
+
+## Profiles
+
+| Profile | Large dir | Large file | Suggested when asking | Under `--yes` only |
+|---------|-----------|------------|------------------------|--------------------|
+| `easy` | 2 GiB | 500 MiB | backup | include large |
+| `balanced` | 500 MiB | 100 MiB | backup | include large |
+| `strict` | 100 MiB | 50 MiB | skip | exclude large |
+
+Default profile: **`balanced`** (portable + reasonably safe). Document that `strict` is the “paranoid size” mode.
+
+## Flag precedence
+
+```text
+--ask present + --yes present
+  → log: "ignoring --yes because --ask is set"
+  → interactive (--ask wins)
+
+--ask
+  → prompt unexpected + large (+ reclaim/secret steps as implemented)
+  → profile only sets *suggested* default; user choice wins
+
+--yes (no --ask)
+  → unexpected auto-include; large by profile table; no prompts
+
+non-TTY without --ask/--yes
+  → same as --yes for decisions (script-safe); or require --yes — pick one in impl and document.
+  Locked preference: treat non-TTY like --yes for include/skip defaults (log that).
+```
+
+## Ask UI without fzf (required)
+
+```text
+Large / unexpected items  (profile: strict — suggested: skip)
+  [1] ~/.local/custom-dir    420M  unexpected   suggested: skip
+  [2] ~/data/archive         1.1G  large        suggested: skip
+
+Select to BACKUP (others keep suggestion):
+  numbers / ranges  e.g. 1,2 or 1-2
+  a = backup all · n = backup none · Enter = accept suggestions
+  i <n> = inspect · q = abort
+>
+```
+
+Optional **fzf** multi-select if installed (`linuxbkup deps install fzf`). Same semantics.
+
+## Useful flags (locked in)
+
+| Flag | Behavior |
+|------|----------|
+| `--print-plan` | Final include/skip/secret/reclaim table → exit 0 (no backup) |
+| `--keep-stage` | Do not delete staging after successful pack |
+| `--stage-dir <path>` | Staging root (space planning / tmpfs / big disk) |
+| `--json` | Machine-readable plan or command status on stdout |
+
+Also: `--exclude` / `--include`, `--no-dotfiles` / `--only-dotfiles`, `-o/--output`.
+
+## Slices
+
+- [ ] **03.1** Parse `--profile`, `--ask`, `--yes`; implement ask>yes log line
+- [ ] **03.2** Bash multi-select module under `lib/core/terminal/` (or `lib/ask/`)
+- [ ] **03.3** Optional fzf path when present
+- [ ] **03.4** `--print-plan` + `--json` plan envelope
+- [ ] **03.5** `--keep-stage` / `--stage-dir` wired through backup
+- [ ] **03.6** Help + generic examples
+- [ ] **03.7** Smoke: ask>yes precedence; print-plan exits without archive
+
+## Acceptance
+
+- `linuxbkup backup --ask --yes` logs ignore and prompts
+- Strict + `--ask` can still backup a “suggested skip” large path
+- Zero-fzf install still fully usable
+- `--print-plan` never writes an archive
+
+## After ship
+
+`systems/cli.md`, `systems/backup-restore.md`, `shipped/`.
