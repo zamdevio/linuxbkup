@@ -79,8 +79,9 @@ linuxbkup_usage() {
   ui_item note "linuxbkup plan -j"
   ui_item note "linuxbkup -y backup"
   ui_item note "linuxbkup -y -k -S /var/tmp backup"
-  ui_item note "linuxbkup -i Projects -e Product plan"
+  ui_item note "linuxbkup -i work -e scratch plan"
   ui_item note "linuxbkup verify ~/Backups/linuxbkup/host.tar.zst"
+  ui_item note "sudo -E ./linuxbkup -k -f restore ~/Backups/linuxbkup/host.tar.zst"
   printf '\n'
 
   ui_section "Also"

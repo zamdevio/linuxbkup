@@ -37,6 +37,16 @@ linuxbkup -o ~/Backups/linuxbkup/host.tar.zst backup
 
 Ends with a short summary and a tip to run `linuxbkup plan` for the full table. Unreadable files soft-skip (never auto-sudo).
 
+## Restore
+
+```bash
+linuxbkup -k -f restore ~/Backups/linuxbkup/host.tar.zst
+# /etc + same user home under sudo (not /root):
+sudo -E ./linuxbkup -k -f restore ~/Backups/linuxbkup/host.tar.zst
+```
+
+Passphrase via `LINUXBKUP_SECRETS_PASS` / `_PASS_FILE` or TTY prompt. Existing files need `-f`.
+
 ## Dependencies
 
 ```bash

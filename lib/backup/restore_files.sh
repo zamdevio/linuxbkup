@@ -187,7 +187,7 @@ restore_files_apply() {
       log_warn "config/etc present but /etc not writable — skip"
       ui_kv_path "Staged config" "${root}/config/etc"
       ui_item note "Re-run with sudo to apply /etc (home still targets SUDO_USER, not /root):"
-      ui_item note "  sudo -E ./linuxbkup -u ${dest_user} -k -f restore <archive>"
+      ui_item note "  sudo -E ./linuxbkup -u <user> -k -f restore <archive>"
     fi
   fi
 
