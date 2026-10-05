@@ -185,16 +185,35 @@ node_scan_projects() {
     ! -path '*/node_modules/*' -print0 2>/dev/null || true)
 }
 
-# Filter rows (path pm lock cmd) — drop noise; used on restore for older fat manifests.
+# Filter rows (path pm lock cmd) — drop noise + nested workspace members.
+# Nested members are installed by their workspace root's `pnpm i` / `npm i`.
+# Args: in_array_name out_array_name
+# Locals prefixed _nf_ — never collide with nameref target names.
 node_filter_reinstall_rows() {
-  local -n _in="$1"
-  local -n _out="$2"
-  local path pm lock cmd
-  _out=()
-  for row in "${_in[@]+"${_in[@]}"}"; do
-    IFS=$'\t' read -r path pm lock cmd <<<"${row}" || true
-    node_path_is_noise "${path}" && continue
-    _out+=("${row}")
+  local -n _nf_in="$1"
+  local -n _nf_out="$2"
+  local _nf_path _nf_pm _nf_lock _nf_cmd _nf_row
+  local -a _nf_paths=() _nf_rows=()
+  local _nf_i _nf_j _nf_drop
+
+  _nf_out=()
+  for _nf_row in "${_nf_in[@]+"${_nf_in[@]}"}"; do
+    IFS=$'\t' read -r _nf_path _nf_pm _nf_lock _nf_cmd <<<"${_nf_row}" || true
+    [[ -n "${_nf_path}" ]] || continue
+    node_path_is_noise "${_nf_path}" && continue
+    _nf_paths+=("${_nf_path}")
+    _nf_rows+=("${_nf_row}")
+  done
+
+  for ((_nf_i = 0; _nf_i < ${#_nf_rows[@]}; _nf_i++)); do
+    _nf_drop=0
+    for ((_nf_j = 0; _nf_j < ${#_nf_paths[@]}; _nf_j++)); do
+      [[ "${_nf_i}" -eq "${_nf_j}" ]] && continue
+      case "${_nf_paths[_nf_i]}" in
+        "${_nf_paths[_nf_j]}"/*) _nf_drop=1; break ;;
+      esac
+    done
+    [[ "${_nf_drop}" -eq 0 ]] && _nf_out+=("${_nf_rows[_nf_i]}")
   done
 }
 

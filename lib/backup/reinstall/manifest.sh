@@ -44,7 +44,7 @@ reinstall_peek_from_backup() {
   local kind="$2"
   local out_name="$3"
   local -n _peek_rows="${out_name}"
-  local tmp="" member=""
+  local tmp="" member="" prefix=""
 
   _peek_rows=()
   # shellcheck source=modules/node.sh
@@ -55,8 +55,10 @@ reinstall_peek_from_backup() {
     return 0
   fi
 
+  prefix="$(reinstall_archive_pkg_prefix "${backup}")"
+  [[ -n "${prefix}" ]] || prefix="packages"
   tmp="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-reinst-peek.XXXXXX")"
-  for member in packages/reinstalls.tsv ./packages/reinstalls.tsv; do
+  for member in "${prefix}/reinstalls.tsv" "./${prefix#./}/reinstalls.tsv" "packages/reinstalls.tsv" "./packages/reinstalls.tsv"; do
     if zstd -dcq "${backup}" 2>/dev/null \
       | tar --warning=no-timestamp -xO "${member}" >"${tmp}" 2>/dev/null \
       && [[ -s "${tmp}" ]]; then
@@ -68,6 +70,49 @@ reinstall_peek_from_backup() {
   done
   rm -f "${tmp}"
   return 0
+}
+
+# Detect packages/ member prefix inside a tar.zst archive (pack uses `.` from stage).
+# Prints: ./packages | packages | (empty if not found)
+# Args: archive_path
+reinstall_archive_pkg_prefix() {
+  local backup="$1"
+  local list=""
+
+  [[ -f "${backup}" ]] || return 0
+  list="$(zstd -dcq "${backup}" 2>/dev/null \
+    | tar --warning=no-timestamp -tf - 2>/dev/null \
+    | head -n 400 || true)"
+  [[ -n "${list}" ]] || return 0
+  if printf '%s\n' "${list}" | grep -qE '^\./packages(/|$)'; then
+    printf '%s\n' './packages'
+  elif printf '%s\n' "${list}" | grep -qE '^packages(/|$)'; then
+    printf '%s\n' 'packages'
+  fi
+}
+
+# Extract only packages/ from an archive into dest (prefix-tolerant).
+# Args: archive dest_dir
+# Returns: 0 ok, 1 fail
+reinstall_extract_manifest() {
+  local backup="$1"
+  local dest="$2"
+  local prefix=""
+
+  [[ -f "${backup}" && -d "${dest}" ]] || return 1
+  prefix="$(reinstall_archive_pkg_prefix "${backup}")"
+  if [[ -z "${prefix}" ]]; then
+    # Last-ditch: try both member styles
+    if zstd -dcq "${backup}" 2>/dev/null \
+      | tar --warning=no-timestamp -C "${dest}" -xf - ./packages 2>/dev/null; then
+      return 0
+    fi
+    zstd -dcq "${backup}" 2>/dev/null \
+      | tar --warning=no-timestamp -C "${dest}" -xf - packages
+    return $?
+  fi
+  zstd -dcq "${backup}" 2>/dev/null \
+    | tar --warning=no-timestamp -C "${dest}" -xf - "${prefix}"
 }
 
 # Read package.json "name" for a dir (empty if none).

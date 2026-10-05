@@ -121,14 +121,14 @@ linuxbkup_cmd_restore() {
     linuxbkup_op_begin "restore-extract" "${backup}" 0 1
     set +e
     if [[ "${reinstall_only}" -eq 1 ]]; then
-      # Manifest only — much faster than full home extract
-      linuxbkup_without_monitor bash -c \
-        "zstd -dcq \"${backup}\" | tar --warning=no-timestamp -C \"${tmp}\" -xf - packages"
+      # Manifest only — prefix-tolerant (pack stores ./packages/...)
+      reinstall_extract_manifest "${backup}" "${tmp}"
+      extract_rc=$?
     else
       linuxbkup_without_monitor bash -c \
         "zstd -dcq \"${backup}\" | tar --warning=no-timestamp -C \"${tmp}\" -xf -"
+      extract_rc=$?
     fi
-    extract_rc=$?
     set -e
     if linuxbkup_interrupt_pending || [[ "${extract_rc}" -ne 0 && "${LINUXBKUP_WAS_INTERRUPTED:-0}" -eq 1 ]]; then
       LINUXBKUP_WAS_INTERRUPTED=1
@@ -199,7 +199,6 @@ linuxbkup_cmd_restore() {
     ui_step_event 2 "${steps}" "reinstall" "reinstall — node_modules from manifest"
   fi
 
-  linuxbkup_op_begin "restore-reinstall" "${root}" 0 1
   # Soft-quit (Ctrl+C menu q) stops the reinstall batch without exit 130
   LINUXBKUP_INTERRUPT_SOFT_QUIT=1
   export LINUXBKUP_INTERRUPT_SOFT_QUIT
@@ -242,6 +241,10 @@ linuxbkup_cmd_restore() {
   linuxbkup_event ok report
   linuxbkup_events_end
   linuxbkup_op_end
-  log_ok "restore complete"
+  if [[ "${REINSTALL_INTERRUPT_QUIT:-0}" -eq 1 ]]; then
+    log_warn "restore finished — reinstall batch paused (re-run to finish)"
+  else
+    log_ok "restore complete"
+  fi
   return 0
 }

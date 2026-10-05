@@ -571,6 +571,95 @@ if [[ "${_nd_cnt}" == $'2\t3\tpnpm 2' ]]; then
 else
   bad "picker counts selected/total + PM breakdown (${_nd_cnt})"
 fi
+
+# Phase 12b: picker undo/save_undo must not crash on full want-set (Kali e/i/p/f)
+_nd_want=()
+for _nd_i in 0 1 2 3 4; do _nd_want[$_nd_i]=1; done
+_nd_want_undo=()
+# replicate save_undo body without nameref locals
+for _nd_k in "${!_nd_want[@]}"; do
+  [[ -n "${_nd_k}" ]] && _nd_want_undo["${_nd_k}"]=1
+done
+_nd_want=()
+for _nd_k in "${!_nd_want_undo[@]}"; do
+  [[ -n "${_nd_k}" ]] && _nd_want["${_nd_k}"]=1
+done
+if [[ "${#_nd_want[@]}" -eq 5 && -n "${_nd_want[0]+x}" && -n "${_nd_want[4]+x}" ]]; then
+  ok "picker undo/save_undo roundtrip on full want-set"
+else
+  bad "picker undo/save_undo roundtrip on full want-set (n=${#_nd_want[@]})"
+fi
+# No broken \${!arr[@]+word} expansions left in select.sh
+if grep -qE '\$\{![a-z_]+\[@\]\+' "${ROOT}/lib/backup/reinstall/select.sh"; then
+  bad "select.sh still has broken \${!arr[@]+word} expansions"
+else
+  ok "select.sh has no broken \${!arr[@]+word} expansions"
+fi
+# Phase 12: nested workspace members collapsed to root
+_nd_rows_ws=(
+  $'Workers/push	pnpm	-	pnpm i'
+  $'Workers/push/apps/docs	pnpm	-	pnpm i'
+  $'Workers/push/packages/core	pnpm	-	pnpm i'
+  $'Projects/app	npm	-	npm i'
+)
+_nd_ws_out=()
+# shellcheck source=/dev/null
+source "${ROOT}/modules/node.sh"
+node_filter_reinstall_rows _nd_rows_ws _nd_ws_out
+if [[ "${#_nd_ws_out[@]}" -eq 2   && "${_nd_ws_out[0]}" == $'Workers/push\tpnpm\t-\tpnpm i'   && "${_nd_ws_out[1]}" == $'Projects/app\tnpm\t-\tnpm i' ]]; then
+  ok "node_filter_reinstall_rows collapses nested workspace members"
+else
+  bad "node_filter_reinstall_rows collapses nested workspace members (n=${#_nd_ws_out[@]} rows=${_nd_ws_out[*]-})"
+fi
+# Phase 12: pnpm non-interactive allow-all-builds
+_nd_pnpm_cmd="$(reinstall_pm_install_cmd pnpm "pnpm i")"
+if [[ "${_nd_pnpm_cmd}" == *dangerouslyAllowAllBuilds* ]]; then
+  ok "reinstall_pm_install_cmd adds pnpm allow-all-builds"
+else
+  bad "reinstall_pm_install_cmd adds pnpm allow-all-builds (${_nd_pnpm_cmd})"
+fi
+_nd_pnpm_cmd2="$(reinstall_pm_install_cmd pnpm "pnpm i --config.dangerouslyAllowAllBuilds=true")"
+if [[ "${_nd_pnpm_cmd2}" == "pnpm i --config.dangerouslyAllowAllBuilds=true" ]]; then
+  ok "reinstall_pm_install_cmd does not duplicate allow-all-builds"
+else
+  bad "reinstall_pm_install_cmd does not duplicate allow-all-builds (${_nd_pnpm_cmd2})"
+fi
+_nd_env2="$(reinstall_child_env_args | tr '\n' ' ')"
+if [[ "${_nd_env2}" == *dangerously_allow_all_builds* ]]; then
+  ok "reinstall_child_env_args sets allow-all-builds env"
+else
+  bad "reinstall_child_env_args sets allow-all-builds env (${_nd_env2})"
+fi
+# Phase 12: archive prefix detection + extract helper exist
+if declare -F reinstall_archive_pkg_prefix >/dev/null 2>&1   && declare -F reinstall_extract_manifest >/dev/null 2>&1   && grep -q 'reinstall_extract_manifest' "${ROOT}/lib/cmd/restore.sh"; then
+  ok "reinstall archive prefix + extract wired into restore"
+else
+  bad "reinstall archive prefix + extract wired into restore"
+fi
+# Build a tiny archive with ./packages prefix (pack layout) and extract
+_nd_afx="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-smoke-afx.XXXXXX.tar.zst")"
+rm -f "${_nd_afx}"
+_nd_astage="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-smoke-astage.XXXXXX")"
+mkdir -p "${_nd_astage}/packages"
+printf '# kind\tpath\tpm\tlockfile\tcmd\nnode\tapp\tpnpm\t-\tpnpm i\n' \
+  >"${_nd_astage}/packages/reinstalls.tsv"
+tar -C "${_nd_astage}" -cf - . | zstd -q -o "${_nd_afx}"
+_nd_pfx="$(reinstall_archive_pkg_prefix "${_nd_afx}")"
+_nd_exd="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-smoke-aex.XXXXXX")"
+_nd_ex_rc=0
+reinstall_extract_manifest "${_nd_afx}" "${_nd_exd}" || _nd_ex_rc=$?
+if [[ "${_nd_ex_rc}" -eq 0 && -f "${_nd_exd}/packages/reinstalls.tsv" ]]; then
+  ok "reinstall_extract_manifest handles ./packages archive prefix (pfx=${_nd_pfx})"
+else
+  bad "reinstall_extract_manifest handles ./packages archive prefix (rc=${_nd_ex_rc} pfx=${_nd_pfx})"
+fi
+rm -rf "${_nd_afx}" "${_nd_astage}" "${_nd_exd}"
+# Phase 12: interrupt boundary helper
+if declare -F reinstall_interrupt_boundary >/dev/null 2>&1   && declare -F reinstall_run_batch >/dev/null 2>&1   && grep -q 'REINSTALL_BATCH_IDX' "${ROOT}/lib/backup/reinstall/run.sh"; then
+  ok "reinstall interrupt boundary + batch progress wired"
+else
+  bad "reinstall interrupt boundary + batch progress wired"
+fi
 # Phase 11: soft-quit during reinstall batch stops batch, does not exit 130
 _nd_home4="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-smoke-qhome.XXXXXX")"
 _nd_shim4="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-smoke-qshim.XXXXXX")"
@@ -682,7 +771,7 @@ set +e
 PATH="${_nd_shim}:${PATH}" reinstall_run_one "${_nd_ws}" "." "pnpm" "pnpm i"
 _nd_wsrc=$?
 set -e
-if [[ "${_nd_wsrc}" -eq 2 && "${REINSTALL_LAST_REASON}" == *"workspace member"* ]]; then
+if [[ "${_nd_wsrc}" -eq 2 && "${REINSTALL_LAST_REASON}" == *"workspace sources missing"* ]]; then
   ok "reinstall_run_one skips incomplete workspace (missing member)"
 else
   bad "reinstall_run_one skips incomplete workspace (rc=${_nd_wsrc} reason=${REINSTALL_LAST_REASON})"

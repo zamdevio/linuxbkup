@@ -40,6 +40,8 @@ Long steps (`classify`, `copy`, `secrets`, `index`, `checksum`, `pack`, `summary
 
 **Phase 11 (restore UX):** Ctrl+C/Z parity inside the reinstall batch. Each project runs under `linuxbkup_op_begin "reinstall-<pm>"` (can_skip=1) + `linuxbkup_without_monitor`. Menu: `r` re-run same project · `s` skip · `c` keep partial + next · `q` **soft-quit batch** (`LINUXBKUP_INTERRUPT_SOFT_QUIT=1` — partial summary, logs kept, no `exit 130`). Ctrl+Z = `safety_on_tstp` process-group STOP (same as backup). Failure-first re-run after summary. **Layout:** `lib/backup/reinstall.sh` thin barrel → `lib/backup/reinstall/{manifest,pm,preflight,select,run_one,run}.sh` (R1).
 
+**Phase 12 (reinstall hardening):** archive `--reinstall-only` extract is prefix-tolerant (`./packages` vs `packages` via `reinstall_archive_pkg_prefix` / `reinstall_extract_manifest`). Picker counts no longer crash on multi-PM. pnpm installs run non-interactive with `--config.dangerouslyAllowAllBuilds=true` + env (`npm_config_dangerously_allow_all_builds=true`). Nested workspace members are **not** separate reinstall rows (`node_filter_reinstall_rows` collapses to workspace root); one root `pnpm i` installs the whole tree. Missing workspace **sources** on disk → clear skip (“run a full restore first”), not a late pnpm error. `reinstall_interrupt_boundary` runs before each project (soft-quit-safe). Progress `[i/N]`; OK logs quiet unless `-v`. Plan: [`../phases/12-restore-reinstall-hardening.md`](../phases/12-restore-reinstall-hardening.md).
+
 ## Still missing
 
 - Python / Go / mise reinstall arrays in the same JSON

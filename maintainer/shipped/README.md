@@ -42,6 +42,7 @@ What has actually landed (not aspirational). Binary: **`linuxbkup`**. Env: **`LI
 | Restore files | `restore` rsyncs `home/` + `secrets/` → `$HOME` and `config/etc` → `/etc`; `-f` for overwrite |
 | Node reinstalls | `packages/reinstalls.json` on backup; restore peeks tsv, lists PMs with **resolved Linux paths** (interop shims ignored), top-10 list policy, regenerates `node_modules` (`-y` all / `--skip-reinstall` / TTY+fzf pick / `--ask`) |
 | Phase 11 restore UX | Reinstall batch **interrupt parity** (Ctrl+C menu r/s/c/q; `q` = soft-quit, partial summary, no exit 130) + Ctrl+Z suspend + **picker v2** (exclude/include/PM/grep/fzf/undo) + failure-first re-run. Layout: `lib/backup/reinstall.sh` barrel → `lib/backup/reinstall/*.sh` (R1) |
+| Phase 12 reinstall hardening | Prefix-tolerant archive extract; picker counts fix; pnpm allow-all-builds non-interactive; workspace-root-only reinstalls (nested members collapsed); interrupt boundary per project; progress `[i/N]` |
 
 ## Not shipped yet (redesign track)
 

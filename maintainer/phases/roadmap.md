@@ -36,6 +36,7 @@ Clean `linuxbkup` / `LINUXBKUP_*` identity (phase 00).
 | 09 | [UX fail-fast](./09-ux-failfast.md) | **in progress** (09.1–09.3/09.6 done; banner later) |
 | 10 | [PM/tools research](./10-pm-tools-research.md) | **OPEN standing** — living keep/strip/manifest guide (do not fold) |
 | 11 | [Restore UX](./11-restore-ux.md) | **landed** — soft-quit reinstall batch (Ctrl+C menu + partial summary) + picker v2 (e/i/p/g/f/n/u) + failure re-run + R1 split |
+| 12 | [Restore reinstall hardening](./12-restore-reinstall-hardening.md) | **landed** — archive prefix extract, picker counts, pnpm allow-all-builds, workspace-root-only installs, interrupt boundary |
 | R | [Refactor / large-file split](./refactor.md) | **open (parallel)** — R-SMOKE `tests/smoke/*.sh` then reinstall → `lib/backup/reinstall/*.sh`; soft ≤250 / hard 400 |
 
 Later product phases (after redesign foundation): restore polish, language modules, systemd/`/etc`, Docker — re-queue in focus when ready.

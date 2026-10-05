@@ -20,6 +20,7 @@ reinstall_picker_counts() {
   local i n path pm lock cmd
   local -A cnt=()
   local selected=0 total=0 parts="" p
+  local -a pm_keys=()
 
   n="${#_pc_rows[@]}"
   for ((i = 0; i < n; i++)); do
@@ -30,10 +31,13 @@ reinstall_picker_counts() {
     [[ -n "${pm}" ]] || continue
     cnt["${pm}"]=$((${cnt["${pm}"]:-0} + 1))
   done
-  for p in $(printf '%s\n' "${!cnt[@]+"${!cnt[@]}"}" | sort); do
-    [[ -n "${p}" ]] || continue
-    parts="${parts:+${parts}, }${p} ${cnt[${p}]}"
-  done
+  if [[ "${#cnt[@]}" -gt 0 ]]; then
+    mapfile -t pm_keys < <(printf '%s\n' "${!cnt[@]}" | sort)
+    for p in "${pm_keys[@]}"; do
+      [[ -n "${p}" ]] || continue
+      parts="${parts:+${parts}, }${p} ${cnt[${p}]}"
+    done
+  fi
   printf '%s\t%s\t%s\n' "${selected}" "${total}" "${parts}"
 }
 
@@ -206,9 +210,11 @@ reinstall_select_node() {
   _reinstall_picker_save_undo() {
     local k
     want_undo=()
-    for k in "${!want[@]+"${!want[@]}"}"; do
-      [[ -n "${k}" ]] && want_undo["${k}"]=1
-    done
+    if [[ "${#want[@]}" -gt 0 ]]; then
+      for k in "${!want[@]}"; do
+        [[ -n "${k}" ]] && want_undo["${k}"]=1
+      done
+    fi
     undo_n=1
   }
 
@@ -237,9 +243,11 @@ reinstall_select_node() {
           if [[ "${undo_n}" -gt 0 ]]; then
             want=()
             local k
-            for k in "${!want_undo[@]+"${!want_undo[@]}"}"; do
-              [[ -n "${k}" ]] && want["${k}"]=1
-            done
+            if [[ "${#want_undo[@]}" -gt 0 ]]; then
+              for k in "${!want_undo[@]}"; do
+                [[ -n "${k}" ]] && want["${k}"]=1
+              done
+            fi
             undo_n=0
             mode="action"
           fi
@@ -329,9 +337,11 @@ reinstall_select_node() {
         if [[ "${undo_n}" -gt 0 ]]; then
           want=()
           local k
-          for k in "${!want_undo[@]+"${!want_undo[@]}"}"; do
-            [[ -n "${k}" ]] && want["${k}"]=1
-          done
+          if [[ "${#want_undo[@]}" -gt 0 ]]; then
+            for k in "${!want_undo[@]}"; do
+              [[ -n "${k}" ]] && want["${k}"]=1
+            done
+          fi
           undo_n=0
         fi
         continue

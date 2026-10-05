@@ -41,6 +41,7 @@ reinstall_run_batch() {
   local -n _batch_rows="${rows_name}"
   local row path pm lock cmd rc reason
   local had_e=0
+  local total="${#_batch_rows[@]}"
 
   _REINSTALL_BATCH_OK=0
   _REINSTALL_BATCH_FAIL=0
@@ -49,12 +50,27 @@ reinstall_run_batch() {
   _REINSTALL_BATCH_SKIP_LINES=()
   REINSTALL_FAIL_PATHS=()
   REINSTALL_INTERRUPT_QUIT=0
+  REINSTALL_BATCH_IDX=0
+  REINSTALL_BATCH_TOTAL="${total}"
 
   [[ "${LINUXBKUP_SKIP_REINSTALL:-0}" -eq 1 ]] && return 0
-  [[ "${#_batch_rows[@]}" -eq 0 ]] && return 0
+  [[ "${total}" -eq 0 ]] && return 0
 
   [[ $- == *e* ]] && had_e=1
   for row in "${_batch_rows[@]}"; do
+    # Safe boundary before each project (leftover ^C / menu)
+    # 0=quit → stop batch · 1/2=continue to this project
+    if declare -F reinstall_interrupt_boundary >/dev/null 2>&1; then
+      set +e
+      reinstall_interrupt_boundary
+      _brc=$?
+      [[ "${had_e}" -eq 1 ]] && set -e
+      if [[ "${_brc}" -eq 0 ]]; then
+        REINSTALL_INTERRUPT_QUIT=1
+        return 0
+      fi
+    fi
+    REINSTALL_BATCH_IDX=$((REINSTALL_BATCH_IDX + 1))
     IFS=$'\t' read -r path pm lock cmd <<<"${row}" || true
     set +e
     reinstall_run_one "${home}" "${path}" "${pm}" "${cmd}"
@@ -85,6 +101,8 @@ reinstall_run_batch() {
     esac
   done
   [[ "${had_e}" -eq 1 ]] && set -e
+  REINSTALL_BATCH_TOTAL=0
+  REINSTALL_BATCH_IDX=0
   return 0
 }
 
@@ -189,7 +207,7 @@ reinstall_apply() {
       return 0
     fi
     if [[ "${round}" -eq 0 ]]; then
-      ui_kv "Selected" "${#chosen[@]}"
+      : # picker already prints Selected N/M
     fi
     ui_item note "failures are skipped — full report at the end"
 

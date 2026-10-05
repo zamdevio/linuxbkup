@@ -13,7 +13,7 @@
 |----------|----------|-------|
 | 1 | Node reinstalls | PM status + list policy + fzf pick; **Kali soak next** |
 | 2 | Phases 06–07 docs site | End-user docs + VitePress |
-| 3 | Restore UX | **Phase 11 landed** — soft-quit batch + picker v2 + failure re-run; soak on real 100+ project restore |
+| 3 | Restore reinstall | **Phases 11–12 landed** — soft-quit + picker v2 + workspace-root installs + prefix extract + pnpm allow-all-builds; **Kali soak next** |
 
 ## Parallel — refactor (open)
 | Slice | Target |
@@ -29,7 +29,7 @@
 | — | Python / Go reinstall slices | Same JSON pattern after Node hardens |
 | — | Capture modules (mise/pip freeze) | Pull from phase 10 when Node done |
 
-**Just folded:** Phase 11 restore UX (soft-quit interrupt parity + picker v2 + R1 reinstall split).
+**Just folded:** Phase 11 restore UX + Phase 12 reinstall hardening (prefix extract, picker counts, pnpm allow-all-builds, workspace-root-only, interrupt boundary).
 
 **Locked:** Fail-fast UX in [`09-ux-failfast.md`](./09-ux-failfast.md). Standing PM/tools research in [`10-pm-tools-research.md`](./10-pm-tools-research.md). Regenerable reinstall doctrine: source PM recipe; `-y` = all; `--skip-reinstall` = none; no `--node`/`--python` overrides. Layout budget + barrel/subdir + smoke suite split in [`refactor.md`](./refactor.md).
 

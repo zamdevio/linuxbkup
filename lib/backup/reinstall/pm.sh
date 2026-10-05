@@ -102,6 +102,7 @@ reinstall_try_corepack() {
 }
 
 # Child env for PM installs: no interactive prompts (corepack/npm/pnpm).
+# Restore regenerates node_modules — never stops for pnpm build-script approval.
 reinstall_child_env_args() {
   printf '%s\n' \
     "CI=1" \
@@ -109,7 +110,27 @@ reinstall_child_env_args() {
     "COREPACK_ENABLE_STRICT=0" \
     "npm_config_yes=true" \
     "npm_config_fund=false" \
-    "npm_config_audit=false"
+    "npm_config_audit=false" \
+    "npm_config_dangerously_allow_all_builds=true" \
+    "PNPM_SKIP_BUILD_SCRIPTS_CHECK=1"
+}
+
+# Rewrite a PM install cmd for non-interactive restore (pnpm builds, etc.).
+# Args: pm cmd
+# Prints rewritten command line.
+reinstall_pm_install_cmd() {
+  local pm="$1"
+  local cmd="${2:-}"
+  [[ -n "${cmd}" ]] || cmd="${pm} i"
+
+  case "${pm}" in
+    pnpm)
+      if [[ "${cmd}" != *dangerouslyAllowAllBuilds* ]]; then
+        cmd="${cmd} --config.dangerouslyAllowAllBuilds=true"
+      fi
+      ;;
+  esac
+  printf '%s\n' "${cmd}"
 }
 
 # Last error-ish line from a PM log (for end-of-run report).

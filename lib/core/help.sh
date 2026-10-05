@@ -196,6 +196,8 @@ linuxbkup_cmd_help() {
       ui_item note "TTY pick v2: a=all · e=exclude · i=include · p=PM · g=grep · f=fzf · n=none · u=undo · q=skip"
       ui_item note "Ctrl+C mid-install: menu r=retry · s=skip · c=continue · q=quit batch (soft)"
       ui_item note "Ctrl+Z: suspend/resume (fg/bg) — same as backup"
+      ui_item note "pnpm installs are non-interactive (allow-all-builds) — restore does not stop for approvals"
+      ui_item note "Workspace roots install once (nested packages come along via pnpm-workspace)"
       ui_item note "After fails: [Enter] re-run failed only · [p] pick again · [q] quit"
       ui_item note "--ask (-a): interactive project pick + overwrite confirms (wins over -y)"
       ui_item note "--reinstall-only: manifest + installs only (after PMs installed)"
