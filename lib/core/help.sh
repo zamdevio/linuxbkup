@@ -193,8 +193,8 @@ linuxbkup_cmd_help() {
       printf '\n'
       ui_section "Reinstalls"
       ui_item note "-y / non-TTY: reinstall all recorded projects (failures skipped)"
-      ui_item note "TTY pick v2: a=all · e=exclude · i=include · p=PM · g=grep · f=fzf · n=none · u=undo · q=skip"
-      ui_item note "Ctrl+C mid-install: menu r=retry · s=skip · c=continue · q=quit batch (soft)"
+      ui_item note "TTY pick v2: numbered list (top 10; -F/--full, -T/--top) · a=all · e=exclude · i=include · p=PM · g=grep · f=fzf · n=none · u=undo · q=skip"
+      ui_item note "Ctrl+C mid-install: menu on the tty (r/s/c/q); empty Enter re-prompts (never silent quit)"
       ui_item note "Ctrl+Z: suspend/resume (fg/bg) — same as backup"
       ui_item note "pnpm installs are non-interactive (allow-all-builds) — restore does not stop for approvals"
       ui_item note "Workspace roots install once (nested packages come along via pnpm-workspace)"

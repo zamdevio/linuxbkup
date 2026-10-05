@@ -196,10 +196,29 @@ reinstall_select_node() {
   if [[ "${n}" -gt 20 ]] && command -v fzf >/dev/null 2>&1; then
     ui_item note "large list — fzf multi-select available (f)"
   fi
+  ui_item note "list policy: top ${CONSTRAINTS_LIST_DEFAULT_TOP:-10}  ·  -F/--full  ·  -T/--top <n>"
   printf '\n'
 
   # Default = all (skip-none)
   for ((i = 0; i < n; i++)); do want["${i}"]=1; done
+
+  # Numbered project list under listing policy (so e/i/p/g indices are knowable)
+  _reinstall_picker_show_list() {
+    local -n _pl_rows="${in_name}"
+    local _pl_i _pl_n _pl_path _pl_pm _pl_lock _pl_cmd
+    local -a _pl_lines=()
+    _pl_n="${#_pl_rows[@]}"
+    for ((_pl_i = 0; _pl_i < _pl_n; _pl_i++)); do
+      IFS=$'\t' read -r _pl_path _pl_pm _pl_lock _pl_cmd <<<"${_pl_rows[_pl_i]}" || true
+      _pl_lines+=("$(reinstall_picker_line "$((_pl_i + 1))" "${_pl_pm}" "${_pl_path}" "${_pl_cmd}")")
+    done
+    if [[ "${#_pl_lines[@]}" -gt 0 ]]; then
+      printf '%s\n' "${_pl_lines[@]}" | constraints_list_apply
+      if declare -F constraints_list_footer >/dev/null 2>&1; then
+        constraints_list_footer "project(s)"
+      fi
+    fi
+  }
 
   _reinstall_picker_render() {
     local s t c
@@ -222,6 +241,8 @@ reinstall_select_node() {
     if [[ "${mode}" == "action" ]]; then
       _reinstall_picker_render
       printf '\n'
+      _reinstall_picker_show_list
+      printf '\n'
       ui_item note "All selected. Action:"
       printf '    [a]ll (current)  [e]xclude some  [i]nclude only  [p]M filter\n'
       printf '    [g]rep path filter  [f]fzf  [n]one  [q]skip step\n'
@@ -230,6 +251,9 @@ reinstall_select_node() {
       fi
     else
       _reinstall_picker_render
+      printf '\n'
+      _reinstall_picker_show_list
+      printf '\n'
       printf '  [Enter] run · [u]ndo · [q]back\n'
     fi
     read -r -p "> " reply || reply="q"

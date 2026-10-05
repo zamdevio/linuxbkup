@@ -23,7 +23,7 @@ Surface: root **`linuxbkup`** bin. Env: `LINUXBKUP_*`.
 | `list` | Thin / early |
 | `restore` | Live (extract → secrets → files → Node reinstalls; peek PM preflight; picker v2 + soft-quit batch) |
 
-**Restore reinstall batch (phase 11):** Ctrl+C menu inside each install (`r` retry / `s` skip / `c` continue / `q` quit batch). `q` is **soft-quit** (`LINUXBKUP_INTERRUPT_SOFT_QUIT=1`) — partial summary printed, logs kept, process does **not** `exit 130`. Ctrl+Z suspends/resumes like backup. Picker v2 (`lib/backup/reinstall/select.sh`): `e` exclude / `i` include-only / `p` PM filter / `g` grep / `f` fzf / `n` none / `u` undo / Enter=all. Failure-first re-run: `[Enter]` failed-only · `[p]` pick again · `[q]` quit.
+**Restore reinstall batch (phase 11–12):** Ctrl+C menu **always writes to `/dev/tty`** (fish/job-control can swallow stdout `ui_*`). Body: separator + step/item + `[i/N]` project + `What next?` + `→ applied:` echo. Empty Enter **re-prompts** (does not silently quit). `q` = soft-quit batch. Ctrl+Z suspends like backup. Picker v2 shows a **numbered project list** under listing policy (`-F/--full`, `-T/--top`; default top 10). Failure-first re-run: `[Enter]` failed-only · `[p]` pick again · `[q]` quit. Read-only node_modules check: `maintainer/temp/check-node-modules.sh`.
 
 ## Global flags (today)
 

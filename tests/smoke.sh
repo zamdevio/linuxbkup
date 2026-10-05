@@ -572,6 +572,44 @@ else
   bad "picker counts selected/total + PM breakdown (${_nd_cnt})"
 fi
 
+# Phase 12c: interrupt menu writes to tty helper + prints What next?
+if grep -q '_interrupt_tty' "${ROOT}/lib/core/interrupt.sh"   && grep -q 'What next?' "${ROOT}/lib/core/interrupt.sh"   && grep -q 'applied:' "${ROOT}/lib/core/interrupt.sh"   && grep -q '/dev/tty' "${ROOT}/lib/core/interrupt.sh"; then
+  ok "interrupt menu uses tty writer + What next? + applied echo"
+else
+  bad "interrupt menu uses tty writer + What next? + applied echo"
+fi
+# Menu body captured when TEST reply set (no hang)
+_menu_out="$(
+  set +e
+  # shellcheck source=/dev/null
+  source "${ROOT}/lib/core/common.sh"
+  # shellcheck source=/dev/null
+  source "${ROOT}/lib/core/terminal/style.sh"
+  # shellcheck source=/dev/null
+  source "${ROOT}/lib/core/interrupt.sh"
+  LINUXBKUP_TEST_INTERRUPT_REPLY=c
+  export LINUXBKUP_TEST_INTERRUPT_REPLY
+  linuxbkup_op_begin "reinstall-pnpm" "/tmp/proj" 1 1
+  linuxbkup_interrupt_menu 2>&1
+  exit 0
+)" || true
+if [[ "${_menu_out}" == *"What next?"* && "${_menu_out}" == *"[s]"* && "${_menu_out}" == *"applied:"* ]]; then
+  ok "interrupt menu prints What next? + s/c + applied echo"
+else
+  bad "interrupt menu prints What next? + s/c + applied echo (out=${_menu_out})"
+fi
+# Picker must expose numbered list + listing-policy note
+if grep -q '_reinstall_picker_show_list' "${ROOT}/lib/backup/reinstall/select.sh"   && grep -q 'constraints_list_apply' "${ROOT}/lib/backup/reinstall/select.sh"   && grep -q -- '-F/--full' "${ROOT}/lib/backup/reinstall/select.sh"; then
+  ok "picker shows numbered list under listing policy (-F/-T)"
+else
+  bad "picker shows numbered list under listing policy (-F/-T)"
+fi
+# Read-only node_modules checker exists
+if [[ -x "${ROOT}/maintainer/temp/check-node-modules.sh" ]]   || [[ -f "${ROOT}/maintainer/temp/check-node-modules.sh" ]]; then
+  ok "maintainer/temp/check-node-modules.sh present"
+else
+  bad "maintainer/temp/check-node-modules.sh present"
+fi
 # Phase 12b: picker undo/save_undo must not crash on full want-set (Kali e/i/p/f)
 _nd_want=()
 for _nd_i in 0 1 2 3 4; do _nd_want[$_nd_i]=1; done

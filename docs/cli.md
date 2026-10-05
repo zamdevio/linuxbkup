@@ -83,7 +83,7 @@ Full `$HOME` shallow scan classifies known / secret / skip / unexpected. Unexpec
 
 | Key | Behavior |
 |-----|----------|
-| **Ctrl+C** | Pause → menu: retry / skip / continue / quit (keep staging) / quit+cleanup. Mid-reinstall batch: `q` = **soft-quit** (partial summary, no exit 130) |
+| **Ctrl+C** | Pause → **menu on `/dev/tty`** (visible mid-PM): retry / skip / continue / quit. Mid-reinstall: `q` = **soft-quit** (partial summary). Empty Enter **re-prompts** (never silent quit) |
 | **Ctrl+Z** | Suspend the whole job (`fg` / `bg` to resume) — backup **and** restore/reinstall |
 
 Works across the backup path (copy, checksums, pack, summary, …). Mid-pack Ctrl+C can retry `tar|zstd` without killing the run. `rsync` exit 20 is interrupt, not a soft-skip. Progress paints on stderr; cursor always restored on exit.

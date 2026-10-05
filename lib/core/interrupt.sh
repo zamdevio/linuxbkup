@@ -97,8 +97,10 @@ _interrupt_read() {
     printf '%s\n' "${LINUXBKUP_TEST_INTERRUPT_REPLY}"
     return 0
   fi
+  # Prompt + read on the real tty (fish/job-control can swallow stdout traps).
   if [[ -c /dev/tty ]]; then
-    read -r -p "${prompt}" reply </dev/tty || true
+    printf '%s' "${prompt}" >/dev/tty 2>/dev/null || printf '%s' "${prompt}" >&2
+    read -r reply </dev/tty || true
   elif [[ -t 0 ]]; then
     read -r -p "${prompt}" reply || true
   else
@@ -107,48 +109,80 @@ _interrupt_read() {
   printf '%s\n' "${reply}"
 }
 
+# Write menu/prompt text to the real terminal first; stderr only if no tty.
+# Fish + SIGINT traps often drop stdout — never rely on it for the menu body.
+# Do NOT also mirror to stderr when /dev/tty works (would double-print).
+_interrupt_tty() {
+  local msg="$1"
+  if [[ -c /dev/tty ]] && ( : >/dev/tty ) 2>/dev/null; then
+    printf '%s' "${msg}" >/dev/tty
+  else
+    printf '%s' "${msg}" >&2
+  fi
+}
+
 # Sets LINUXBKUP_INTERRUPT_ACTION. Safe from trap or after rsync rc=20.
+# Body always hits /dev/tty so the menu is visible mid-PM install.
 linuxbkup_interrupt_menu() {
   local reply="" def="q"
   local can_skip="${LINUXBKUP_OP_CAN_SKIP:-0}"
   local can_retry="${LINUXBKUP_OP_CAN_RETRY:-1}"
+  local applied=""
 
   declare -F term_live_park >/dev/null 2>&1 && term_live_park
   declare -F term_cursor_show >/dev/null 2>&1 && term_cursor_show
-  printf '\n' >&2
-  ui_section "Interrupted" 2>/dev/null || printf 'Interrupted\n' >&2
+  # Hard separator so the menu is unmistakable even after log noise
+  _interrupt_tty $'\n\x1b[1m══════════ INTERRUPTED ══════════\x1b[0m\n'
   if [[ -n "${LINUXBKUP_OP_STEP:-}" ]]; then
-    ui_kv "Step" "${LINUXBKUP_OP_STEP}" 2>/dev/null || printf '  Step: %s\n' "${LINUXBKUP_OP_STEP}" >&2
+    _interrupt_tty "  Step: ${LINUXBKUP_OP_STEP}\n"
   fi
   if [[ -n "${LINUXBKUP_OP_ITEM:-}" ]]; then
-    ui_kv "Item" "${LINUXBKUP_OP_ITEM}" 2>/dev/null || printf '  Item: %s\n' "${LINUXBKUP_OP_ITEM}" >&2
+    _interrupt_tty "  Item: ${LINUXBKUP_OP_ITEM}\n"
   fi
-  printf '\n' >&2
-  printf '  What next?\n' >&2
+  if [[ -n "${REINSTALL_BATCH_IDX:-}" && "${REINSTALL_BATCH_TOTAL:-0}" -gt 0 ]]; then
+    _interrupt_tty "  Project: [${REINSTALL_BATCH_IDX}/${REINSTALL_BATCH_TOTAL}]\n"
+  fi
+  _interrupt_tty $'\n  What next?\n'
   if [[ "${can_retry}" -eq 1 ]]; then
-    printf '    [r] Retry last operation (overwrite / re-run; discards partial)\n' >&2
+    _interrupt_tty '    [r] Retry last operation (overwrite / re-run; discards partial)\n'
   fi
   if [[ "${can_skip}" -eq 1 && -n "${LINUXBKUP_OP_ITEM:-}" ]]; then
-    printf '    [s] Skip this item and continue\n' >&2
-    printf '    [c] Skip this item and continue (same as s)\n' >&2
+    _interrupt_tty '    [s] Skip this project and continue batch\n'
+    _interrupt_tty '    [c] Keep partial + continue batch (same as s)\n'
   elif _linuxbkup_op_needs_full_retry; then
-    printf '    [c] Same as retry (partial results are unsafe to keep)\n' >&2
+    _interrupt_tty '    [c] Same as retry (partial results are unsafe to keep)\n'
   else
-    printf '    [c] Continue from here\n' >&2
+    _interrupt_tty '    [c] Continue from here\n'
   fi
-  printf '    [q] Quit command (keep staging / partial work)\n' >&2
+  if [[ "${LINUXBKUP_INTERRUPT_SOFT_QUIT:-0}" -eq 1 ]]; then
+    _interrupt_tty '    [q] Quit reinstall batch only (partial summary; restore continues)\n'
+  else
+    _interrupt_tty '    [q] Quit command (keep staging / partial work)\n'
+  fi
   if [[ -n "${LINUXBKUP_BACKUP_STAGE:-}" && -d "${LINUXBKUP_BACKUP_STAGE:-}" ]]; then
-    printf '    [x] Quit and remove staging\n' >&2
+    _interrupt_tty '    [x] Quit and remove staging\n'
   fi
-  printf '\n' >&2
+  _interrupt_tty $'\n'
 
   while true; do
     reply="$(_interrupt_read "Choice [r/s/c/q/x] (default q): ")"
+    # Empty / unreadable input: re-prompt once with a loud reminder — never
+    # silently apply q when the user never saw a menu.
+    if [[ -z "${reply}" && -z "${LINUXBKUP_TEST_INTERRUPT_REPLY:-}" ]]; then
+      _interrupt_tty $'  (empty) — menu above. Enter again, or type r/s/c/q\n'
+      _interrupt_tty '  Choice [r/s/c/q/x] (default q): '
+      if [[ -c /dev/tty ]]; then
+        read -r reply </dev/tty || reply=""
+      else
+        read -r reply || reply=""
+      fi
+      reply="${reply:-}"
+    fi
     reply="${reply:-${def}}"
     case "${reply}" in
       r|R|retry)
         if [[ "${can_retry}" -ne 1 ]]; then
-          printf '  Retry not available for this step — pick c/q\n' >&2
+          _interrupt_tty '  Retry not available for this step — pick c/q\n'
           continue
         fi
         LINUXBKUP_INTERRUPT_ACTION="retry"
@@ -157,7 +191,7 @@ linuxbkup_interrupt_menu() {
         ;;
       s|S|skip)
         if [[ "${can_skip}" -ne 1 || -z "${LINUXBKUP_OP_ITEM:-}" ]]; then
-          printf '  Skip not available here — pick r/c/q\n' >&2
+          _interrupt_tty '  Skip not available here — pick r/c/q\n'
           continue
         fi
         LINUXBKUP_INTERRUPT_ACTION="skip"
@@ -174,7 +208,7 @@ linuxbkup_interrupt_menu() {
         fi
         break
         ;;
-      q|Q|quit|"")
+      q|Q|quit)
         LINUXBKUP_INTERRUPT_ACTION="quit"
         break
         ;;
@@ -183,11 +217,13 @@ linuxbkup_interrupt_menu() {
         break
         ;;
       *)
-        printf '  Unknown choice — use r, s, c, q, or x\n' >&2
+        _interrupt_tty '  Unknown choice — use r, s, c, q, or x\n'
         ;;
     esac
   done
 
+  applied="${LINUXBKUP_INTERRUPT_ACTION}"
+  _interrupt_tty "  → applied: ${applied}\n\n"
   log_verbose "interrupt action=${LINUXBKUP_INTERRUPT_ACTION}"
 }
 
