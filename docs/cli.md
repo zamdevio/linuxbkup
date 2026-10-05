@@ -83,8 +83,10 @@ Full `$HOME` shallow scan classifies known / secret / skip / unexpected. Unexpec
 
 | Key | Behavior |
 |-----|----------|
-| **Ctrl+C** | Pause → **menu on `/dev/tty`** (visible mid-PM): retry / skip / continue / quit. Mid-reinstall: `q` = **soft-quit** (partial summary). Empty Enter **re-prompts** (never silent quit) |
+| **Ctrl+C** | Same menu as backup: **Interrupted** + Step/Item/`What next?` on `/dev/tty`. Mid-reinstall: `q` = soft-quit batch. Empty Enter **re-prompts** |
 | **Ctrl+Z** | Suspend the whole job (`fg` / `bg` to resume) — backup **and** restore/reinstall |
+
+Reinstall picker: numbered list under `-F`/`-T` (default top 10); **✓ already installed auto-skipped** (`LINUXBKUP_REINSTALL_FORCE=1` overrides); confirm screen lists **selected only**. Read-only check: `maintainer/temp/check-node-modules.sh`.
 
 Works across the backup path (copy, checksums, pack, summary, …). Mid-pack Ctrl+C can retry `tar|zstd` without killing the run. `rsync` exit 20 is interrupt, not a soft-skip. Progress paints on stderr; cursor always restored on exit.
 

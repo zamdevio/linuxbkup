@@ -593,10 +593,34 @@ _menu_out="$(
   linuxbkup_interrupt_menu 2>&1
   exit 0
 )" || true
-if [[ "${_menu_out}" == *"What next?"* && "${_menu_out}" == *"[s]"* && "${_menu_out}" == *"applied:"* ]]; then
-  ok "interrupt menu prints What next? + s/c + applied echo"
+if [[ "${_menu_out}" == *"What next?"* && "${_menu_out}" == *"[s]"* && "${_menu_out}" == *"applied:"*   && "${_menu_out}" == *"Interrupted"* ]]; then
+  ok "interrupt menu backup-like (Interrupted + What next? + applied)"
 else
-  bad "interrupt menu prints What next? + s/c + applied echo (out=${_menu_out})"
+  bad "interrupt menu backup-like (out=${_menu_out})"
+fi
+# No literal backslash-n in menu body
+if printf '%s' "${_menu_out}" | grep -qE 'applied:.*\\n|Step:.*\\n|What next\\n'; then
+  bad "interrupt menu has literal \\n sequences"
+else
+  ok "interrupt menu uses real newlines (no literal \\n)"
+fi
+# nm status + auto-skip helpers
+if declare -F reinstall_nm_status >/dev/null 2>&1   && declare -F reinstall_nm_mark >/dev/null 2>&1   && grep -q 'already installed (node_modules present)' "${ROOT}/lib/backup/reinstall/run_one.sh"   && grep -q 'LINUXBKUP_REINSTALL_FORCE' "${ROOT}/lib/backup/reinstall/run_one.sh"; then
+  ok "reinstall_nm_status + auto-skip already-installed wired"
+else
+  bad "reinstall_nm_status + auto-skip already-installed wired"
+fi
+# selected-only confirm list
+if grep -q '_reinstall_picker_show_selected' "${ROOT}/lib/backup/reinstall/select.sh"   && grep -q 'selected only' "${ROOT}/lib/backup/reinstall/select.sh"; then
+  ok "picker confirm list is selected-only (no full reprint)"
+else
+  bad "picker confirm list is selected-only (no full reprint)"
+fi
+# interrupt resolve before op_end in run_one
+if grep -q 'Resolve interrupt BEFORE op_end' "${ROOT}/lib/backup/reinstall/run_one.sh"; then
+  ok "run_one resolves interrupt before op_end (menu keeps Step/Item)"
+else
+  bad "run_one resolves interrupt before op_end (menu keeps Step/Item)"
 fi
 # Picker must expose numbered list + listing-policy note
 if grep -q '_reinstall_picker_show_list' "${ROOT}/lib/backup/reinstall/select.sh"   && grep -q 'constraints_list_apply' "${ROOT}/lib/backup/reinstall/select.sh"   && grep -q -- '-F/--full' "${ROOT}/lib/backup/reinstall/select.sh"; then

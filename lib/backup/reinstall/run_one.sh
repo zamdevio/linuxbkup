@@ -108,6 +108,17 @@ reinstall_run_one() {
     return 2
   fi
 
+  # Auto-skip when node_modules already present (same check as picker + checker script)
+  if [[ "${LINUXBKUP_REINSTALL_FORCE:-0}" -ne 1 ]] && declare -F reinstall_nm_status >/dev/null 2>&1; then
+    local _nm=""
+    _nm="$(reinstall_nm_status "${home}" "${rel}")"
+    if [[ "${_nm}" == "OK" ]]; then
+      log_verbose "skip ${rel} — node_modules already present"
+      REINSTALL_LAST_REASON="already installed (node_modules present)"
+      return 2
+    fi
+  fi
+
   # Workspace roots: members are source in the SAME tree (pnpm-workspace / workspaces).
   # Missing members = sources not in target home → need full restore, not reinstall-only.
   if [[ "${pm}" == "pnpm" || "${pm}" == "npm" ]]; then
@@ -224,30 +235,19 @@ reinstall_run_one() {
     rc=${PIPESTATUS[0]}
   fi
   [[ "${_had_e}" -eq 1 ]] && set -e
-  if declare -F linuxbkup_op_end >/dev/null 2>&1; then
-    linuxbkup_op_end
-  fi
 
   # Soft-quit already applied in interrupt_apply (RESULT=quit, no exit 130)
   if [[ "${LINUXBKUP_INTERRUPT_RESULT:-}" == "quit" ]]; then
+    if declare -F linuxbkup_op_end >/dev/null 2>&1; then
+      linuxbkup_op_end
+    fi
     REINSTALL_LAST_RC="${rc}"
     REINSTALL_LAST_REASON="interrupted (quit)"
     REINSTALL_INTERRUPT_QUIT=1
     return 1
   fi
 
-  if [[ "${rc}" -eq 0 ]]; then
-    if [[ "${quiet}" -eq 1 ]]; then
-      log_verbose "ok ${rel}"
-    else
-      log_ok "reinstalled ${rel}"
-    fi
-    REINSTALL_LAST_RC=0
-    REINSTALL_LAST_REASON=""
-    [[ "${quiet}" -eq 1 ]] && rm -f "${log_file}" && REINSTALL_LAST_LOG=""
-    return 0
-  fi
-
+  # Resolve interrupt BEFORE op_end so the menu still shows Step/Item/Project
   local _int_pending=0
   if [[ "${LINUXBKUP_WAS_INTERRUPTED:-0}" -eq 1 ]]; then
     _int_pending=1
@@ -263,12 +263,18 @@ reinstall_run_one() {
     fi
     case "${LINUXBKUP_INTERRUPT_RESULT}" in
       retry)
+        if declare -F linuxbkup_op_end >/dev/null 2>&1; then
+          linuxbkup_op_end
+        fi
         reinstall_run_one "${home}" "${rel}" "${pm}" "${cmd}"
         return $?
         ;;
       skip)
         if declare -F linuxbkup_interrupt_arm >/dev/null 2>&1; then
           linuxbkup_interrupt_arm
+        fi
+        if declare -F linuxbkup_op_end >/dev/null 2>&1; then
+          linuxbkup_op_end
         fi
         REINSTALL_LAST_RC="${rc}"
         REINSTALL_LAST_REASON="interrupted (skip)"
@@ -278,23 +284,48 @@ reinstall_run_one() {
         if declare -F linuxbkup_interrupt_arm >/dev/null 2>&1; then
           linuxbkup_interrupt_arm
         fi
+        if declare -F linuxbkup_op_end >/dev/null 2>&1; then
+          linuxbkup_op_end
+        fi
         REINSTALL_LAST_RC="${rc}"
         REINSTALL_LAST_REASON="interrupted (continue)"
         return 2
         ;;
       quit)
+        if declare -F linuxbkup_op_end >/dev/null 2>&1; then
+          linuxbkup_op_end
+        fi
         REINSTALL_LAST_RC="${rc}"
         REINSTALL_LAST_REASON="interrupted (quit)"
         REINSTALL_INTERRUPT_QUIT=1
         return 1
         ;;
       *)
+        if declare -F linuxbkup_op_end >/dev/null 2>&1; then
+          linuxbkup_op_end
+        fi
         REINSTALL_LAST_RC="${rc}"
         REINSTALL_LAST_REASON="interrupted (quit)"
         REINSTALL_INTERRUPT_QUIT=1
         return 1
         ;;
     esac
+  fi
+
+  if declare -F linuxbkup_op_end >/dev/null 2>&1; then
+    linuxbkup_op_end
+  fi
+
+  if [[ "${rc}" -eq 0 ]]; then
+    if [[ "${quiet}" -eq 1 ]]; then
+      log_verbose "ok ${rel}"
+    else
+      log_ok "reinstalled ${rel}"
+    fi
+    REINSTALL_LAST_RC=0
+    REINSTALL_LAST_REASON=""
+    [[ "${quiet}" -eq 1 ]] && rm -f "${log_file}" && REINSTALL_LAST_LOG=""
+    return 0
   fi
 
   REINSTALL_LAST_RC="${rc}"

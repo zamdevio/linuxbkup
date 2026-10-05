@@ -115,6 +115,41 @@ reinstall_child_env_args() {
     "PNPM_SKIP_BUILD_SCRIPTS_CHECK=1"
 }
 
+# Read-only node_modules status for a project under target home.
+# Prints: OK|MISSING|PARTIAL|NO_DIR
+# OK = already installed → picker/run_one auto-skip (LINUXBKUP_REINSTALL_FORCE=1 overrides).
+reinstall_nm_status() {
+  local home="$1" rel="$2"
+  local dir="${home}/${rel}"
+
+  [[ -d "${dir}" && -f "${dir}/package.json" ]] || {
+    printf '%s\n' "NO_DIR"
+    return 0
+  }
+  if [[ ! -d "${dir}/node_modules" ]]; then
+    printf '%s\n' "MISSING"
+    return 0
+  fi
+  if [[ -e "${dir}/node_modules/.pnpm" \
+    || -e "${dir}/node_modules/.package-lock.json" \
+    || -n "$(ls -A "${dir}/node_modules" 2>/dev/null | head -n1)" ]]; then
+    printf '%s\n' "OK"
+  else
+    printf '%s\n' "PARTIAL"
+  fi
+}
+
+# Mark for picker list: ✓ installed · ✗ needs install · ? no dir · ! partial
+reinstall_nm_mark() {
+  case "$1" in
+    OK) printf '✓' ;;
+    MISSING) printf '✗' ;;
+    PARTIAL) printf '!' ;;
+    NO_DIR) printf '?' ;;
+    *) printf ' ' ;;
+  esac
+}
+
 # Rewrite a PM install cmd for non-interactive restore (pnpm builds, etc.).
 # Args: pm cmd
 # Prints rewritten command line.

@@ -197,25 +197,81 @@ reinstall_select_node() {
     ui_item note "large list — fzf multi-select available (f)"
   fi
   ui_item note "list policy: top ${CONSTRAINTS_LIST_DEFAULT_TOP:-10}  ·  -F/--full  ·  -T/--top <n>"
+  ui_item note "✓ already installed (auto-skipped)  ·  ✗ needs install  ·  ! partial  ·  ? no dir"
   printf '\n'
 
-  # Default = all (skip-none)
-  for ((i = 0; i < n; i++)); do want["${i}"]=1; done
+  # Scan node_modules status once (same method as maintainer/temp/check-node-modules.sh)
+  local -A nm_st=()
+  local _st _installed_n=0 _need_n=0
+  for ((i = 0; i < n; i++)); do
+    IFS=$'\t' read -r path pm lock cmd <<<"${_sel_in[i]}" || true
+    _st="MISSING"
+    if declare -F reinstall_nm_status >/dev/null 2>&1; then
+      _st="$(reinstall_nm_status "${LINUXBKUP_HOME:-${HOME:-}}" "${path}")"
+    fi
+    nm_st["${i}"]="${_st}"
+    if [[ "${_st}" == "OK" ]]; then
+      _installed_n=$((_installed_n + 1))
+    else
+      _need_n=$((_need_n + 1))
+    fi
+  done
+  ui_kv "Need install" "${_need_n}"
+  ui_kv "Already installed" "${_installed_n} (auto-skipped)"
+  if [[ "${_installed_n}" -gt 0 ]]; then
+    ui_item note "set LINUXBKUP_REINSTALL_FORCE=1 to include already-installed projects"
+  fi
 
-  # Numbered project list under listing policy (so e/i/p/g indices are knowable)
+  # Default = need-install only (skip already-installed node_modules)
+  want=()
+  for ((i = 0; i < n; i++)); do
+    if [[ "${nm_st[${i}]:-MISSING}" != "OK" ]]; then
+      want["${i}"]=1
+    fi
+  done
+  # If everything already installed, fall back to all so Enter is not a no-op trap
+  if [[ "${#want[@]}" -eq 0 ]]; then
+    for ((i = 0; i < n; i++)); do want["${i}"]=1; done
+    ui_item note "all projects already have node_modules — select to force reinstall"
+  fi
+
+  # Numbered list with nm marks under listing policy
   _reinstall_picker_show_list() {
     local -n _pl_rows="${in_name}"
-    local _pl_i _pl_n _pl_path _pl_pm _pl_lock _pl_cmd
+    local _pl_i _pl_n _pl_path _pl_pm _pl_lock _pl_cmd _pl_mark
     local -a _pl_lines=()
     _pl_n="${#_pl_rows[@]}"
     for ((_pl_i = 0; _pl_i < _pl_n; _pl_i++)); do
       IFS=$'\t' read -r _pl_path _pl_pm _pl_lock _pl_cmd <<<"${_pl_rows[_pl_i]}" || true
-      _pl_lines+=("$(reinstall_picker_line "$((_pl_i + 1))" "${_pl_pm}" "${_pl_path}" "${_pl_cmd}")")
+      _pl_mark="$(reinstall_nm_mark "${nm_st[${_pl_i}]:-}")"
+      _pl_lines+=("$(printf '  [%d] %s %-6s  %s  (%s)' \
+        "$((_pl_i + 1))" "${_pl_mark}" "${_pl_pm}" "${_pl_path}" "${_pl_cmd}")")
     done
     if [[ "${#_pl_lines[@]}" -gt 0 ]]; then
       printf '%s\n' "${_pl_lines[@]}" | constraints_list_apply
       if declare -F constraints_list_footer >/dev/null 2>&1; then
         constraints_list_footer "project(s)"
+      fi
+    fi
+  }
+
+  # Only the selected indices (for confirm after e/i/p/g/f) — never reprint full list
+  _reinstall_picker_show_selected() {
+    local -n _ps_rows="${in_name}"
+    local _ps_i _ps_n _ps_path _ps_pm _ps_lock _ps_cmd _ps_mark
+    local -a _ps_lines=()
+    _ps_n="${#_ps_rows[@]}"
+    for ((_ps_i = 0; _ps_i < _ps_n; _ps_i++)); do
+      [[ -n "${want[${_ps_i}]+x}" ]] || continue
+      IFS=$'\t' read -r _ps_path _ps_pm _ps_lock _ps_cmd <<<"${_ps_rows[_ps_i]}" || true
+      _ps_mark="$(reinstall_nm_mark "${nm_st[${_ps_i}]:-}")"
+      _ps_lines+=("$(printf '  [%d] %s %-6s  %s  (%s)' \
+        "$((_ps_i + 1))" "${_ps_mark}" "${_ps_pm}" "${_ps_path}" "${_ps_cmd}")")
+    done
+    if [[ "${#_ps_lines[@]}" -gt 0 ]]; then
+      printf '%s\n' "${_ps_lines[@]}" | constraints_list_apply
+      if declare -F constraints_list_footer >/dev/null 2>&1; then
+        constraints_list_footer "selected"
       fi
     fi
   }
@@ -237,13 +293,28 @@ reinstall_select_node() {
     undo_n=1
   }
 
+  local _list_shown=0
+
   while true; do
     if [[ "${mode}" == "action" ]]; then
       _reinstall_picker_render
       printf '\n'
-      _reinstall_picker_show_list
+      if [[ "${#want[@]}" -eq n ]]; then
+        if [[ "${_list_shown}" -eq 0 ]]; then
+          _reinstall_picker_show_list
+          _list_shown=1
+        else
+          printf '  all %s selected — list above\n' "${n}"
+        fi
+      else
+        _reinstall_picker_show_selected
+      fi
       printf '\n'
-      ui_item note "All selected. Action:"
+      if [[ "${#want[@]}" -eq n ]]; then
+        ui_item note "All selected. Action:"
+      else
+        ui_item note "${#want[@]} of ${n} selected (already-installed auto-skipped). Action:"
+      fi
       printf '    [a]ll (current)  [e]xclude some  [i]nclude only  [p]M filter\n'
       printf '    [g]rep path filter  [f]fzf  [n]one  [q]skip step\n'
       if [[ "${undo_n}" -gt 0 ]]; then
@@ -252,7 +323,12 @@ reinstall_select_node() {
     else
       _reinstall_picker_render
       printf '\n'
-      _reinstall_picker_show_list
+      if [[ "${#want[@]}" -eq n ]]; then
+        printf '  all %s selected — list above\n' "${n}"
+      else
+        printf '  selected only (%s):\n' "${#want[@]}"
+        _reinstall_picker_show_selected
+      fi
       printf '\n'
       printf '  [Enter] run · [u]ndo · [q]back\n'
     fi
