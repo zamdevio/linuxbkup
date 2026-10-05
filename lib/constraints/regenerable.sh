@@ -29,6 +29,13 @@ CONSTRAINTS_REGENERABLE_TARGETS=(
   .asdf/installs
   .asdf/downloads
   .nvm/versions
+  .local/share/fnm
+  .fnm
+  .sdkman/candidates
+  .sdkman/archives
+  .rbenv/versions
+  .rvm/rubies
+  .rvm/gems
   .bun/install/cache
   .nuget/packages
   .composer/cache
@@ -115,6 +122,13 @@ CONSTRAINTS_REGENERABLE_REGEXES=(
   '/\.asdf/installs(/|$)'
   '/\.asdf/downloads(/|$)'
   '/\.nvm/versions(/|$)'
+  '/\.local/share/fnm(/|$)'
+  '/\.fnm(/|$)'
+  '/\.sdkman/candidates(/|$)'
+  '/\.sdkman/archives(/|$)'
+  '/\.rbenv/versions(/|$)'
+  '/\.rvm/rubies(/|$)'
+  '/\.rvm/gems(/|$)'
   '/\.yarn/cache(/|$)'
   '/\.yarn/unplugged(/|$)'
   '/\.bun/install/cache(/|$)'
@@ -239,6 +253,17 @@ CONSTRAINTS_DU_EXCLUDE_GLOBS=(
   # Version-manager install trees (mise/asdf use these basenames under share/)
   installs
   downloads
+  # Whole VM homes are regenerable from .tool-versions / .nvmrc / sdkman config
+  .nvm
+  .fnm
+  .asdf
+  .sdkman
+  .rbenv
+  .rvm
+  versions
+  candidates
+  archives
+  rubies
 )
 
 # File / glob patterns for rsync + GNU du (not bare basenames)

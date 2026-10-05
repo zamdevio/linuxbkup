@@ -555,19 +555,25 @@ fi
 tmp_tree="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-smoke-tmp.XXXXXX")"
 mkdir -p "${tmp_tree}/.codex/.tmp" "${tmp_tree}/keep" \
   "${tmp_tree}/.local/share/mise/installs/node/v1" \
-  "${tmp_tree}/.local/share/mise/migrations"
+  "${tmp_tree}/.local/share/mise/migrations" \
+  "${tmp_tree}/.asdf/installs/nodejs/20.0.0" \
+  "${tmp_tree}/.nvm/versions/node/v20.0.0"
 dd if=/dev/zero of="${tmp_tree}/.codex/.tmp/junk.bin" bs=1024 count=400 status=none 2>/dev/null \
   || dd if=/dev/zero of="${tmp_tree}/.codex/.tmp/junk.bin" bs=1024 count=400 2>/dev/null
 dd if=/dev/zero of="${tmp_tree}/.local/share/mise/installs/node/v1/big.bin" bs=1024 count=800 status=none 2>/dev/null \
   || dd if=/dev/zero of="${tmp_tree}/.local/share/mise/installs/node/v1/big.bin" bs=1024 count=800 2>/dev/null
+dd if=/dev/zero of="${tmp_tree}/.asdf/installs/nodejs/20.0.0/big.bin" bs=1024 count=400 status=none 2>/dev/null \
+  || dd if=/dev/zero of="${tmp_tree}/.asdf/installs/nodejs/20.0.0/big.bin" bs=1024 count=400 2>/dev/null
+dd if=/dev/zero of="${tmp_tree}/.nvm/versions/node/v20.0.0/big.bin" bs=1024 count=400 status=none 2>/dev/null \
+  || dd if=/dev/zero of="${tmp_tree}/.nvm/versions/node/v20.0.0/big.bin" bs=1024 count=400 2>/dev/null
 printf 'ok\n' >"${tmp_tree}/keep/a.txt"
 printf 'm\n' >"${tmp_tree}/.local/share/mise/migrations/x"
 raw_t="$(fs_dir_bytes "${tmp_tree}")"
 filt_t="$(fs_du_bytes "${tmp_tree}" filtered)"
 if [[ "${filt_t}" -lt 50000 && "${filt_t}" -lt "${raw_t}" ]]; then
-  ok ".tmp and mise installs stripped from du filter"
+  ok ".tmp and mise/asdf/nvm installs stripped from du filter"
 else
-  bad ".tmp and mise installs stripped from du filter (raw=${raw_t} filt=${filt_t})"
+  bad ".tmp and mise/asdf/nvm installs stripped from du filter (raw=${raw_t} filt=${filt_t})"
 fi
 rm -rf "${tmp_tree}"
 

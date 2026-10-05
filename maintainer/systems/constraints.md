@@ -23,7 +23,7 @@ Built-in **rules**, listing policy, and the **filter stack**. Phase **02** full-
 - Unexpected paths: report always; `--yes` / non-TTY → include; TTY backup asks.
 - **No host-shaped home dirnames** in shipped rules.
 - Sizing / rsync share regenerable globs from `CONSTRAINTS_DU_EXCLUDE_GLOBS` + `CONSTRAINTS_FILE_EXCLUDE_GLOBS` (node_modules, .next, venv, `__pycache__`, `site-packages`, `*.pyc`, `.tmp`, `.wrangler`, build/dist, PM/IDE caches, …).
-- **mise:** strip `~/.local/share/mise/installs` + `downloads` only; keep config (`~/.config/mise`) and small `state/`; see standing research [`../phases/10-pm-tools-research.md`](../phases/10-pm-tools-research.md).
+- **Version managers:** strip mise `installs|downloads`, asdf `installs|downloads`, nvm `versions`, fnm, sdkman `candidates|archives`, rbenv `versions`, rvm `rubies|gems`. Keep config / `.tool-versions` / `.nvmrc`. See [`../phases/10-pm-tools-research.md`](../phases/10-pm-tools-research.md).
 - **Python:** do not pack `site-packages` / user `~/.local/lib` — restore via freeze/lock (capture modules later).
 - Rsync also applies per-directory `.gitignore` via `--filter=':- .gitignore'` unless `--no-gitignore`.
 - Backup path estimates use byte-accurate filtered `du -sb`.

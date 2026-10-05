@@ -69,11 +69,13 @@ Doctrine: **never pack what `mise install` / `pip install` / `pnpm i` can recrea
 | Keep | `Cargo.toml`/`Cargo.lock`, `go.mod`/`go.sum`, tool config |
 | Status | strip live; manifests TBD |
 
-### asdf / nvm / fnm / sdkman (todo)
+### asdf / nvm / fnm / sdkman / rbenv (researched — strip installs)
 
-| Strip | `~/.asdf/installs`, `~/.asdf/downloads`, `~/.nvm/versions`, … |
-| Keep | `.tool-versions`, nvmrc, sdkman candidates config |
-| Status | **research** |
+| Field | Detail |
+|-------|--------|
+| Strip | `~/.asdf/installs|downloads`, `~/.nvm/versions`, `~/.local/share/fnm`, `~/.fnm`, `~/.sdkman/candidates|archives`, `~/.rbenv/versions`, `~/.rvm/rubies|gems` |
+| Keep | `.tool-versions`, `.nvmrc`, sdkman config (not candidates), rbenv `version` files |
+| Status | **stripped**; capture modules later |
 
 ### Flatpak / Snap / Distro PMs (todo)
 
@@ -104,7 +106,8 @@ When pulling into Focus, name the tool:
 - [ ] **10.mise** Capture `mise ls` + config into `packages/mise.*`
 - [ ] **10.python** `pip`/`uv` freeze into packages/
 - [ ] **10.nodejs** Detect package manager per project (later — restore phase)
-- [ ] **10.asdf-nvm** Strip + capture parity with mise
+- [x] **10.asdf-nvm** Strip parity with mise (asdf/nvm/fnm/sdkman/rbenv installs)
+- [ ] **10.asdf-nvm-capture** Manifest capture modules (later)
 - [ ] **10.flatpak** Honest gap report vs runtime dump
 
 ## Acceptance (for closing this phase — far future)

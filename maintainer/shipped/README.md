@@ -36,6 +36,7 @@ What has actually landed (not aspirational). Binary: **`linuxbkup`**. Env: **`LI
 | UX | Central interrupt API (`lib/core/interrupt.sh`): Ctrl+C menu + `interrupt_resolve`; rsync rc=20; live stderr progress park/redraw; Ctrl+Z process-group suspend (`set -m`); `tput cnorm` on EXIT |
 | UX | Interrupt harden: `without_monitor` for rsync/pack so tty ^C hits the menu; disarm/arm resume; whole-backup step coverage; SIGINT smoke proof |
 | UX | Phase 09.4–09.5: preflight banner (profile/gitignore/max-size/secrets) + `ui_step` backup pipeline labels |
+| UX | Regenerables: asdf/nvm/fnm/sdkman/rbenv install trees stripped (with mise/site-packages/.tmp) |
 
 ## Not shipped yet (redesign track)
 
