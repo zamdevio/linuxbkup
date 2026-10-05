@@ -83,7 +83,7 @@ Full `$HOME` shallow scan classifies known / secret / skip / unexpected. Unexpec
 
 | Key | Behavior |
 |-----|----------|
-| **Ctrl+C** | Same menu as backup: **Interrupted** + Step/Item/`What next?` on `/dev/tty`. Mid-reinstall: `q` = soft-quit batch. Empty Enter **re-prompts** |
+| **Ctrl+C** | Immediate `[INT]` notice (PM / project / PID) → TERM→wait→KILL → same menu as backup on `/dev/tty`. Mid-reinstall: `q` = soft-quit batch. Empty Enter **re-prompts**. Wait window: `LINUXBKUP_INT_STOP_WAIT_DS` (default 30 = 3s) |
 | **Ctrl+Z** | Suspend the whole job (`fg` / `bg` to resume) — backup **and** restore/reinstall |
 
 Reinstall picker: numbered list under `-F`/`-T` (default top 10); **✓ already installed auto-skipped** (`LINUXBKUP_REINSTALL_FORCE=1` overrides); confirm screen lists **selected only**. Read-only check: `maintainer/temp/check-node-modules.sh`.

@@ -208,6 +208,12 @@ reinstall_run_one() {
   # Soft-quit: interrupt menu q stops this batch, not the whole restore
   LINUXBKUP_INTERRUPT_SOFT_QUIT=1
   export LINUXBKUP_INTERRUPT_SOFT_QUIT
+  # Active PM context for ^C notice (safety_on_int paints immediately)
+  REINSTALL_ACTIVE_PM="${pm}"
+  REINSTALL_ACTIVE_REL="${rel}"
+  REINSTALL_ACTIVE_DIR="${dir}"
+  REINSTALL_ACTIVE_CMD="${run_cmd}"
+  export REINSTALL_ACTIVE_PM REINSTALL_ACTIVE_REL REINSTALL_ACTIVE_DIR REINSTALL_ACTIVE_CMD
 
   # Re-arm after workspace check disarm window
   if declare -F linuxbkup_interrupt_arm >/dev/null 2>&1; then
@@ -241,6 +247,7 @@ reinstall_run_one() {
     if declare -F linuxbkup_op_end >/dev/null 2>&1; then
       linuxbkup_op_end
     fi
+    unset REINSTALL_ACTIVE_PM REINSTALL_ACTIVE_REL REINSTALL_ACTIVE_DIR REINSTALL_ACTIVE_CMD 2>/dev/null || true
     REINSTALL_LAST_RC="${rc}"
     REINSTALL_LAST_REASON="interrupted (quit)"
     REINSTALL_INTERRUPT_QUIT=1
@@ -276,6 +283,7 @@ reinstall_run_one() {
         if declare -F linuxbkup_op_end >/dev/null 2>&1; then
           linuxbkup_op_end
         fi
+        unset REINSTALL_ACTIVE_PM REINSTALL_ACTIVE_REL REINSTALL_ACTIVE_DIR REINSTALL_ACTIVE_CMD 2>/dev/null || true
         REINSTALL_LAST_RC="${rc}"
         REINSTALL_LAST_REASON="interrupted (skip)"
         return 2
@@ -287,6 +295,7 @@ reinstall_run_one() {
         if declare -F linuxbkup_op_end >/dev/null 2>&1; then
           linuxbkup_op_end
         fi
+        unset REINSTALL_ACTIVE_PM REINSTALL_ACTIVE_REL REINSTALL_ACTIVE_DIR REINSTALL_ACTIVE_CMD 2>/dev/null || true
         REINSTALL_LAST_RC="${rc}"
         REINSTALL_LAST_REASON="interrupted (continue)"
         return 2
@@ -317,6 +326,7 @@ reinstall_run_one() {
   fi
 
   if [[ "${rc}" -eq 0 ]]; then
+    unset REINSTALL_ACTIVE_PM REINSTALL_ACTIVE_REL REINSTALL_ACTIVE_DIR REINSTALL_ACTIVE_CMD 2>/dev/null || true
     if [[ "${quiet}" -eq 1 ]]; then
       log_verbose "ok ${rel}"
     else
@@ -327,6 +337,7 @@ reinstall_run_one() {
     [[ "${quiet}" -eq 1 ]] && rm -f "${log_file}" && REINSTALL_LAST_LOG=""
     return 0
   fi
+  unset REINSTALL_ACTIVE_PM REINSTALL_ACTIVE_REL REINSTALL_ACTIVE_DIR REINSTALL_ACTIVE_CMD 2>/dev/null || true
 
   REINSTALL_LAST_RC="${rc}"
   REINSTALL_LAST_REASON="$(reinstall_classify_fail "${log_file}" "${dir}")"

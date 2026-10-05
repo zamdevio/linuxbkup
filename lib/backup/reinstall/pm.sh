@@ -112,6 +112,7 @@ reinstall_child_env_args() {
     "npm_config_fund=false" \
     "npm_config_audit=false" \
     "npm_config_dangerously_allow_all_builds=true" \
+    "npm_config_package_manager_strict=false" \
     "PNPM_SKIP_BUILD_SCRIPTS_CHECK=1"
 }
 

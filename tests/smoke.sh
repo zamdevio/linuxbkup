@@ -616,6 +616,33 @@ if grep -q '_reinstall_picker_show_selected' "${ROOT}/lib/backup/reinstall/selec
 else
   bad "picker confirm list is selected-only (no full reprint)"
 fi
+# Immediate ^C notice + graceful stop (TERM → wait → KILL)
+if grep -q '_safety_interrupt_notice' "${ROOT}/lib/core/safety.sh"   && grep -q 'Waiting for' "${ROOT}/lib/core/safety.sh"   && grep -q 'REINSTALL_ACTIVE_PM' "${ROOT}/lib/backup/reinstall/run_one.sh"   && grep -q 'kill -KILL' "${ROOT}/lib/core/safety.sh"; then
+  ok "interrupt paints PM/pid notice then TERM→wait→KILL"
+else
+  bad "interrupt paints PM/pid notice then TERM→wait→KILL"
+fi
+# Notice content includes PM + Project when actives set
+_notice_out="$(
+  set +e
+  # shellcheck source=/dev/null
+  source "${ROOT}/lib/core/common.sh"
+  # shellcheck source=/dev/null
+  source "${ROOT}/lib/core/terminal/style.sh"
+  # shellcheck source=/dev/null
+  source "${ROOT}/lib/core/safety.sh"
+  REINSTALL_ACTIVE_PM=pnpm
+  REINSTALL_ACTIVE_REL="Projects/demo"
+  REINSTALL_ACTIVE_DIR="/tmp/does-not-exist-demo"
+  REINSTALL_ACTIVE_CMD="/usr/bin/pnpm i"
+  _safety_interrupt_notice 2>&1
+  exit 0
+)" || true
+if [[ "${_notice_out}" == *"[INT]"* && "${_notice_out}" == *"PM:"* && "${_notice_out}" == *"pnpm"*   && "${_notice_out}" == *"Projects/demo"* && "${_notice_out}" == *"Waiting for"* ]]; then
+  ok "interrupt notice shows PM name + project + wait hint"
+else
+  bad "interrupt notice shows PM name + project + wait hint (out=${_notice_out})"
+fi
 # interrupt resolve before op_end in run_one
 if grep -q 'Resolve interrupt BEFORE op_end' "${ROOT}/lib/backup/reinstall/run_one.sh"; then
   ok "run_one resolves interrupt before op_end (menu keeps Step/Item)"

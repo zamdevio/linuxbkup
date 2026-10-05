@@ -111,20 +111,127 @@ _linuxbkup_op_has_waiter() {
 # TERM children (never INT — set -m job teardown can re-raise INT to us).
 # Use BASHPID: $$ is the parent even inside $()/subshells — pkill -P $$ would
 # kill sibling jobs (and the harness itself during smoke proofs).
+# Args: [wait_ds] centiseconds to wait after TERM before KILL (default 30 = 3s)
 _safety_stop_children() {
-  local pid self="${BASHPID:-$$}"
+  local pid self="${BASHPID:-$$}" waited=0 max_ds="${1:-30}"
+  local -a pids=() alive=()
+
   for pid in $(jobs -p 2>/dev/null); do
-    kill -TERM "${pid}" 2>/dev/null || true
+    [[ -n "${pid}" ]] && pids+=("${pid}")
   done
-  if command -v pkill >/dev/null 2>&1; then
-    pkill -TERM -P "${self}" 2>/dev/null || true
+  if command -v pgrep >/dev/null 2>&1; then
+    for pid in $(pgrep -P "${self}" 2>/dev/null); do
+      [[ -n "${pid}" ]] && pids+=("${pid}")
+    done
   else
     for pid in $(ps -o pid= --ppid "${self}" 2>/dev/null); do
-      [[ -z "${pid}" || "${pid}" == "${self}" ]] && continue
-      kill -TERM "${pid}" 2>/dev/null || true
+      [[ -n "${pid}" && "${pid}" != "${self}" ]] && pids+=("${pid}")
     done
   fi
+  # Reinstall PM children often live under bash -c; match active project dir
+  if [[ -n "${REINSTALL_ACTIVE_DIR:-}" ]] && command -v pgrep >/dev/null 2>&1; then
+    for pid in $(pgrep -f "${REINSTALL_ACTIVE_DIR}" 2>/dev/null); do
+      [[ -n "${pid}" && "${pid}" != "${self}" ]] && pids+=("${pid}")
+    done
+  fi
+  if [[ "${#pids[@]}" -eq 0 ]]; then
+    wait 2>/dev/null || true
+    return 0
+  fi
+
+  for pid in "${pids[@]}"; do
+    kill -TERM "${pid}" 2>/dev/null || true
+  done
+  # Graceful window — npm/pnpm need a moment to unwind
+  while [[ "${waited}" -lt "${max_ds}" ]]; do
+    alive=()
+    for pid in "${pids[@]}"; do
+      kill -0 "${pid}" 2>/dev/null && alive+=("${pid}")
+    done
+    [[ "${#alive[@]}" -eq 0 ]] && break
+    sleep 0.1
+    waited=$((waited + 1))
+  done
+  for pid in "${pids[@]}"; do
+    if kill -0 "${pid}" 2>/dev/null; then
+      kill -KILL "${pid}" 2>/dev/null || true
+    fi
+  done
   wait 2>/dev/null || true
+}
+
+# Immediate ^C paint — before any wait. Shows what is being stopped.
+_safety_interrupt_notice() {
+  local pm="${REINSTALL_ACTIVE_PM:-}"
+  local rel="${REINSTALL_ACTIVE_REL:-}"
+  local dir="${REINSTALL_ACTIVE_DIR:-}"
+  local cmd="${REINSTALL_ACTIVE_CMD:-}"
+  local step="${LINUXBKUP_OP_STEP:-}"
+  local item="${LINUXBKUP_OP_ITEM:-}"
+  local pids="" pid
+
+  pids="$(_safety_child_pids | tr '\n' ' ')"
+  pids="$(printf '%s' "${pids}" | sed 's/[[:space:]]*$//')"
+
+  _safety_tty_msg ""
+  _safety_tty_msg "[INT] Ctrl+C — stopping current step…"
+  if [[ -n "${pm}" ]]; then
+    _safety_tty_msg "[INT] PM:      ${pm}"
+    _safety_tty_msg "[INT] Project: ${rel:-${item:-?}}"
+    [[ -n "${cmd}" ]] && _safety_tty_msg "[INT] Command: ${cmd}"
+  fi
+  [[ -n "${step}" ]] && _safety_tty_msg "[INT] Step:    ${step}"
+  if [[ -n "${item}" && -z "${rel}" ]]; then
+    _safety_tty_msg "[INT] Item:    ${item}"
+  fi
+  if [[ -n "${pids}" ]]; then
+    _safety_tty_msg "[INT] PID(s):  ${pids}"
+    # One-line process table when possible (pid, comm, short args)
+    if command -v ps >/dev/null 2>&1; then
+      # shellcheck disable=SC2086
+      ps -o pid=,comm=,args= -p ${pids} 2>/dev/null \
+        | head -n 6 \
+        | while IFS= read -r line; do
+          _safety_tty_msg "[INT]   ${line}"
+        done || true
+    fi
+  else
+    _safety_tty_msg "[INT] PID(s):  (none found yet)"
+  fi
+  _safety_tty_msg "[INT] Waiting for ${pm:-child process} to exit (TERM → ${LINUXBKUP_INT_STOP_WAIT:-3}s → KILL)…"
+  _safety_tty_msg "[INT] Menu appears when it is gone — please wait."
+}
+
+# Live child PIDs (jobs + pgrep + active reinstall dir match). One per line.
+_safety_child_pids() {
+  local self="${BASHPID:-$$}" pid
+  local -A seen=()
+  for pid in $(jobs -p 2>/dev/null); do
+    [[ -n "${pid}" && -z "${seen[${pid}]+x}" ]] || continue
+    seen["${pid}"]=1
+    printf '%s\n' "${pid}"
+  done
+  if command -v pgrep >/dev/null 2>&1; then
+    for pid in $(pgrep -P "${self}" 2>/dev/null); do
+      [[ -n "${pid}" && -z "${seen[${pid}]+x}" ]] || continue
+      seen["${pid}"]=1
+      printf '%s\n' "${pid}"
+    done
+  else
+    for pid in $(ps -o pid= --ppid "${self}" 2>/dev/null); do
+      [[ -n "${pid}" && "${pid}" != "${self}" && -z "${seen[${pid}]+x}" ]] || continue
+      seen["${pid}"]=1
+      printf '%s\n' "${pid}"
+    done
+  fi
+  if [[ -n "${REINSTALL_ACTIVE_DIR:-}" ]] && command -v pgrep >/dev/null 2>&1; then
+    for pid in $(pgrep -f "${REINSTALL_ACTIVE_DIR}" 2>/dev/null); do
+      [[ -n "${pid}" && "${pid}" != "${self}" && -z "${seen[${pid}]+x}" ]] || continue
+      seen["${pid}"]=1
+      printf '%s\n' "${pid}"
+    done
+  fi
+  return 0
 }
 
 # Ctrl+C — menu (never silent continue). Second Ctrl+C in menu → hard quit.
@@ -141,7 +248,9 @@ safety_on_int() {
   # Ignore re-raised INT from child/job teardown before any kill/wait.
   trap '' INT
   _safety_ui_cleanup
-  _safety_stop_children
+  # Paint immediately so the user sees what is stopping (PM/pid/project)
+  _safety_interrupt_notice
+  _safety_stop_children "${LINUXBKUP_INT_STOP_WAIT_DS:-30}"
 
   # Real TTYs get the menu; smoke may inject LINUXBKUP_TEST_INTERRUPT_REPLY.
   if [[ -z "${LINUXBKUP_TEST_INTERRUPT_REPLY:-}" && ! -t 0 && ! -c /dev/tty ]]; then

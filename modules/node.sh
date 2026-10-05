@@ -74,6 +74,8 @@ node_find_workspace_root() {
 }
 
 # Detect pm for a directory with package.json. Prints: pm<TAB>lockfile<TAB>cmd
+# packageManager field may be a range (pnpm@^11.9.0) — extract the tool name only.
+# Strict semver in packageManager is pnpm/corepack's job; linuxbkup must not reject ranges.
 node_detect_pm() {
   local dir="$1"
   local pkg="${dir}/package.json"
@@ -82,6 +84,8 @@ node_detect_pm() {
   if [[ -f "${pkg}" ]]; then
     field="$(grep -oE '"packageManager"[[:space:]]*:[[:space:]]*"[^"]+"' "${pkg}" 2>/dev/null \
       | head -n1 | sed -E 's/.*"packageManager"[[:space:]]*:[[:space:]]*"([^@"]+).*/\1/' || true)"
+    # Strip accidental junk: only keep the tool name token before @ or end
+    field="${field%%@*}"
     case "${field}" in
       npm|pnpm|yarn|bun) pm="${field}" ;;
     esac
