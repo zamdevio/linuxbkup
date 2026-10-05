@@ -13,7 +13,7 @@ linuxbkup version
 | `inspect` | Read-only environment scan |
 | `plan` | What backup would include/skip (no writes) |
 | `backup` | Create archive |
-| `restore` | Extract → decrypt secrets → rsync home/config (needs `-f` to overwrite) |
+| `restore` | Extract → decrypt secrets → rsync home/config (needs `-f` to overwrite). `sudo` targets `SUDO_USER` home, not `/root`. |
 | `verify` | Integrity check (archive or staging dir) |
 | `list` | High-level archive listing |
 | `deps` | Tool status / install / How-To |

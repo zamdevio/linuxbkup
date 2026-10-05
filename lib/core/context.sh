@@ -40,13 +40,13 @@ cmd_context_begin() {
     esac
   done
 
-  if [[ -n "${LINUXBKUP_USER:-}" ]]; then
-    user="${LINUXBKUP_USER}"
-  else
-    user="${USER:-$(id -un)}"
+  # shellcheck source=lib/env/users.sh
+  source "${LINUXBKUP_ROOT}/lib/env/users.sh"
+  user="$(env_resolve_user)"
+  if ! home="$(env_user_home "${user}")"; then
+    home="$(getent passwd "${user}" 2>/dev/null | cut -d: -f6 || true)"
+    [[ -n "${home}" ]] || home="/home/${user}"
   fi
-  home="$(getent passwd "${user}" 2>/dev/null | cut -d: -f6 || true)"
-  [[ -n "${home}" ]] || home="/home/${user}"
   # Active home for ~ / {home} expansion in --exclude/--include
   LINUXBKUP_HOME="${home}"
   export LINUXBKUP_HOME
@@ -63,6 +63,9 @@ cmd_context_begin() {
   ui_kv "Version" "${LINUXBKUP_VERSION}"
   ui_kv "User" "${user}"
   ui_kv_path "Home" "${home}"
+  if env_sudo_user_remap; then
+    ui_kv "Sudo" "targeting ${user} (SUDO_USER) — not /root"
+  fi
   [[ "${LINUXBKUP_DRY_RUN:-0}" -eq 1 ]] && ui_kv "Mode" "dry-run"
   [[ "${LINUXBKUP_ASK:-0}" -eq 1 ]] && ui_kv "Ask" "interactive (wins over --yes)"
   [[ "${LINUXBKUP_YES:-0}" -eq 1 ]] && ui_kv "Yes" "enabled (safe defaults only)"

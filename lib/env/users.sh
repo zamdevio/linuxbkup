@@ -2,12 +2,26 @@
 # Home-directory / user selection.
 
 # Resolve target Linux username (not Windows).
+# Under sudo without -u/--user, prefer SUDO_USER so home/secrets land in the
+# invoking user's tree — not /root. Explicit -u root still targets root.
 env_resolve_user() {
   if [[ -n "${LINUXBKUP_USER:-}" ]]; then
     printf '%s\n' "${LINUXBKUP_USER}"
     return 0
   fi
+  if [[ "$(id -u)" -eq 0 && -n "${SUDO_USER:-}" && "${SUDO_USER}" != "root" ]]; then
+    printf '%s\n' "${SUDO_USER}"
+    return 0
+  fi
   printf '%s\n' "${USER:-$(id -un)}"
+}
+
+# True when we remapped root→SUDO_USER (no explicit --user).
+env_sudo_user_remap() {
+  [[ "$(id -u)" -eq 0 \
+    && -z "${LINUXBKUP_USER:-}" \
+    && -n "${SUDO_USER:-}" \
+    && "${SUDO_USER}" != "root" ]]
 }
 
 env_user_home() {

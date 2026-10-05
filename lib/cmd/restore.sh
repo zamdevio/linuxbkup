@@ -29,7 +29,16 @@ linuxbkup_cmd_restore() {
 
   local kind="archive" root="" tmp="" extract_rc=0 dec_rc=0 files_rc=0
   local dest_home="${LINUXBKUP_HOME:-${HOME:-}}"
+  local dest_user=""
   local steps=4
+  # shellcheck source=lib/env/users.sh
+  source "${LINUXBKUP_ROOT}/lib/env/users.sh"
+  dest_user="$(env_resolve_user)"
+  if ! dest_home="$(env_user_home "${dest_user}")"; then
+    dest_home="${LINUXBKUP_HOME:-/home/${dest_user}}"
+  fi
+  LINUXBKUP_HOME="${dest_home}"
+  export LINUXBKUP_HOME
 
   if [[ -d "${backup}" ]]; then
     kind="staging"
@@ -45,6 +54,10 @@ linuxbkup_cmd_restore() {
   ui_kv "Source" "${kind}"
   ui_kv_path "Backup" "${backup}"
   ui_kv_path "Target home" "${dest_home}"
+  ui_kv "Target user" "${dest_user}"
+  if env_sudo_user_remap; then
+    log_info "sudo detected — home/secrets → ${dest_user} (${dest_home}); /etc when writable"
+  fi
 
   if [[ "${kind}" == "staging" ]]; then
     root="${backup}"
@@ -84,7 +97,9 @@ linuxbkup_cmd_restore() {
     ui_step_event 1 "${steps}" "extract" "extract — unpack archive"
     linuxbkup_op_begin "restore-extract" "${backup}" 0 1
     set +e
-    linuxbkup_without_monitor bash -c "zstd -dcq \"${backup}\" | tar -C \"${tmp}\" -xf -"
+    # --warning=no-timestamp: ignore absurd mtimes in staged trees (noise on extract)
+    linuxbkup_without_monitor bash -c \
+      "zstd -dcq \"${backup}\" | tar --warning=no-timestamp -C \"${tmp}\" -xf -"
     extract_rc=$?
     set -e
     if linuxbkup_interrupt_pending || [[ "${extract_rc}" -ne 0 && "${LINUXBKUP_WAS_INTERRUPTED:-0}" -eq 1 ]]; then
@@ -139,7 +154,7 @@ linuxbkup_cmd_restore() {
   ui_step_event 3 "${steps}" "files" "files — home / secrets / config"
   linuxbkup_op_begin "restore-files" "${root}" 0 1
   set +e
-  restore_files_apply "${root}" "${dest_home}"
+  restore_files_apply "${root}" "${dest_home}" "${dest_user}"
   files_rc=$?
   set -e
   if [[ "${files_rc}" -ne 0 ]]; then

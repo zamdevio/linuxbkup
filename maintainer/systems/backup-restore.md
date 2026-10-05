@@ -30,8 +30,9 @@ Long steps (`classify`, `copy`, `secrets`, `index`, `checksum`, `pack`, `summary
 
 1. Extract archive (or use staging) → schema soft-check  
 2. Decrypt `secrets.tar.age` when present  
-3. Rsync `home/` + `secrets/` → `$HOME`; `config/etc` → `/etc` if writable  
-4. Overwrite gate: existing files require `-f/--force-overwrite` (`--yes` alone is never enough)
+3. Rsync `home/` + `secrets/` → target user home; `config/etc` → `/etc` if writable  
+4. Overwrite gate: existing files require `-f/--force-overwrite` (`--yes` alone is never enough)  
+5. **sudo:** `env_resolve_user` prefers `SUDO_USER` (not root) unless `-u` is set; home/secrets get `rsync --chown=user:group`; `/etc` still applies as root. Refuses dumping into `/root` when `SUDO_USER` is a normal user.
 
 ## Still missing
 

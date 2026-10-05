@@ -68,7 +68,7 @@ linuxbkup_cmd_verify() {
     ui_section "Extract (temp)"
     linuxbkup_op_begin "verify-extract" "${target}" 0 1
     set +e
-    zstd -dcq "${target}" | tar -C "${tmp}" -xf -
+    zstd -dcq "${target}" | tar --warning=no-timestamp -C "${tmp}" -xf -
     local extract_rc=$?
     set -e
     if linuxbkup_interrupt_pending || [[ "${extract_rc}" -ne 0 && "${LINUXBKUP_WAS_INTERRUPTED:-0}" -eq 1 ]]; then

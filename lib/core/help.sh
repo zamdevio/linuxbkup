@@ -182,8 +182,10 @@ linuxbkup_cmd_help() {
       ui_item note "linuxbkup [globals] restore <staging-dir>"
       printf '\n'
       ui_section "What is restored"
-      ui_item note "home/ → \$HOME   secrets/ → \$HOME   config/etc → /etc (if writable)"
+      ui_item note "home/ + secrets/ → target user's \$HOME; config/etc → /etc (if writable)"
       ui_item note "Existing files: refused unless -f/--force-overwrite"
+      ui_item note "sudo: home follows SUDO_USER (not /root); use -u root only for root's home"
+      ui_item note "  sudo -E ./linuxbkup -k -f restore <archive>   # /etc + user home"
       printf '\n'
       ui_section "Secrets"
       ui_item note "Passphrase: LINUXBKUP_SECRETS_PASS or LINUXBKUP_SECRETS_PASS_FILE (or TTY prompt)"
@@ -192,6 +194,7 @@ linuxbkup_cmd_help() {
       ui_item note "tar, zstd, rsync, sha256sum  (optional: age, openssl for secrets)"
       printf '\n'
       ui_section "Useful globals"
+      ui_kv "-u, --user" "Target home owner (default: you; under sudo: SUDO_USER)"
       ui_kv "-n, --dry-run" "Show plan only"
       ui_kv "-k, --keep-stage" "Keep extract directory after restore"
       ui_kv "-f, --force-overwrite" "Replace existing home/secrets/config files"

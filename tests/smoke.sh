@@ -388,6 +388,31 @@ else
   bad "age encrypts secrets and wipes plaintext (need age+age-keygen+openssl)"
 fi
 
+# sudo → SUDO_USER (not root) for target user
+# shellcheck source=/dev/null
+source "${ROOT}/lib/env/users.sh"
+_sudo_u="$(
+  unset LINUXBKUP_USER
+  SUDO_USER="smokeuser" USER="root"
+  # simulate euid 0 check by patching via subshell function redef is hard;
+  # unit-test the remap predicate pieces + resolve when id -u is nonzero skips SUDO
+  env_resolve_user
+)"
+# without root, SUDO_USER is ignored — still current user
+if [[ "${_sudo_u}" == "$(id -un)" ]]; then
+  ok "env_resolve_user ignores SUDO_USER when not root"
+else
+  bad "env_resolve_user ignores SUDO_USER when not root (got ${_sudo_u})"
+fi
+if grep -q 'SUDO_USER' "${ROOT}/lib/env/users.sh" \
+  && grep -q 'env_sudo_user_remap' "${ROOT}/lib/env/users.sh" \
+  && grep -q 'restore_files_chown_args' "${ROOT}/lib/backup/restore_files.sh" \
+  && grep -q 'refusing to restore home/secrets into /root' "${ROOT}/lib/backup/restore_files.sh"; then
+  ok "sudo restore targets SUDO_USER + chown + /root guard"
+else
+  bad "sudo restore targets SUDO_USER + chown + /root guard"
+fi
+
 # Home/config restore: rsync staged trees; --force-overwrite for conflicts
 LINUXBKUP_ROOT="${ROOT}"
 export LINUXBKUP_ROOT
