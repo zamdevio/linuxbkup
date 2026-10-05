@@ -47,10 +47,12 @@ sudo -E ./linuxbkup -k -f restore ~/Backups/linuxbkup/host.tar.zst
 linuxbkup -k -f --skip-reinstall restore ~/Backups/linuxbkup/host.tar.zst
 # non-interactive: overwrite + reinstall all recorded Node projects:
 linuxbkup -y -f restore ~/Backups/linuxbkup/host.tar.zst
+# after installing pnpm/node — reinstall only (no home re-copy):
+linuxbkup -y --reinstall-only restore ~/Backups/linuxbkup/host.tar.zst
 ```
 
 Passphrase via `LINUXBKUP_SECRETS_PASS` / `_PASS_FILE` or TTY prompt. Existing files need `-f`.  
-Backup writes `packages/reinstalls.json` for projects whose `node_modules` were stripped; restore replays the source PM (`npm`/`pnpm`/`yarn`/`bun`).
+Backup writes `packages/reinstalls.json` for **workspace roots / lockfile dirs** (not every nested `package.json`). Restore tries `corepack` for missing pnpm/yarn when Node is present.
 
 ## Dependencies
 

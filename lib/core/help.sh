@@ -52,6 +52,7 @@ linuxbkup_usage() {
   ui_kv "-j, --json" "Machine-readable output (plan --json)"
   ui_kv "-f, --force-overwrite" "Allow overwriting conflicting files on restore"
   ui_kv "--skip-reinstall" "Skip regenerable reinstalls (node_modules, …) on restore"
+  ui_kv "--reinstall-only" "Only run regenerable reinstalls (skip home/config copy)"
   ui_kv "--mark-secret" "Treat path as secret (repeatable; age-encrypted)"
   ui_kv "--no-secrets" "Exclude secrets from backup"
   ui_kv "--secrets-plain" "Include secrets unencrypted (explicit)"
@@ -193,6 +194,8 @@ linuxbkup_cmd_help() {
       ui_section "Reinstalls"
       ui_item note "-y / non-TTY: reinstall all recorded projects"
       ui_item note "TTY: pick projects (default all); --skip-reinstall skips the step"
+      ui_item note "--reinstall-only: manifest + installs only (after PMs installed)"
+      ui_item note "Missing pnpm/yarn: tries corepack when node is present"
       ui_item note "PM per project comes from the source backup (lockfile / packageManager)"
       printf '\n'
       ui_section "Secrets"
@@ -208,6 +211,7 @@ linuxbkup_cmd_help() {
       ui_kv "-k, --keep-stage" "Keep extract directory after restore"
       ui_kv "-f, --force-overwrite" "Replace existing home/secrets/config files"
       ui_kv "--skip-reinstall" "Do not run node (or later language) reinstalls"
+      ui_kv "--reinstall-only" "Skip extract of home — only regenerate node_modules"
       ui_kv "-y, --yes" "Safe defaults + reinstall all; pass must come from env"
       ;;
     verify)

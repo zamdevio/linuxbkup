@@ -24,8 +24,17 @@ linuxbkup_cmd_restore() {
   # shellcheck source=lib/backup/reinstall.sh
   source "${LINUXBKUP_ROOT}/lib/backup/reinstall.sh"
 
+  local reinstall_only="${LINUXBKUP_REINSTALL_ONLY:-0}"
+  if [[ "${reinstall_only}" -eq 1 && "${LINUXBKUP_SKIP_REINSTALL:-0}" -eq 1 ]]; then
+    log_fatal "cannot combine --reinstall-only with --skip-reinstall"
+    return 2
+  fi
+
+  local desc="Reconstruct environment from a backup (extract → secrets → files → reinstalls)."
+  [[ "${reinstall_only}" -eq 1 ]] && desc="Reinstall regenerables only (node_modules from manifest)."
+
   cmd_context_begin restore \
-    --desc "Reconstruct environment from a backup (extract → secrets → files → reinstalls)." \
+    --desc "${desc}" \
     --required tar zstd rsync sha256sum \
     --optional age openssl
 
@@ -33,6 +42,7 @@ linuxbkup_cmd_restore() {
   local dest_home="${LINUXBKUP_HOME:-${HOME:-}}"
   local dest_user=""
   local steps=5
+  [[ "${reinstall_only}" -eq 1 ]] && steps=3
   # shellcheck source=lib/env/users.sh
   source "${LINUXBKUP_ROOT}/lib/env/users.sh"
   dest_user="$(env_resolve_user)"
@@ -58,10 +68,12 @@ linuxbkup_cmd_restore() {
   ui_kv_path "Target home" "${dest_home}"
   ui_kv "Target user" "${dest_user}"
   [[ "${LINUXBKUP_SKIP_REINSTALL:-0}" -eq 1 ]] && ui_kv "Reinstalls" "skipped (--skip-reinstall)"
+  [[ "${reinstall_only}" -eq 1 ]] && ui_kv "Mode" "reinstall-only"
   if env_sudo_user_remap; then
     log_info "sudo detected — home/secrets → ${dest_user} (${dest_home}); /etc when writable"
   fi
 
+  # --- extract / open stage -------------------------------------------------
   if [[ "${kind}" == "staging" ]]; then
     root="${backup}"
     ui_step_event 1 "${steps}" "extract" "extract — unpack archive"
@@ -69,18 +81,7 @@ linuxbkup_cmd_restore() {
     linuxbkup_event skip extract "reason=staging"
   else
     if [[ "${LINUXBKUP_DRY_RUN:-0}" -eq 1 ]]; then
-      log_info "dry-run — would extract, decrypt, rsync home/config, run reinstalls"
-      ui_step_event 1 "${steps}" "extract" "extract — unpack archive"
-      linuxbkup_event skip extract "reason=dry-run"
-      ui_step_event 2 "${steps}" "secrets" "secrets — decrypt if encrypted"
-      linuxbkup_event skip secrets "reason=dry-run"
-      ui_step_event 3 "${steps}" "files" "files — home / secrets / config"
-      ui_kv "files" "would rsync home+secrets → ${dest_home}/ and config → /etc"
-      linuxbkup_event skip files "reason=dry-run"
-      ui_step_event 4 "${steps}" "reinstall" "reinstall — node_modules from manifest"
-      linuxbkup_event skip reinstall "reason=dry-run"
-      ui_step_event 5 "${steps}" "report" "report — restore status"
-      linuxbkup_event ok report
+      log_info "dry-run — would extract and run restore steps"
       linuxbkup_events_end
       linuxbkup_op_end
       return 0
@@ -101,8 +102,14 @@ linuxbkup_cmd_restore() {
     ui_step_event 1 "${steps}" "extract" "extract — unpack archive"
     linuxbkup_op_begin "restore-extract" "${backup}" 0 1
     set +e
-    linuxbkup_without_monitor bash -c \
-      "zstd -dcq \"${backup}\" | tar --warning=no-timestamp -C \"${tmp}\" -xf -"
+    if [[ "${reinstall_only}" -eq 1 ]]; then
+      # Manifest only — much faster than full home extract
+      linuxbkup_without_monitor bash -c \
+        "zstd -dcq \"${backup}\" | tar --warning=no-timestamp -C \"${tmp}\" -xf - packages"
+    else
+      linuxbkup_without_monitor bash -c \
+        "zstd -dcq \"${backup}\" | tar --warning=no-timestamp -C \"${tmp}\" -xf -"
+    fi
     extract_rc=$?
     set -e
     if linuxbkup_interrupt_pending || [[ "${extract_rc}" -ne 0 && "${LINUXBKUP_WAS_INTERRUPTED:-0}" -eq 1 ]]; then
@@ -130,45 +137,50 @@ linuxbkup_cmd_restore() {
     linuxbkup_op_end
   fi
 
-  if declare -F archive_verify_schema >/dev/null 2>&1; then
-    archive_verify_schema "${root}"
-  fi
+  if [[ "${reinstall_only}" -ne 1 ]]; then
+    if declare -F archive_verify_schema >/dev/null 2>&1; then
+      archive_verify_schema "${root}"
+    fi
 
-  ui_step_event 2 "${steps}" "secrets" "secrets — decrypt if encrypted"
-  linuxbkup_op_begin "restore-secrets" "${root}" 0 1
-  set +e
-  backup_secrets_decrypt_stage "${root}"
-  dec_rc=$?
-  set -e
-  case "${dec_rc}" in
-    0) linuxbkup_event ok secrets ;;
-    2)
-      linuxbkup_event skip secrets "reason=none"
-      log_info "no encrypted secrets to decrypt"
-      ;;
-    *)
-      linuxbkup_event fail secrets
+    ui_step_event 2 "${steps}" "secrets" "secrets — decrypt if encrypted"
+    linuxbkup_op_begin "restore-secrets" "${root}" 0 1
+    set +e
+    backup_secrets_decrypt_stage "${root}"
+    dec_rc=$?
+    set -e
+    case "${dec_rc}" in
+      0) linuxbkup_event ok secrets ;;
+      2)
+        linuxbkup_event skip secrets "reason=none"
+        log_info "no encrypted secrets to decrypt"
+        ;;
+      *)
+        linuxbkup_event fail secrets
+        linuxbkup_op_end
+        return 1
+        ;;
+    esac
+    linuxbkup_op_end
+
+    ui_step_event 3 "${steps}" "files" "files — home / secrets / config"
+    linuxbkup_op_begin "restore-files" "${root}" 0 1
+    set +e
+    restore_files_apply "${root}" "${dest_home}" "${dest_user}"
+    files_rc=$?
+    set -e
+    if [[ "${files_rc}" -ne 0 ]]; then
+      linuxbkup_event fail files
       linuxbkup_op_end
       return 1
-      ;;
-  esac
-  linuxbkup_op_end
-
-  ui_step_event 3 "${steps}" "files" "files — home / secrets / config"
-  linuxbkup_op_begin "restore-files" "${root}" 0 1
-  set +e
-  restore_files_apply "${root}" "${dest_home}" "${dest_user}"
-  files_rc=$?
-  set -e
-  if [[ "${files_rc}" -ne 0 ]]; then
-    linuxbkup_event fail files
+    fi
+    linuxbkup_event ok files
     linuxbkup_op_end
-    return 1
-  fi
-  linuxbkup_event ok files
-  linuxbkup_op_end
 
-  ui_step_event 4 "${steps}" "reinstall" "reinstall — node_modules from manifest"
+    ui_step_event 4 "${steps}" "reinstall" "reinstall — node_modules from manifest"
+  else
+    ui_step_event 2 "${steps}" "reinstall" "reinstall — node_modules from manifest"
+  fi
+
   linuxbkup_op_begin "restore-reinstall" "${root}" 0 1
   set +e
   reinstall_apply "${root}" "${dest_home}"
@@ -176,28 +188,24 @@ linuxbkup_cmd_restore() {
   linuxbkup_event ok reinstall
   linuxbkup_op_end
 
-  ui_step_event 5 "${steps}" "report" "report — restore status"
+  if [[ "${reinstall_only}" -eq 1 ]]; then
+    ui_step_event 3 "${steps}" "report" "report — restore status"
+  else
+    ui_step_event 5 "${steps}" "report" "report — restore status"
+  fi
   ui_section "Restore status"
-  if [[ -d "${root}/home" ]]; then
+  if [[ "${reinstall_only}" -eq 1 ]]; then
+    ui_kv "Mode" "reinstall-only (home/config not re-copied)"
+  elif [[ -d "${root}/home" ]]; then
     ui_kv_path "Staged home" "${root}/home"
     ui_kv_path "Applied to" "${dest_home}"
   else
     ui_kv "Home tree" "missing in backup"
   fi
-  if [[ -d "${root}/secrets" ]]; then
-    ui_kv_path "Secrets (staged)" "${root}/secrets"
-  elif [[ -f "${root}/secrets.tar.age" ]]; then
-    ui_kv "Secrets" "still encrypted (decrypt failed or skipped)"
-  else
-    ui_kv "Secrets" "none in backup"
-  fi
-  if [[ -d "${root}/config/etc" ]]; then
-    ui_kv_path "Staged config" "${root}/config/etc"
-  fi
   if [[ -f "${root}/packages/reinstalls.json" ]]; then
     ui_kv_path "Reinstalls" "${root}/packages/reinstalls.json"
   fi
-  if [[ -f "${root}/packages/apt.manual" ]]; then
+  if [[ -f "${root}/packages/apt.manual" && "${reinstall_only}" -ne 1 ]]; then
     ui_kv_path "APT manuals" "${root}/packages/apt.manual"
     ui_item note "APT package reinstall not applied yet — manifests only."
   fi

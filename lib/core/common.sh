@@ -30,6 +30,7 @@ LINUXBKUP_RECLAIM_ALL=0
 LINUXBKUP_MARK_SECRET=()
 LINUXBKUP_NO_GITIGNORE=0
 LINUXBKUP_SKIP_REINSTALL=0
+LINUXBKUP_REINSTALL_ONLY=0
 LINUXBKUP_WORKERS=""
 LINUXBKUP_INCLUDE_REGEXES=()
 LINUXBKUP_EXCLUDE_REGEXES=()
@@ -138,6 +139,10 @@ linuxbkup_parse_globals() {
         ;;
       --skip-reinstall)
         LINUXBKUP_SKIP_REINSTALL=1
+        shift
+        ;;
+      --reinstall-only)
+        LINUXBKUP_REINSTALL_ONLY=1
         shift
         ;;
       -i|--include)

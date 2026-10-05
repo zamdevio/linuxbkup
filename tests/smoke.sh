@@ -392,43 +392,50 @@ fi
 # shellcheck source=/dev/null
 source "${ROOT}/modules/node.sh"
 _nd_home="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-smoke-node.XXXXXX")"
-mkdir -p "${_nd_home}/app-pnpm" "${_nd_home}/app-npm" "${_nd_home}/skip/node_modules/pkg"
+mkdir -p "${_nd_home}/app-pnpm" "${_nd_home}/app-npm" "${_nd_home}/mono/packages/lib" \
+  "${_nd_home}/skip/node_modules/pkg" "${_nd_home}/.claude/plugins/x"
 printf '%s\n' '{"name":"a"}' >"${_nd_home}/app-pnpm/package.json"
 printf '\n' >"${_nd_home}/app-pnpm/pnpm-lock.yaml"
 printf '%s\n' '{"name":"b"}' >"${_nd_home}/app-npm/package.json"
 printf '{}\n' >"${_nd_home}/app-npm/package-lock.json"
+printf '%s\n' '{"name":"mono","workspaces":["packages/*"]}' >"${_nd_home}/mono/package.json"
+printf '\n' >"${_nd_home}/mono/pnpm-lock.yaml"
+printf 'packages:\n  - "packages/*"\n' >"${_nd_home}/mono/pnpm-workspace.yaml"
+printf '%s\n' '{"name":"lib"}' >"${_nd_home}/mono/packages/lib/package.json"
 printf '%s\n' '{"name":"nested"}' >"${_nd_home}/skip/node_modules/pkg/package.json"
+printf '%s\n' '{"name":"noise"}' >"${_nd_home}/.claude/plugins/x/package.json"
+touch "${_nd_home}/.claude/plugins/x/pnpm-lock.yaml"
 _nd_stage="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-smoke-ndst.XXXXXX")"
 mkdir -p "${_nd_stage}/home"
 cp -a "${_nd_home}/." "${_nd_stage}/home/"
 node_capture_manifests "${_nd_stage}"
 if [[ -f "${_nd_stage}/packages/reinstalls.json" ]] \
-  && [[ -f "${_nd_stage}/packages/reinstalls.tsv" ]] \
   && grep -q 'app-pnpm' "${_nd_stage}/packages/reinstalls.tsv" \
-  && grep -q $'\tpnpm\t' "${_nd_stage}/packages/reinstalls.tsv" \
   && grep -q 'app-npm' "${_nd_stage}/packages/reinstalls.tsv" \
-  && grep -q $'\tnpm\t' "${_nd_stage}/packages/reinstalls.tsv" \
+  && grep -q $'^node\tmono\t' "${_nd_stage}/packages/reinstalls.tsv" \
+  && ! grep -q 'mono/packages/lib' "${_nd_stage}/packages/reinstalls.tsv" \
   && ! grep -q 'node_modules/pkg' "${_nd_stage}/packages/reinstalls.tsv" \
-  && grep -q 'linuxbkup.reinstalls/v1' "${_nd_stage}/packages/reinstalls.json"; then
-  ok "node capture writes reinstalls.json/tsv (pnpm+npm, skip nested)"
+  && ! grep -q '.claude/' "${_nd_stage}/packages/reinstalls.tsv"; then
+  ok "node capture: lockfile roots + workspace dedupe + noise skip"
 else
-  bad "node capture writes reinstalls.json/tsv (pnpm+npm, skip nested)"
+  bad "node capture: lockfile roots + workspace dedupe + noise skip"
 fi
 # shellcheck source=/dev/null
 source "${ROOT}/lib/backup/reinstall.sh"
 _nd_rows=()
 reinstall_load_node_rows "${_nd_stage}" _nd_rows
-if [[ "${#_nd_rows[@]}" -eq 2 ]]; then
-  ok "reinstall_load_node_rows reads tsv"
+if [[ "${#_nd_rows[@]}" -eq 3 ]]; then
+  ok "reinstall_load_node_rows reads filtered tsv"
 else
-  bad "reinstall_load_node_rows reads tsv (n=${#_nd_rows[@]})"
+  bad "reinstall_load_node_rows reads filtered tsv (n=${#_nd_rows[@]})"
 fi
 if grep -q 'skip-reinstall' "${ROOT}/lib/core/common.sh" \
-  && grep -q 'reinstall_apply' "${ROOT}/lib/cmd/restore.sh" \
-  && grep -q 'node_capture_manifests' "${ROOT}/lib/cmd/backup.sh"; then
-  ok "backup/restore wire node capture + reinstall + --skip-reinstall"
+  && grep -q 'reinstall-only' "${ROOT}/lib/core/common.sh" \
+  && grep -q 'reinstall_ensure_pms' "${ROOT}/lib/backup/reinstall.sh" \
+  && grep -q 'REINSTALL_ONLY' "${ROOT}/lib/cmd/restore.sh"; then
+  ok "backup/restore wire reinstall-only + PM ensure + skip"
 else
-  bad "backup/restore wire node capture + reinstall + --skip-reinstall"
+  bad "backup/restore wire reinstall-only + PM ensure + skip"
 fi
 rm -rf "${_nd_home}" "${_nd_stage}"
 

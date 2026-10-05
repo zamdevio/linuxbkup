@@ -1,31 +1,110 @@
 # shellcheck shell=bash
 # Restore-time regenerable reinstalls (Node v1; python/go later).
 
-# Load node rows from stage packages/reinstalls.tsv (preferred) or .json stub.
+# Load node rows from stage packages/reinstalls.tsv.
 # Fills nameref: lines path<TAB>pm<TAB>lockfile<TAB>cmd
 reinstall_load_node_rows() {
   local root="$1"
   local -n _rows="$2"
   local tsv="${root}/packages/reinstalls.tsv"
   local kind path pm lock cmd
+  local -a raw=()
 
   _rows=()
-  if [[ -f "${tsv}" ]]; then
-    while IFS=$'\t' read -r kind path pm lock cmd || [[ -n "${kind}" ]]; do
-      [[ -z "${kind}" || "${kind}" == \#* ]] && continue
-      [[ "${kind}" == "node" ]] || continue
-      [[ -n "${path}" && -n "${pm}" && -n "${cmd}" ]] || continue
-      _rows+=("${path}"$'\t'"${pm}"$'\t'"${lock}"$'\t'"${cmd}")
-    done <"${tsv}"
+  if [[ ! -f "${tsv}" ]]; then
     return 0
+  fi
+  while IFS=$'\t' read -r kind path pm lock cmd || [[ -n "${kind}" ]]; do
+    [[ -z "${kind}" || "${kind}" == \#* ]] && continue
+    [[ "${kind}" == "node" ]] || continue
+    [[ -n "${path}" && -n "${pm}" && -n "${cmd}" ]] || continue
+    raw+=("${path}"$'\t'"${pm}"$'\t'"${lock}"$'\t'"${cmd}")
+  done <"${tsv}"
+
+  # Drop noise from older fat manifests
+  if declare -F node_filter_reinstall_rows >/dev/null 2>&1; then
+    node_filter_reinstall_rows raw _rows
+  else
+    _rows=("${raw[@]}")
   fi
   return 0
 }
 
+# Ensure package managers for the selected rows exist.
+# Tries corepack for pnpm/yarn when node is present. Does not curl bun by default.
+reinstall_ensure_pms() {
+  local -n _rows="$1"
+  local path pm lock cmd
+  local -A need=() have=()
+  local -a missing=() still=()
+  local p
+
+  for row in "${_rows[@]+"${_rows[@]}"}"; do
+    IFS=$'\t' read -r path pm lock cmd <<<"${row}" || true
+    [[ -n "${pm}" ]] && need["${pm}"]=1
+  done
+  [[ "${#need[@]}" -gt 0 ]] || return 0
+
+  for p in "${!need[@]}"; do
+    if command -v "${p}" >/dev/null 2>&1; then
+      have["${p}"]=1
+    else
+      missing+=("${p}")
+    fi
+  done
+  [[ "${#missing[@]}" -gt 0 ]] || return 0
+
+  ui_section "Package managers"
+  ui_kv "Needed" "$(printf '%s ' "${!need[@]}")"
+  ui_kv "Missing" "${missing[*]}"
+
+  if command -v node >/dev/null 2>&1 && command -v corepack >/dev/null 2>&1; then
+    for p in "${missing[@]}"; do
+      case "${p}" in
+        pnpm|yarn)
+          log_info "enabling ${p} via corepack…"
+          set +e
+          corepack enable >/dev/null 2>&1
+          corepack prepare "${p}@stable" --activate >/dev/null 2>&1
+          set -e
+          ;;
+      esac
+    done
+  elif command -v node >/dev/null 2>&1; then
+    log_warn "node present but no corepack — install pnpm/yarn manually or enable corepack"
+  fi
+
+  still=()
+  for p in "${missing[@]}"; do
+    if command -v "${p}" >/dev/null 2>&1; then
+      log_ok "${p} ready"
+    else
+      still+=("${p}")
+    fi
+  done
+  [[ "${#still[@]}" -eq 0 ]] && return 0
+
+  log_warn "still missing: ${still[*]} — those projects will skip"
+  for p in "${still[@]}"; do
+    case "${p}" in
+      npm)
+        ui_item note "npm comes with Node — install Node (e.g. apt install nodejs npm), then: linuxbkup --reinstall-only …"
+        ;;
+      pnpm|yarn)
+        ui_item note "${p}: enable with Node — corepack enable && corepack prepare ${p}@stable --activate"
+        ;;
+      bun)
+        ui_item note "bun: https://bun.sh/docs/installation — then: linuxbkup --reinstall-only …"
+        ;;
+      *)
+        ui_item note "install '${p}', then re-run with --reinstall-only"
+        ;;
+    esac
+  done
+  return 0
+}
+
 # Pick which projects to reinstall.
-# TTY + !yes → multi-select (default all). -y / non-TTY → all.
-# Args: nameref in_rows → nameref out_rows (same line format)
-# Returns 1 if user aborts.
 reinstall_select_node() {
   local -n _in="$1"
   local -n _out="$2"
@@ -36,7 +115,6 @@ reinstall_select_node() {
   n="${#_in[@]}"
   [[ "${n}" -gt 0 ]] || return 0
 
-  # -y or non-TTY → all
   if [[ "${LINUXBKUP_YES:-0}" -eq 1 || ! -t 0 ]]; then
     _out=("${_in[@]}")
     return 0
@@ -62,11 +140,8 @@ reinstall_select_node() {
       log_skip "reinstall step skipped by user"
       return 1
       ;;
-    ""|a|A|all|ALL)
-      ;;
-    n|N|none|NONE)
-      want=()
-      ;;
+    ""|a|A|all|ALL) ;;
+    n|N|none|NONE) want=() ;;
     *)
       want=()
       while IFS= read -r i; do
@@ -85,7 +160,6 @@ reinstall_select_node() {
 }
 
 # Run one project install. Args: dest_home rel_path pm cmd
-# Returns 0 ok, 1 fail, 2 skip (missing dir / tool)
 reinstall_run_one() {
   local home="$1" rel="$2" pm="$3" cmd="$4"
   local dir="${home}/${rel}"
@@ -101,7 +175,6 @@ reinstall_run_one() {
   fi
   if ! command -v "${pm}" >/dev/null 2>&1; then
     log_warn "reinstall skip — '${pm}' not installed (need for ${rel})"
-    ui_item note "Install ${pm}, then re-run restore or: (cd ${dir} && ${cmd})"
     return 2
   fi
 
@@ -136,7 +209,6 @@ reinstall_run_one() {
 }
 
 # Apply node reinstalls from archive/stage root into dest_home.
-# Returns 0 always for soft failures (per-project); 1 only on hard abort.
 reinstall_apply() {
   local root="$1"
   local home="${2:-${LINUXBKUP_HOME:-${HOME:-}}}"
@@ -147,6 +219,9 @@ reinstall_apply() {
     log_info "reinstalls skipped (--skip-reinstall)"
     return 0
   fi
+
+  # shellcheck source=modules/node.sh
+  source "${LINUXBKUP_ROOT}/modules/node.sh"
 
   reinstall_load_node_rows "${root}" all_rows
   if [[ "${#all_rows[@]}" -eq 0 ]]; then
@@ -162,6 +237,8 @@ reinstall_apply() {
     log_info "no projects selected for reinstall"
     return 0
   fi
+
+  reinstall_ensure_pms chosen
 
   for row in "${chosen[@]}"; do
     IFS=$'\t' read -r path pm lock cmd <<<"${row}" || true
@@ -180,5 +257,8 @@ reinstall_apply() {
   ui_kv "OK" "${ok}"
   ui_kv "Skipped" "${skip}"
   ui_kv "Failed" "${fail}"
+  if [[ "${skip}" -gt 0 || "${fail}" -gt 0 ]]; then
+    ui_item note "After installing missing PMs: linuxbkup --reinstall-only <archive|staging>"
+  fi
   return 0
 }

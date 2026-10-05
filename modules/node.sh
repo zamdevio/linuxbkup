@@ -11,6 +11,68 @@ _node_json_escape() {
   printf '%s' "${s}"
 }
 
+# True if relative path is tooling/noise (not a real app to reinstall).
+node_path_is_noise() {
+  local rel="$1"
+  case "${rel}" in
+    .claude|.claude/*|.var|.var/*|.cursor|.cursor/*|.agents|.agents/*)
+      return 0
+      ;;
+    */wailsjs|*/wailsjs/*)
+      return 0
+      ;;
+    */fixtures/*|*/fixture/*|*/__fixtures__/*)
+      return 0
+      ;;
+    */node_modules|*/node_modules/*)
+      return 0
+      ;;
+    */.yarn/*|*/.pnpm/*)
+      return 0
+      ;;
+  esac
+  return 1
+}
+
+# True if dir has a node lockfile at this level.
+node_dir_has_lockfile() {
+  local dir="$1"
+  [[ -f "${dir}/pnpm-lock.yaml" \
+    || -f "${dir}/package-lock.json" \
+    || -f "${dir}/yarn.lock" \
+    || -f "${dir}/bun.lockb" \
+    || -f "${dir}/bun.lock" ]]
+}
+
+# True if package.json looks like a workspace root.
+node_dir_is_workspace_root() {
+  local dir="$1"
+  local pkg="${dir}/package.json"
+  [[ -f "${dir}/pnpm-workspace.yaml" || -f "${dir}/pnpm-workspace.yml" ]] && return 0
+  [[ -f "${pkg}" ]] || return 1
+  grep -qE '"workspaces"[[:space:]]*:' "${pkg}" 2>/dev/null
+}
+
+# Walk up from dir toward stop (home root); print nearest workspace root, or empty.
+node_find_workspace_root() {
+  local dir="$1"
+  local stop="$2"
+  local cur="${dir}"
+  while [[ -n "${cur}" && "${cur}" != "/" ]]; do
+    case "${cur}" in
+      "${stop}"|"${stop}"/*) ;;
+      *) return 1 ;;
+    esac
+    if node_dir_is_workspace_root "${cur}"; then
+      printf '%s\n' "${cur}"
+      return 0
+    fi
+    [[ "${cur}" == "${stop}" ]] && break
+    cur="$(dirname -- "${cur}")"
+  done
+  return 1
+}
+
 # Detect pm for a directory with package.json. Prints: pm<TAB>lockfile<TAB>cmd
 node_detect_pm() {
   local dir="$1"
@@ -79,35 +141,64 @@ node_detect_pm() {
   printf '%s\t%s\t%s\n' "${pm}" "${lock}" "${cmd}"
 }
 
-# Scan stage/home (or a home tree) for package.json roots.
-# Args: root_dir — directory that contains project trees (usually stage/home)
-# Fills nameref array with lines: rel_path<TAB>pm<TAB>lockfile<TAB>cmd
+# Scan stage/home for install roots (workspace roots or dirs with their own lockfile).
+# Fills nameref: rel_path<TAB>pm<TAB>lockfile<TAB>cmd
 node_scan_projects() {
   local root="$1"
   local -n _out="$2"
-  local pkg dir rel pm lock cmd
+  local pkg dir rel pm lock cmd ws abs
+  local -A seen=()
 
   _out=()
   [[ -d "${root}" ]] || return 0
 
   while IFS= read -r -d '' pkg; do
     dir="$(dirname -- "${pkg}")"
-    # Skip nested package.json under node_modules
     case "${dir}" in
       */node_modules|*/node_modules/*) continue ;;
     esac
     rel="${dir#"${root}"/}"
-    [[ "${rel}" == "${dir}" ]] && continue
-    [[ -z "${rel}" ]] && continue
-    IFS=$'\t' read -r pm lock cmd < <(node_detect_pm "${dir}") || true
+    [[ "${rel}" == "${dir}" || -z "${rel}" ]] && continue
+    if node_path_is_noise "${rel}"; then
+      continue
+    fi
+
+    # Prefer workspace root over every nested package.json
+    if ws="$(node_find_workspace_root "${dir}" "${root}")"; then
+      abs="${ws}"
+      rel="${abs#"${root}"/}"
+    else
+      # Standalone: only if this directory has its own lockfile
+      if ! node_dir_has_lockfile "${dir}"; then
+        continue
+      fi
+      abs="${dir}"
+    fi
+
+    [[ -n "${seen[${rel}]+x}" ]] && continue
+    seen["${rel}"]=1
+
+    IFS=$'\t' read -r pm lock cmd < <(node_detect_pm "${abs}") || true
     [[ -n "${pm}" ]] || continue
     _out+=("${rel}"$'\t'"${pm}"$'\t'"${lock}"$'\t'"${cmd}")
   done < <(find "${root}" -type f -name package.json \
     ! -path '*/node_modules/*' -print0 2>/dev/null || true)
 }
 
+# Filter rows (path pm lock cmd) — drop noise; used on restore for older fat manifests.
+node_filter_reinstall_rows() {
+  local -n _in="$1"
+  local -n _out="$2"
+  local path pm lock cmd
+  _out=()
+  for row in "${_in[@]+"${_in[@]}"}"; do
+    IFS=$'\t' read -r path pm lock cmd <<<"${row}" || true
+    node_path_is_noise "${path}" && continue
+    _out+=("${row}")
+  done
+}
+
 # Write packages/reinstalls.json + packages/reinstalls.tsv from staged home/.
-# Args: stage
 node_capture_manifests() {
   local stage="$1"
   local home_tree="${stage}/home"
@@ -147,7 +238,6 @@ node_capture_manifests() {
       else
         printf ',\n'
       fi
-      # JSON uses empty lockfile string when sentinel "-"
       jlock="${lock}"
       [[ "${jlock}" == "-" ]] && jlock=""
       printf '    {"path":"%s","pm":"%s","lockfile":"%s","cmd":"%s"}' \
