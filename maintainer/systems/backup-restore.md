@@ -38,6 +38,8 @@ Long steps (`classify`, `copy`, `secrets`, `index`, `checksum`, `pack`, `summary
 
 **Node reinstalls:** after home copy, `modules/node.sh` writes `packages/reinstalls.json` (+ `.tsv`) for **workspace roots / lockfile dirs** (skips nested packages, `.claude`, `.var`, fixtures). Before full extract, restore **peeks** `packages/reinstalls.tsv` (`tar -xO`) and lists **PMs with resolved Linux paths** (`platform_linux_command` — Windows/interop `/mnt/*` shims ignored). Missing PMs get recipes; Enter re-check / continue / skip / quit. `-y` / non-TTY: tips + continue. Then installs unless `--skip-reinstall`. **Failures are skipped** (never abort the run); each fail keeps a `/tmp` log + error line; end summary lists OK / Skipped / Failed with reasons (`reinstall_report_lines`). **pnpm/npm workspace roots** pre-check member packages (`workspace:*` + globs) — missing members skip with reason instead of a late `ERR_PNPM_WORKSPACE_PKG_NOT_FOUND`. PM output quiet unless `-v`. Corepack/npm forced non-interactive (`CI=1`, `COREPACK_ENABLE_DOWNLOAD_PROMPT=0`). `-y` = all projects; TTY = pick (`a`/`n`/`1-3`/`f` fzf/`q`); `--ask` forces interactive pick + overwrite confirms. PM/tool lists auto-truncate via `lib/constraints/list.sh` (default top 10, `-F`/`-T`). `--reinstall-only` = manifest extract + installs (no home re-copy).
 
+**Next (phase 11):** Ctrl+C/Ctrl+Z parity inside the reinstall batch (menu: retry / skip / continue / quit mid-install) + picker v2 for large lists — plan in [`../phases/11-restore-ux.md`](../phases/11-restore-ux.md).
+
 ## Still missing
 
 - Python / Go / mise reinstall arrays in the same JSON

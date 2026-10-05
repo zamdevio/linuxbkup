@@ -144,10 +144,11 @@ reinstall_pm_recipe() {
 }
 
 # Try corepack for pnpm/yarn using Linux-native node/corepack only.
+# Non-interactive: never prompt for downloads (CI / --yes safe).
 reinstall_try_corepack() {
   local -a want=("$@")
-  local node_bin corepack_bin p
-  node_bin="$(reinstall_pm_resolve node)" || return 1
+  local corepack_bin p
+  reinstall_pm_resolve node >/dev/null 2>&1 || return 1
   corepack_bin="$(reinstall_pm_resolve corepack)" || return 1
   for p in "${want[@]}"; do
     case "${p}" in
@@ -155,8 +156,10 @@ reinstall_try_corepack() {
         if ! reinstall_pm_resolve "${p}" >/dev/null 2>&1; then
           log_info "trying corepack for ${p}…"
           set +e
-          "${corepack_bin}" enable >/dev/null 2>&1
-          "${corepack_bin}" prepare "${p}@stable" --activate >/dev/null 2>&1
+          env CI=1 COREPACK_ENABLE_DOWNLOAD_PROMPT=0 COREPACK_ENABLE_STRICT=0 \
+            "${corepack_bin}" enable >/dev/null 2>&1
+          env CI=1 COREPACK_ENABLE_DOWNLOAD_PROMPT=0 COREPACK_ENABLE_STRICT=0 \
+            "${corepack_bin}" prepare "${p}@stable" --activate >/dev/null 2>&1
           set -e
         fi
         ;;
@@ -164,6 +167,229 @@ reinstall_try_corepack() {
   done
   return 0
 }
+
+# Child env for PM installs: no interactive prompts (corepack/npm/pnpm).
+reinstall_child_env_args() {
+  printf '%s\n' \
+    "CI=1" \
+    "COREPACK_ENABLE_DOWNLOAD_PROMPT=0" \
+    "COREPACK_ENABLE_STRICT=0" \
+    "npm_config_yes=true" \
+    "npm_config_fund=false" \
+    "npm_config_audit=false"
+}
+
+# Last error-ish line from a PM log (for end-of-run report).
+reinstall_log_error_line() {
+  local log_file="$1"
+  [[ -s "${log_file}" ]] || return 0
+  # Prefer explicit error tokens, else last non-empty line
+  grep -E -i 'ERR_|error[: ]|fatal|failed' "${log_file}" 2>/dev/null | tail -1 \
+    || awk 'NF{line=$0} END{print line}' "${log_file}" 2>/dev/null || true
+}
+
+# Read package.json "name" for a dir (empty if none).
+reinstall_pkg_name() {
+  local dir="$1"
+  local pkg="${dir}/package.json"
+  [[ -f "${pkg}" ]] || return 0
+  grep -oE '"name"[[:space:]]*:[[:space:]]*"[^"]+"' "${pkg}" 2>/dev/null \
+    | head -n1 \
+    | sed -E 's/.*"name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/' || true
+}
+
+# Workspace glob patterns: pnpm-workspace.yaml packages + package.json workspaces.
+# Prints one pattern per line (relative to workspace root). Path-like only.
+reinstall_workspace_patterns() {
+  local dir="$1"
+  local yaml="" pkg="${dir}/package.json"
+  local line
+
+  yaml="${dir}/pnpm-workspace.yaml"
+  [[ -f "${yaml}" ]] || yaml="${dir}/pnpm-workspace.yml"
+  if [[ -f "${yaml}" ]]; then
+    awk '
+      /^[[:space:]]*packages[[:space:]]*:/ {p=1; next}
+      p && /^[[:space:]]*-[[:space:]]*/ {
+        line=$0
+        sub(/^[[:space:]]*-[[:space:]]*/, "", line)
+        gsub(/['\''"]/, "", line)
+        gsub(/[[:space:]]*#.*$/, "", line)
+        if (line != "") print line
+        next
+      }
+      p && /^[^[:space:]#]/ {p=0}
+    ' "${yaml}"
+  fi
+  if [[ -f "${pkg}" ]]; then
+    # Only the workspaces array: "workspaces": ["packages/*", ...]
+    # or object form: "workspaces": { "packages": ["packages/*"] }
+    awk '
+      function emit(s) {
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", s)
+        gsub(/['\''"]/, "", s)
+        if (s ~ /\/|[*?]/ && s !~ /^workspace:/) print s
+      }
+      /"workspaces"[[:space:]]*:[[:space:]]*\[/ {p=1; next}
+      /"workspaces"[[:space:]]*:[[:space:]]*\{/ {p=2; next}
+      p==1 {
+        n=split($0, a, /,/)
+        for (i=1;i<=n;i++) if (match(a[i], /"[^"]+"/)) emit(substr(a[i], RSTART+1, RLENGTH-2))
+        if (/\]/) p=0
+        next
+      }
+      p==2 && /"packages"[[:space:]]*:[[:space:]]*\[/ {q=1; next}
+      p==2 && q {
+        n=split($0, a, /,/)
+        for (i=1;i<=n;i++) if (match(a[i], /"[^"]+"/)) emit(substr(a[i], RSTART+1, RLENGTH-2))
+        if (/\]/) q=0
+        next
+      }
+      p==2 && /^[[:space:]]*}/ {p=0}
+    ' "${pkg}"
+  fi
+}
+
+# workspace:* dependency names declared in a package.json (root or member).
+reinstall_workspace_dep_names() {
+  local pkg="$1"
+  [[ -f "${pkg}" ]] || return 0
+  grep -oE '"[^"]+"[[:space:]]*:[[:space:]]*"workspace:' "${pkg}" 2>/dev/null \
+    | sed -E 's/^"([^"]+)".*/\1/' \
+    | sort -u || true
+}
+
+# Expected workspace package names + pattern misses for a workspace root.
+# Prints:
+#   name<TAB>ok|missing
+#   PATTERN<TAB>missing-dir
+reinstall_workspace_expect() {
+  local dir="$1"
+  local pattern d name
+  local -A seen_pat=()
+
+  while IFS= read -r pattern; do
+    [[ -z "${pattern}" ]] && continue
+    # Path-like globs only — never dep names / packageManager fields
+    [[ "${pattern}" == */* || "${pattern}" == *[\*\?]* ]] || continue
+    [[ -n "${seen_pat[${pattern}]+x}" ]] && continue
+    seen_pat["${pattern}"]=1
+    if [[ "${pattern}" == *[\*\?]* ]]; then
+      local matches=0 dname
+      while IFS= read -r d; do
+        [[ -n "${d}" && -d "${d}" ]] || continue
+        matches=$((matches + 1))
+        if [[ -f "${d}/package.json" ]]; then
+          name="$(reinstall_pkg_name "${d}")"
+          [[ -n "${name}" ]] && printf '%s\tok\n' "${name}"
+        fi
+      done < <(compgen -G "${dir}/${pattern}" 2>/dev/null || true)
+      if [[ "${matches}" -eq 0 ]]; then
+        printf '%s\tmissing-dir\n' "${pattern}"
+      fi
+    else
+      d="${dir}/${pattern}"
+      if [[ ! -f "${d}/package.json" ]]; then
+        printf '%s\tmissing-dir\n' "${pattern}"
+      else
+        name="$(reinstall_pkg_name "${d}")"
+        [[ -n "${name}" ]] && printf '%s\tok\n' "${name}"
+      fi
+    fi
+  done < <(reinstall_workspace_patterns "${dir}")
+
+  while IFS= read -r name; do
+    [[ -n "${name}" ]] && printf '%s\tdep\n' "${name}"
+  done < <(reinstall_workspace_dep_names "${dir}/package.json")
+}
+
+# Names of package.json "name" fields anywhere under dir (excl. node_modules).
+reinstall_workspace_found_names() {
+  local dir="$1"
+  local pkg name
+  find "${dir}" -name package.json \
+    -not -path '*/node_modules/*' \
+    -not -path '*/.git/*' \
+    -not -path '*/.claude/*' \
+    -not -path '*/.var/*' 2>/dev/null \
+    | while IFS= read -r pkg; do
+      name="$(reinstall_pkg_name "$(dirname -- "${pkg}")")"
+      [[ -n "${name}" ]] && printf '%s\n' "${name}"
+    done | sort -u
+}
+
+# Missing workspace members for a pnpm/npm workspace root.
+# Prints one missing package name per line (empty if complete).
+# Also prints "PATTERN:<glob>" when a workspace glob matches no directory.
+reinstall_workspace_missing() {
+  local dir="$1"
+  local line kind name
+  local -A expected=() found=() missing_pat=()
+
+  [[ -d "${dir}" ]] || return 0
+
+  while IFS=$'\t' read -r name kind; do
+    [[ -z "${name}" ]] && continue
+    case "${kind}" in
+      missing-dir) missing_pat["${name}"]=1 ;;
+      *) expected["${name}"]=1 ;;
+    esac
+  done < <(reinstall_workspace_expect "${dir}")
+
+  # workspace:* deps must exist even if not matched by a glob
+  while IFS= read -r name; do
+    [[ -n "${name}" ]] && expected["${name}"]=1
+  done < <(reinstall_workspace_dep_names "${dir}/package.json")
+
+  if [[ "${#expected[@]}" -eq 0 && "${#missing_pat[@]}" -eq 0 ]]; then
+    return 0
+  fi
+
+  while IFS= read -r name; do
+    [[ -n "${name}" ]] && found["${name}"]=1
+  done < <(reinstall_workspace_found_names "${dir}")
+
+  for name in "${!expected[@]}"; do
+    [[ -n "${found[${name}]+x}" ]] || printf '%s\n' "${name}"
+  done | sort
+  for name in "${!missing_pat[@]}"; do
+    printf 'PATTERN:%s\n' "${name}"
+  done | sort
+}
+
+# Map a pnpm install failure log → short reason (workspace-aware).
+# Args: log_file dir
+reinstall_classify_fail() {
+  local log_file="$1"
+  local dir="${2:-}"
+  local miss_line pkg_name=""
+
+  if [[ -s "${log_file}" ]] && grep -q 'ERR_PNPM_WORKSPACE_PKG_NOT_FOUND' "${log_file}" 2>/dev/null; then
+    pkg_name="$(grep -oE '"[^"]+@workspace:' "${log_file}" 2>/dev/null | head -n1 | sed -E 's/^"([^@"]+)@workspace:.*/\1/' || true)"
+    [[ -z "${pkg_name}" ]] && pkg_name="$(grep -oE 'no package named "[^"]+"' "${log_file}" 2>/dev/null | head -n1 | sed -E 's/.*"([^"]+)".*/\1/' || true)"
+    if [[ -n "${pkg_name}" ]]; then
+      if [[ -n "${dir}" ]] && reinstall_workspace_found_names "${dir}" | grep -qx "${pkg_name}"; then
+        printf '%s\n' "workspace pkg ${pkg_name} present but pnpm workspace map incomplete"
+      else
+        printf '%s\n' "workspace member missing from restored tree: ${pkg_name}"
+      fi
+      return 0
+    fi
+    miss_line="$(reinstall_workspace_missing "${dir}" 2>/dev/null | head -n3 | tr '\n' ',' | sed 's/,$//')"
+    if [[ -n "${miss_line}" ]]; then
+      printf '%s\n' "workspace members missing: ${miss_line}"
+      return 0
+    fi
+    printf '%s\n' "ERR_PNPM_WORKSPACE_PKG_NOT_FOUND"
+    return 0
+  fi
+  reinstall_log_error_line "${log_file}"
+}
+
+# Last status filled by reinstall_run_one (globals — no nameref aliasing).
+REINSTALL_LAST_RC=0
+REINSTALL_LAST_REASON=""
+REINSTALL_LAST_LOG=""
 
 # List missing PMs (Linux-native only) from a set of pm names (args).
 reinstall_missing_pms() {
@@ -499,21 +725,67 @@ reinstall_run_one() {
   local home="$1" rel="$2" pm="$3" cmd="$4"
   local dir="${home}/${rel}"
   local rc=0
-  local pmbin="" run_cmd=""
+  local pmbin="" run_cmd="" log_file=""
+  local quiet=1
+  local -a env_args=()
+
+  REINSTALL_LAST_RC=0
+  REINSTALL_LAST_REASON=""
+  REINSTALL_LAST_LOG=""
+
+  if [[ "${LINUXBKUP_VERBOSE:-0}" -eq 1 || "${LINUXBKUP_DEBUG:-0}" -eq 1 ]]; then
+    quiet=0
+  fi
 
   if [[ ! -d "${dir}" ]]; then
     log_warn "reinstall skip — missing ${dir}"
+    REINSTALL_LAST_REASON="missing ${rel}"
     return 2
   fi
   if [[ ! -f "${dir}/package.json" ]]; then
     log_warn "reinstall skip — no package.json in ${rel}"
+    REINSTALL_LAST_REASON="no package.json"
     return 2
   fi
+
+  # Workspace roots first: members must exist or pnpm/npm ERR_*PKG_NOT_FOUND
+  # (check before PM resolve so the reason is the real blocker)
+  if [[ "${pm}" == "pnpm" || "${pm}" == "npm" ]]; then
+    local -a wmiss=()
+    mapfile -t wmiss < <(reinstall_workspace_missing "${dir}" || true)
+    if [[ "${#wmiss[@]}" -gt 0 ]]; then
+      local -a real_miss=() pat_miss=()
+      local m
+      for m in "${wmiss[@]}"; do
+        if [[ "${m}" == PATTERN:* ]]; then
+          pat_miss+=("${m#PATTERN:}")
+        else
+          real_miss+=("${m}")
+        fi
+      done
+      if [[ "${#real_miss[@]}" -gt 0 || "${#pat_miss[@]}" -gt 0 ]]; then
+        if [[ "${#real_miss[@]}" -gt 0 ]]; then
+          log_warn "workspace member(s) missing from restored tree: ${real_miss[*]}"
+          REINSTALL_LAST_REASON="workspace member(s) missing: ${real_miss[*]}"
+        fi
+        if [[ "${#pat_miss[@]}" -gt 0 ]]; then
+          log_warn "workspace glob matched no dir: ${pat_miss[*]}"
+          REINSTALL_LAST_REASON="${REINSTALL_LAST_REASON:+${REINSTALL_LAST_REASON}; }workspace glob empty: ${pat_miss[*]}"
+        fi
+        ui_item note "check backup classification — source packages must be kept (not regenerable)"
+        ui_item note "then: linuxbkup -y --reinstall-only <archive|staging>"
+        return 2
+      fi
+    fi
+  fi
+
   pmbin="$(reinstall_pm_resolve "${pm}")" || {
     if command -v "${pm}" >/dev/null 2>&1; then
       log_warn "reinstall skip — '${pm}' is Windows/interop only ($(command -v "${pm}")) — install Linux ${pm}"
+      REINSTALL_LAST_REASON="${pm} is Windows/interop only"
     else
       log_warn "reinstall skip — '${pm}' not installed (need for ${rel})"
+      REINSTALL_LAST_REASON="${pm} not installed"
     fi
     return 2
   }
@@ -526,39 +798,131 @@ reinstall_run_one() {
 
   if [[ "${LINUXBKUP_DRY_RUN:-0}" -eq 1 ]]; then
     ui_kv "${rel}" "would run: ${run_cmd}"
+    REINSTALL_LAST_REASON="dry-run"
     return 0
   fi
 
+  mapfile -t env_args < <(reinstall_child_env_args)
+  log_file="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-reinstall.XXXXXX.log")"
+  REINSTALL_LAST_LOG="${log_file}"
+
   log_info "reinstall ${rel} via ${pmbin}: ${run_cmd}"
-  linuxbkup_op_begin "reinstall-${pm}" "${dir}" 0 1
+  if declare -F linuxbkup_op_begin >/dev/null 2>&1; then
+    linuxbkup_op_begin "reinstall-${pm}" "${dir}" 0 1
+  fi
+  # Save caller errexit — never leak set -e/set +e into the caller
+  local _had_e=0
+  [[ $- == *e* ]] && _had_e=1
   set +e
-  linuxbkup_without_monitor bash -c "cd \"${dir}\" && ${run_cmd}"
-  rc=$?
-  set -e
-  linuxbkup_op_end
+  if [[ "${quiet}" -eq 1 ]]; then
+    if declare -F linuxbkup_without_monitor >/dev/null 2>&1; then
+      linuxbkup_without_monitor env "${env_args[@]}" \
+        bash -c "cd \"${dir}\" && ${run_cmd}" >"${log_file}" 2>&1
+    else
+      env "${env_args[@]}" bash -c "cd \"${dir}\" && ${run_cmd}" >"${log_file}" 2>&1
+    fi
+    rc=$?
+  else
+    if declare -F linuxbkup_without_monitor >/dev/null 2>&1; then
+      linuxbkup_without_monitor env "${env_args[@]}" \
+        bash -c "cd \"${dir}\" && ${run_cmd}" 2>&1 | tee "${log_file}"
+    else
+      env "${env_args[@]}" bash -c "cd \"${dir}\" && ${run_cmd}" 2>&1 | tee "${log_file}"
+    fi
+    rc=${PIPESTATUS[0]}
+  fi
+  [[ "${_had_e}" -eq 1 ]] && set -e
+  if declare -F linuxbkup_op_end >/dev/null 2>&1; then
+    linuxbkup_op_end
+  fi
 
   if [[ "${rc}" -eq 0 ]]; then
     log_ok "reinstalled ${rel}"
+    REINSTALL_LAST_RC=0
+    REINSTALL_LAST_REASON=""
+    # Keep log only when verbose/debug (else drop noise)
+    [[ "${quiet}" -eq 1 ]] && rm -f "${log_file}" && REINSTALL_LAST_LOG=""
     return 0
   fi
-  if [[ "${LINUXBKUP_WAS_INTERRUPTED:-0}" -eq 1 ]] || linuxbkup_interrupt_pending; then
+
+  local _int_pending=0
+  if [[ "${LINUXBKUP_WAS_INTERRUPTED:-0}" -eq 1 ]]; then
+    _int_pending=1
+  elif declare -F linuxbkup_interrupt_pending >/dev/null 2>&1 && linuxbkup_interrupt_pending; then
+    _int_pending=1
+  fi
+  if [[ "${_int_pending}" -eq 1 ]]; then
     LINUXBKUP_WAS_INTERRUPTED=1
-    linuxbkup_interrupt_resolve
+    if declare -F linuxbkup_interrupt_resolve >/dev/null 2>&1; then
+      linuxbkup_interrupt_resolve
+    else
+      LINUXBKUP_INTERRUPT_RESULT="${LINUXBKUP_INTERRUPT_RESULT:-skip}"
+    fi
     case "${LINUXBKUP_INTERRUPT_RESULT}" in
-      retry) reinstall_run_one "${home}" "${rel}" "${pm}" "${cmd}"; return $? ;;
-      skip|continue) return 2 ;;
-      *) return 1 ;;
+      retry)
+        reinstall_run_one "${home}" "${rel}" "${pm}" "${cmd}"
+        return $?
+        ;;
+      skip|continue)
+        if declare -F linuxbkup_interrupt_arm >/dev/null 2>&1; then
+          linuxbkup_interrupt_arm
+        fi
+        REINSTALL_LAST_RC="${rc}"
+        REINSTALL_LAST_REASON="interrupted (skip)"
+        return 2
+        ;;
+      *)
+        REINSTALL_LAST_RC="${rc}"
+        REINSTALL_LAST_REASON="interrupted (quit)"
+        return 1
+        ;;
     esac
   fi
-  log_warn "reinstall failed (${rc}): ${rel}"
+
+  REINSTALL_LAST_RC="${rc}"
+  REINSTALL_LAST_REASON="$(reinstall_classify_fail "${log_file}" "${dir}")"
+  [[ -n "${REINSTALL_LAST_REASON}" ]] || REINSTALL_LAST_REASON="exit ${rc}"
+  log_warn "reinstall failed (${rc}): ${rel} — ${REINSTALL_LAST_REASON}"
+  ui_item note "log: ${log_file}"
+  if [[ "${REINSTALL_LAST_REASON}" == *"workspace member missing"* ]]; then
+    ui_item note "source packages under the workspace were not in the restore tree"
+    ui_item note "re-run backup with those paths kept, or restore again with -f"
+  fi
   return 1
+}
+
+# Print failed / skipped project lines under list policy.
+# Args: label lines... (each "path<TAB>reason")
+reinstall_report_lines() {
+  local label="$1"
+  shift
+  local path reason
+  local -a lines=()
+  local line
+
+  [[ "$#" -gt 0 ]] || return 0
+  printf '\n'
+  ui_section "${label}"
+  for line in "$@"; do
+    path="${line%%$'\t'*}"
+    reason="${line#*$'\t'}"
+    [[ -n "${reason}" ]] || reason="see log"
+    lines+=("$(printf '  %s  —  %s' "${path}" "${reason}")")
+  done
+  printf '%s\n' "${lines[@]}" | constraints_list_apply
+  if declare -F constraints_list_footer >/dev/null 2>&1; then
+    constraints_list_footer "${label}"
+  fi
 }
 
 reinstall_apply() {
   local root="$1"
   local home="${2:-${LINUXBKUP_HOME:-${HOME:-}}}"
   local -a all_rows=() chosen=()
+  local -a fail_lines=() skip_lines=()
   local path pm lock cmd ok=0 fail=0 skip=0 rc=0
+  local reason=""
+  local had_e=0
 
   if [[ "${LINUXBKUP_SKIP_REINSTALL:-0}" -eq 1 ]]; then
     log_info "reinstalls skipped (--skip-reinstall)"
@@ -583,28 +947,50 @@ reinstall_apply() {
     return 0
   fi
   ui_kv "Selected" "${#chosen[@]}"
+  ui_item note "failures are skipped — full report at the end"
 
   reinstall_ensure_pms chosen
 
+  [[ $- == *e* ]] && had_e=1
   for row in "${chosen[@]}"; do
     IFS=$'\t' read -r path pm lock cmd <<<"${row}" || true
+    # Failures must not abort the batch — capture rc under no-errexit
     set +e
     reinstall_run_one "${home}" "${path}" "${pm}" "${cmd}"
     rc=$?
-    set -e
+    [[ "${had_e}" -eq 1 ]] && set -e
+    reason="${REINSTALL_LAST_REASON:-}"
     case "${rc}" in
       0) ok=$((ok + 1)) ;;
-      2) skip=$((skip + 1)) ;;
-      *) fail=$((fail + 1)) ;;
+      2)
+        skip=$((skip + 1))
+        [[ -n "${reason}" ]] || reason="skipped"
+        skip_lines+=("${path}"$'\t'"${reason}")
+        ;;
+      *)
+        fail=$((fail + 1))
+        [[ -n "${reason}" ]] || reason="exit ${rc}"
+        fail_lines+=("${path}"$'\t'"${reason}")
+        ;;
     esac
   done
+  [[ "${had_e}" -eq 1 ]] && set -e
 
   ui_section "Reinstall summary"
   ui_kv "OK" "${ok}"
   ui_kv "Skipped" "${skip}"
   ui_kv "Failed" "${fail}"
+  if [[ "${#skip_lines[@]}" -gt 0 ]]; then
+    reinstall_report_lines "Skipped projects" "${skip_lines[@]}"
+  fi
+  if [[ "${#fail_lines[@]}" -gt 0 ]]; then
+    reinstall_report_lines "Failed projects (skipped — re-run later)" "${fail_lines[@]}"
+  fi
   if [[ "${skip}" -gt 0 || "${fail}" -gt 0 ]]; then
-    ui_item note "After installing missing PMs: linuxbkup -y --reinstall-only <archive|staging>"
+    printf '\n'
+    ui_item note "Re-run only what you need:"
+    ui_item note "  linuxbkup -y --reinstall-only <archive|staging>"
+    ui_item note "  linuxbkup -a --reinstall-only <archive|staging>   # pick projects"
   fi
   return 0
 }

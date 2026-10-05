@@ -54,7 +54,8 @@ linuxbkup -y --reinstall-only restore ~/Backups/linuxbkup/host.tar.zst
 Passphrase via `LINUXBKUP_SECRETS_PASS` / `_PASS_FILE` or TTY prompt. Existing files need `-f` (or `-a/--ask` to confirm per tree).  
 Backup writes `packages/reinstalls.json` for **workspace roots / lockfile dirs** (not every nested `package.json`).  
 Restore **peeks** `packages/reinstalls.tsv` and lists **required PMs with resolved Linux paths** (Windows/interop `/mnt/...` shims are ignored). Missing PMs get install recipes; Enter re-checks. PM/tool lists auto-truncate via listing policy (default **top 10**; `-F/--full`, `-T/--top <n>`).  
-`-a/--ask` on restore: interactive reinstall project pick + overwrite confirms (wins over `-y`). TTY pick supports `a`/`n`/`1-3,5`/`f` (fzf)/`q`. After installing Linux PMs: `linuxbkup -y --reinstall-only restore <archive|staging>`. Tries `corepack` for pnpm/yarn when Linux `node` is present.
+Reinstalls **skip failed projects** (never abort the whole run). Corepack/npm are forced non-interactive (`CI=1`, `COREPACK_ENABLE_DOWNLOAD_PROMPT=0`). PM logs are quiet unless `-v`; failures print the error line + `/tmp` log path. End summary lists OK / Skipped / Failed with reasons.  
+`-a/--ask` on restore: interactive reinstall project pick + overwrite confirms (wins over `-y`). TTY pick supports `a`/`n`/`1-3,5`/`f` (fzf)/`q`. After installing Linux PMs: `linuxbkup -y --reinstall-only restore <archive|staging>`.
 
 ## Dependencies
 

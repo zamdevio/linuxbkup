@@ -23,6 +23,8 @@ Surface: root **`linuxbkup`** bin. Env: `LINUXBKUP_*`.
 | `list` | Thin / early |
 | `restore` | Live (extract → secrets → files → Node reinstalls; peek PM preflight) |
 
+Restore interrupt parity (Ctrl+C/Z mid-reinstall menu) + picker v2 (exclude / PM / grep / fzf for 100+ projects) planned in [`../phases/11-restore-ux.md`](../phases/11-restore-ux.md).
+
 ## Global flags (today)
 
 Short aliases on frequent flags (one row each in `--help`):
