@@ -200,10 +200,18 @@ linuxbkup_cmd_restore() {
   fi
 
   linuxbkup_op_begin "restore-reinstall" "${root}" 0 1
+  # Soft-quit (Ctrl+C menu q) stops the reinstall batch without exit 130
+  LINUXBKUP_INTERRUPT_SOFT_QUIT=1
+  export LINUXBKUP_INTERRUPT_SOFT_QUIT
   set +e
   reinstall_apply "${root}" "${dest_home}"
   set -e
-  linuxbkup_event ok reinstall
+  if [[ "${REINSTALL_INTERRUPT_QUIT:-0}" -eq 1 ]]; then
+    linuxbkup_event skip reinstall "reason=soft-quit"
+    ui_kv "Reinstalls" "paused (soft-quit) — re-run to finish"
+  else
+    linuxbkup_event ok reinstall
+  fi
   linuxbkup_op_end
 
   if [[ "${reinstall_only}" -eq 1 ]]; then

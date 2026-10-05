@@ -433,15 +433,24 @@ else
 fi
 if grep -q 'skip-reinstall' "${ROOT}/lib/core/common.sh" \
   && grep -q 'reinstall-only' "${ROOT}/lib/core/common.sh" \
-  && grep -q 'reinstall_ensure_pms' "${ROOT}/lib/backup/reinstall.sh" \
+  && grep -q 'reinstall_ensure_pms' "${ROOT}/lib/backup/reinstall/pm.sh" \
   && grep -q 'reinstall_preflight_guide' "${ROOT}/lib/cmd/restore.sh" \
-  && grep -q 'COREPACK_ENABLE_DOWNLOAD_PROMPT=0' "${ROOT}/lib/backup/reinstall.sh" \
-  && grep -q 'reinstall_report_lines' "${ROOT}/lib/backup/reinstall.sh" \
-  && grep -q 'REINSTALL_LAST_REASON' "${ROOT}/lib/backup/reinstall.sh" \
+  && grep -q 'COREPACK_ENABLE_DOWNLOAD_PROMPT=0' "${ROOT}/lib/backup/reinstall/pm.sh" \
+  && grep -q 'reinstall_report_lines' "${ROOT}/lib/backup/reinstall/run.sh" \
+  && grep -q 'REINSTALL_LAST_REASON' "${ROOT}/lib/backup/reinstall/run_one.sh" \
   && grep -q 'REINSTALL_ONLY' "${ROOT}/lib/cmd/restore.sh"; then
   ok "backup/restore wire reinstall-only + PM ensure + peek preflight"
 else
   bad "backup/restore wire reinstall-only + PM ensure + peek preflight"
+fi
+# R1 split: barrel sources children; call sites unchanged
+if grep -q 'source "${_reinstall_dir}/manifest.sh"' "${ROOT}/lib/backup/reinstall.sh" \
+  && grep -q 'source "${_reinstall_dir}/run.sh"' "${ROOT}/lib/backup/reinstall.sh" \
+  && grep -q 'source "${LINUXBKUP_ROOT}/lib/backup/reinstall.sh"' "${ROOT}/lib/cmd/restore.sh" \
+  && [[ -f "${ROOT}/lib/backup/reinstall/select.sh" ]]; then
+  ok "R1 reinstall barrel split + restore call site unchanged"
+else
+  bad "R1 reinstall barrel split + restore call site unchanged"
 fi
 # Fail-skip + non-interactive PM env + end report helpers
 _nd_env="$(reinstall_child_env_args | tr '\n' ' ')"
@@ -512,6 +521,128 @@ if [[ "${_nd_ap_out}" == *"Reinstall summary"* \
 else
   bad "reinstall_apply continues after fail + end report"
 fi
+# Phase 11 picker v2 helpers: exclude/include/PM/grep/counts
+_nd_rows_pk=(
+  $'app-pnpm\tpnpm\t-\tpnpm i'
+  $'app-npm\tnpm\t-\tnpm i'
+  $'Workers/mailer\tpnpm\t-\tpnpm i'
+)
+_nd_want=()
+reinstall_picker_apply_indices 3 "1,3" _nd_want exclude
+_nd_mat=()
+reinstall_picker_materialize _nd_rows_pk _nd_want _nd_mat
+if [[ "${#_nd_mat[@]}" -eq 1 && "${_nd_mat[0]}" == *app-npm* ]]; then
+  ok "picker exclude keeps non-listed rows"
+else
+  bad "picker exclude keeps non-listed rows (n=${#_nd_mat[@]} mat=${_nd_mat[*]-})"
+fi
+_nd_want=()
+reinstall_picker_apply_indices 3 "2" _nd_want include
+_nd_mat=()
+reinstall_picker_materialize _nd_rows_pk _nd_want _nd_mat
+if [[ "${#_nd_mat[@]}" -eq 1 && "${_nd_mat[0]}" == *app-npm* ]]; then
+  ok "picker include-only keeps listed rows"
+else
+  bad "picker include-only keeps listed rows (n=${#_nd_mat[@]} mat=${_nd_mat[*]-})"
+fi
+_nd_want=()
+reinstall_picker_apply_pm _nd_rows_pk "pnpm" _nd_want
+_nd_mat=()
+reinstall_picker_materialize _nd_rows_pk _nd_want _nd_mat
+if [[ "${#_nd_mat[@]}" -eq 2 ]]; then
+  ok "picker PM filter selects pnpm only"
+else
+  bad "picker PM filter selects pnpm only (n=${#_nd_mat[@]})"
+fi
+_nd_want=()
+reinstall_picker_apply_grep _nd_rows_pk "Workers" _nd_want
+_nd_mat=()
+reinstall_picker_materialize _nd_rows_pk _nd_want _nd_mat
+if [[ "${#_nd_mat[@]}" -eq 1 && "${_nd_mat[0]}" == *Workers* ]]; then
+  ok "picker grep filter matches path substring"
+else
+  bad "picker grep filter matches path substring (n=${#_nd_mat[@]})"
+fi
+_nd_want=()
+for _nd_i in 0 2; do _nd_want[$_nd_i]=1; done
+_nd_cnt="$(reinstall_picker_counts _nd_rows_pk _nd_want)"
+if [[ "${_nd_cnt}" == $'2\t3\tpnpm 2' ]]; then
+  ok "picker counts selected/total + PM breakdown"
+else
+  bad "picker counts selected/total + PM breakdown (${_nd_cnt})"
+fi
+# Phase 11: soft-quit during reinstall batch stops batch, does not exit 130
+_nd_home4="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-smoke-qhome.XXXXXX")"
+_nd_shim4="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-smoke-qshim.XXXXXX")"
+_nd_fakeq="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-smoke-qfake.XXXXXX")"
+printf '#!/bin/sh\necho boom: ERR_TEST_FAIL >&2\nexit 1\n' >"${_nd_fakeq}"
+chmod +x "${_nd_fakeq}"
+ln -s "${_nd_fakeq}" "${_nd_shim4}/fakepm"
+mkdir -p "${_nd_home4}/app-a"
+printf '%s\n' '{"name":"a"}' >"${_nd_home4}/app-a/package.json"
+# run_one handles RESULT=quit without process exit 130
+_nd_q_probe="$(
+  PATH="${_nd_shim4}:${PATH}" LINUXBKUP_YES=1 \
+    bash -c '
+      source "${LINUXBKUP_ROOT}/lib/backup/reinstall.sh"
+      linuxbkup_without_monitor() {
+        local _rc=0
+        "$@"; _rc=$?
+        LINUXBKUP_INTERRUPT_RESULT=quit
+        LINUXBKUP_WAS_INTERRUPTED=1
+        return "${_rc}"
+      }
+      set +e
+      reinstall_run_one "'"${_nd_home4}"'" "app-a" "fakepm" "fakepm i"
+      echo "RC=$?"
+      echo "QUITFLAG=${REINSTALL_INTERRUPT_QUIT}"
+      echo "REASON=${REINSTALL_LAST_REASON}"
+      exit 0
+    ' 2>&1
+)" || true
+if [[ "${_nd_q_probe}" == *RC=1* \
+  && "${_nd_q_probe}" == *QUITFLAG=1* \
+  && "${_nd_q_probe}" == *REASON=interrupted\ \(quit\)* ]]; then
+  ok "reinstall soft-quit sets QUITFLAG + reason (no process exit)"
+else
+  bad "reinstall soft-quit sets QUITFLAG + reason (out=${_nd_q_probe})"
+fi
+# interrupt_apply soft-quit: RESULT=quit, no exit 130
+_nd_soft_out="$(
+  set +e
+  source "${ROOT}/lib/core/common.sh"
+  source "${ROOT}/lib/core/terminal/style.sh"
+  source "${ROOT}/lib/core/interrupt.sh"
+  LINUXBKUP_INTERRUPT_SOFT_QUIT=1
+  LINUXBKUP_INTERRUPT_ACTION=quit
+  LINUXBKUP_WAS_INTERRUPTED=1
+  linuxbkup_interrupt_apply
+  echo "RESULT=${LINUXBKUP_INTERRUPT_RESULT}"
+  exit 0
+)" || true
+if [[ "${_nd_soft_out}" == *RESULT=quit* ]]; then
+  ok "interrupt_apply soft-quit returns RESULT=quit (batch-safe)"
+else
+  bad "interrupt_apply soft-quit returns RESULT=quit (out=${_nd_soft_out})"
+fi
+# picker v2 mode strings present in select.sh
+if grep -q '\[e\]xclude some' "${ROOT}/lib/backup/reinstall/select.sh" \
+  && grep -q '\[i\]nclude only' "${ROOT}/lib/backup/reinstall/select.sh" \
+  && grep -q '\[p\]M filter' "${ROOT}/lib/backup/reinstall/select.sh" \
+  && grep -q 'reinstall_picker_apply_pm' "${ROOT}/lib/backup/reinstall/select.sh"; then
+  ok "picker v2 modes wired in select.sh"
+else
+  bad "picker v2 modes wired in select.sh"
+fi
+# soft-quit + rerun helpers wired in run*.sh
+if grep -q 'LINUXBKUP_INTERRUPT_SOFT_QUIT' "${ROOT}/lib/backup/reinstall/run_one.sh" \
+  && grep -q 'reinstall_rerun_prompt' "${ROOT}/lib/backup/reinstall/run.sh" \
+  && grep -q 'reinstall_summary_print' "${ROOT}/lib/backup/reinstall/run.sh"; then
+  ok "reinstall batch soft-quit + failure re-run wired"
+else
+  bad "reinstall batch soft-quit + failure re-run wired"
+fi
+rm -rf "${_nd_home4}" "${_nd_shim4}" "${_nd_fakeq}"
 # Workspace member detection + pnpm workspace error classify
 _nd_ws="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-smoke-ws.XXXXXX")"
 mkdir -p "${_nd_ws}/packages/nodehunter" "${_nd_ws}/packages/docs"

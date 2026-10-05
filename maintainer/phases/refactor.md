@@ -127,7 +127,7 @@ Already-good directory examples: `lib/core/terminal/`, `lib/core/platform/`, `li
 ## Slices (parallel Focus-sized; max 3 open at a time)
 
 - [ ] **R-SMOKE.** `tests/smoke.sh` → `_lib.sh` + `01`–`07` suites + thin runner (same CLI path)
-- [ ] **R1. reinstall split** — barrel + `lib/backup/reinstall/*.sh`; call sites still `…/reinstall.sh`
+- [x] **R1. reinstall split** — barrel + `lib/backup/reinstall/*.sh`; call sites still `…/reinstall.sh` (**done** — `{manifest,pm,preflight,select,run_one,run}.sh`)
 - [ ] **R2. backup/home split** — `home/{rank,rsync,copy}.sh`; barrel `lib/backup/home.sh`
 - [ ] **R3. safety split** — confirm/overwrite vs signals/rsync; traps once via `linuxbkup_install_traps`
 - [ ] **R4. secrets split** — mode resolution vs age encrypt/decrypt

@@ -204,6 +204,13 @@ linuxbkup_interrupt_apply() {
 
   case "${action}" in
     quit)
+      # Soft-quit (reinstall batch): stop the batch, print partial summary —
+      # never exit 130 the whole restore process.
+      if [[ "${LINUXBKUP_INTERRUPT_SOFT_QUIT:-0}" -eq 1 ]]; then
+        LINUXBKUP_INTERRUPT_RESULT="quit"
+        log_info "Interrupted — stopping reinstall batch after this project"
+        return 0
+      fi
       declare -F linuxbkup_tty_restore >/dev/null 2>&1 && linuxbkup_tty_restore
       log_fatal "Interrupted — quitting (staging kept if any)"
       if [[ -n "${LINUXBKUP_BACKUP_STAGE:-}" && -d "${LINUXBKUP_BACKUP_STAGE}" ]]; then
@@ -214,6 +221,11 @@ linuxbkup_interrupt_apply() {
       exit 130
       ;;
     quit_clean)
+      if [[ "${LINUXBKUP_INTERRUPT_SOFT_QUIT:-0}" -eq 1 ]]; then
+        LINUXBKUP_INTERRUPT_RESULT="quit"
+        log_info "Interrupted — stopping reinstall batch after this project"
+        return 0
+      fi
       declare -F linuxbkup_tty_restore >/dev/null 2>&1 && linuxbkup_tty_restore
       if [[ -n "${LINUXBKUP_BACKUP_STAGE:-}" && -d "${LINUXBKUP_BACKUP_STAGE}" ]]; then
         if declare -F backup_stage_cleanup >/dev/null 2>&1; then

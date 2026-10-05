@@ -55,7 +55,9 @@ Passphrase via `LINUXBKUP_SECRETS_PASS` / `_PASS_FILE` or TTY prompt. Existing f
 Backup writes `packages/reinstalls.json` for **workspace roots / lockfile dirs** (not every nested `package.json`).  
 Restore **peeks** `packages/reinstalls.tsv` and lists **required PMs with resolved Linux paths** (Windows/interop `/mnt/...` shims are ignored). Missing PMs get install recipes; Enter re-checks. PM/tool lists auto-truncate via listing policy (default **top 10**; `-F/--full`, `-T/--top <n>`).  
 Reinstalls **skip failed projects** (never abort the whole run). Corepack/npm are forced non-interactive (`CI=1`, `COREPACK_ENABLE_DOWNLOAD_PROMPT=0`). PM logs are quiet unless `-v`; failures print the error line + `/tmp` log path. End summary lists OK / Skipped / Failed with reasons.  
-`-a/--ask` on restore: interactive reinstall project pick + overwrite confirms (wins over `-y`). TTY pick supports `a`/`n`/`1-3,5`/`f` (fzf)/`q`. After installing Linux PMs: `linuxbkup -y --reinstall-only restore <archive|staging>`.
+`-a/--ask` on restore: interactive reinstall project pick + overwrite confirms (wins over `-y`).  
+TTY **picker v2**: Enter=all · `e` exclude some · `i` include only · `p` PM filter · `g` grep path · `f` fzf · `n` none · `u` undo · `q` skip step. After fails: `[Enter]` re-run failed only · `[p]` pick again · `[q]` quit.  
+**Signals during reinstall batch:** Ctrl+C → menu `r` retry / `s` skip / `c` continue / `q` quit batch (soft — partial summary, logs kept). Ctrl+Z suspends/resumes (`fg`/`bg`). After installing Linux PMs: `linuxbkup -y --reinstall-only restore <archive|staging>`.
 
 ## Dependencies
 
@@ -81,8 +83,8 @@ Full `$HOME` shallow scan classifies known / secret / skip / unexpected. Unexpec
 
 | Key | Behavior |
 |-----|----------|
-| **Ctrl+C** | Pause → menu: retry / skip / continue / quit (keep staging) / quit+cleanup |
-| **Ctrl+Z** | Suspend the whole job (`fg` / `bg` to resume) |
+| **Ctrl+C** | Pause → menu: retry / skip / continue / quit (keep staging) / quit+cleanup. Mid-reinstall batch: `q` = **soft-quit** (partial summary, no exit 130) |
+| **Ctrl+Z** | Suspend the whole job (`fg` / `bg` to resume) — backup **and** restore/reinstall |
 
 Works across the backup path (copy, checksums, pack, summary, …). Mid-pack Ctrl+C can retry `tar|zstd` without killing the run. `rsync` exit 20 is interrupt, not a soft-skip. Progress paints on stderr; cursor always restored on exit.
 

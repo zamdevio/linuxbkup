@@ -193,7 +193,10 @@ linuxbkup_cmd_help() {
       printf '\n'
       ui_section "Reinstalls"
       ui_item note "-y / non-TTY: reinstall all recorded projects (failures skipped)"
-      ui_item note "TTY pick: Enter=all · numbers/ranges · f=fzf · n=none · q=skip"
+      ui_item note "TTY pick v2: a=all · e=exclude · i=include · p=PM · g=grep · f=fzf · n=none · u=undo · q=skip"
+      ui_item note "Ctrl+C mid-install: menu r=retry · s=skip · c=continue · q=quit batch (soft)"
+      ui_item note "Ctrl+Z: suspend/resume (fg/bg) — same as backup"
+      ui_item note "After fails: [Enter] re-run failed only · [p] pick again · [q] quit"
       ui_item note "--ask (-a): interactive project pick + overwrite confirms (wins over -y)"
       ui_item note "--reinstall-only: manifest + installs only (after PMs installed)"
       ui_item note "Before extract: peeks reinstalls.tsv; lists PMs with resolved Linux paths"

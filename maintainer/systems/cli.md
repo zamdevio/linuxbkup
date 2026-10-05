@@ -21,9 +21,9 @@ Surface: root **`linuxbkup`** bin. Env: `LINUXBKUP_*`.
 | `verify` | Live for archive **or** staging |
 | `deps` | Live |
 | `list` | Thin / early |
-| `restore` | Live (extract → secrets → files → Node reinstalls; peek PM preflight) |
+| `restore` | Live (extract → secrets → files → Node reinstalls; peek PM preflight; picker v2 + soft-quit batch) |
 
-Restore interrupt parity (Ctrl+C/Z mid-reinstall menu) + picker v2 (exclude / PM / grep / fzf for 100+ projects) planned in [`../phases/11-restore-ux.md`](../phases/11-restore-ux.md).
+**Restore reinstall batch (phase 11):** Ctrl+C menu inside each install (`r` retry / `s` skip / `c` continue / `q` quit batch). `q` is **soft-quit** (`LINUXBKUP_INTERRUPT_SOFT_QUIT=1`) — partial summary printed, logs kept, process does **not** `exit 130`. Ctrl+Z suspends/resumes like backup. Picker v2 (`lib/backup/reinstall/select.sh`): `e` exclude / `i` include-only / `p` PM filter / `g` grep / `f` fzf / `n` none / `u` undo / Enter=all. Failure-first re-run: `[Enter]` failed-only · `[p]` pick again · `[q]` quit.
 
 ## Global flags (today)
 

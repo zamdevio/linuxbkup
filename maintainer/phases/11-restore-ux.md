@@ -2,7 +2,7 @@
 
 **Goal:** Make `restore` (esp. the **reinstall slice**) as interruption-safe and pick-friendly as `backup`, and give users with **tens of Node projects** a picker they can actually use.
 
-**Status:** planned — docs only. Push into a Focus slot when product work starts.
+**Status:** **landed** (product + smoke + docs). Layout: `lib/backup/reinstall.sh` barrel → `lib/backup/reinstall/*.sh` (R1). Soak on a real 100+ project restore still recommended.
 
 ## Why now
 
