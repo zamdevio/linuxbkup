@@ -175,18 +175,23 @@ linuxbkup_cmd_help() {
       ;;
     restore)
       ui_heading "linuxbkup restore"
-      ui_item note "Reconstruct environment from a backup (later phase)."
+      ui_item note "Extract backup + decrypt secrets.tar.age (home file restore later)."
       printf '\n'
       ui_section "Usage"
-      ui_item note "linuxbkup [globals] restore <backup>"
+      ui_item note "linuxbkup [globals] restore <archive.tar.zst>"
+      ui_item note "linuxbkup [globals] restore <staging-dir>"
+      printf '\n'
+      ui_section "Secrets"
+      ui_item note "Passphrase: LINUXBKUP_SECRETS_PASS or LINUXBKUP_SECRETS_PASS_FILE (or TTY prompt)"
       printf '\n'
       ui_section "Requires"
-      ui_item note "tar, zstd, rsync, sha256sum  (optional: age)"
+      ui_item note "tar, zstd, rsync, sha256sum  (optional: age, openssl for secrets)"
       printf '\n'
       ui_section "Useful globals"
       ui_kv "-n, --dry-run" "Show plan only"
-      ui_kv "-f, --force-overwrite" "Replace conflicting files"
-      ui_kv "-y, --yes" "Safe defaults (not overwrite)"
+      ui_kv "-k, --keep-stage" "Keep extract directory after restore"
+      ui_kv "-f, --force-overwrite" "Replace existing secrets/ dest"
+      ui_kv "-y, --yes" "Safe defaults (not overwrite); pass must come from env"
       ;;
     verify)
       ui_heading "linuxbkup verify"

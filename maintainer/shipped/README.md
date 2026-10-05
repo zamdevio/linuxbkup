@@ -38,6 +38,7 @@ What has actually landed (not aspirational). Binary: **`linuxbkup`**. Env: **`LI
 | UX | Phase 09.4–09.5: preflight banner (profile/gitignore/max-size/secrets) + `ui_step` backup pipeline labels |
 | UX | Regenerables: asdf/nvm/fnm/sdkman/rbenv install trees stripped (with mise/site-packages/.tmp) |
 | UX | Phase 08.10: structured step events (`events.sh`) + `metadata/events.jsonl` in stage/archive |
+| Phase 04.5 | `restore` decrypts `secrets.tar.age` (passphrase env/TTY); home file restore still open |
 
 ## Not shipped yet (redesign track)
 

@@ -26,7 +26,7 @@ Regenerable basenames (`node_modules`, `target`, `.venv`, …) default skip.
 - [x] **04.2** `--reclaim` / `--reclaim-all` + ask screen (also under `--ask`)
 - [x] **04.3** Secret set assembly + `--mark-secret`
 - [x] **04.4** `age` encrypt into `secrets.tar.age`; wipe plaintext; `metadata/secrets.env`
-- [ ] **04.5** Restore decrypt path (stub until restore Focus)
+- [x] **04.5** Restore decrypt path (`backup_secrets_decrypt_stage` + `restore` wiring)
 - [x] **04.6** Smoke: reclaim candidates + age encrypt (expect + `LINUXBKUP_SECRETS_PASS`)
 
 **Encrypt layout:** ephemeral `age-keygen` recipient → `secrets.tar.age`; identity wrapped with `openssl enc -aes-256-cbc -pbkdf2` → `secrets.agekey.enc`. Passphrase via `LINUXBKUP_SECRETS_PASS` / `LINUXBKUP_SECRETS_PASS_FILE` or TTY prompt. `--yes` never leaves secrets plaintext unless `--secrets-plain` / `--no-secrets`.

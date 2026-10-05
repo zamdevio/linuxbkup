@@ -24,9 +24,10 @@ Long steps (`classify`, `copy`, `secrets`, `index`, `checksum`, `pack`, `summary
 
 ## Stub / missing
 
-- `restore` — stub (op state only; no real extract yet)
-- Restore decrypt for `secrets.tar.age` (phase 04.5)
+- `restore` — extract + secrets decrypt live; **home/config file restore** not wired yet
 - Multi-PM capture beyond APT (after 08.8 snapshot UI)
+
+Decrypt: `backup_secrets_decrypt_stage` in `lib/backup/secrets_crypt.sh` (openssl unwrap age identity → `age -d` → tar).
 
 ## Redesign target
 

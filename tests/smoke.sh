@@ -360,7 +360,9 @@ if command -v age >/dev/null 2>&1 && command -v age-keygen >/dev/null 2>&1 && co
   LINUXBKUP_NO_SECRETS=0
   LINUXBKUP_SECRETS_PLAIN=0
   LINUXBKUP_DRY_RUN=0
-  export LINUXBKUP_SECRETS_PASS="smoke-pass-$$"
+  LINUXBKUP_SECRETS_MODE=encrypt
+  _sec_pass="smoke-pass-$$"
+  export LINUXBKUP_SECRETS_PASS="${_sec_pass}"
   if backup_secrets_encrypt_stage "${sec_stage}" \
     && [[ -f "${sec_stage}/secrets.tar.age" ]] \
     && [[ -f "${sec_stage}/secrets.agekey.enc" ]] \
@@ -369,7 +371,18 @@ if command -v age >/dev/null 2>&1 && command -v age-keygen >/dev/null 2>&1 && co
   else
     bad "age encrypts secrets and wipes plaintext"
   fi
-  unset LINUXBKUP_SECRETS_PASS
+  # 04.5 decrypt round-trip (same passphrase)
+  LINUXBKUP_SECRETS_PASS="${_sec_pass}"
+  export LINUXBKUP_SECRETS_PASS
+  LINUXBKUP_FORCE_OVERWRITE=1
+  if backup_secrets_decrypt_stage "${sec_stage}" \
+    && [[ -f "${sec_stage}/secrets/.ssh/id_test" ]] \
+    && grep -q 'secret' "${sec_stage}/secrets/.ssh/id_test"; then
+    ok "age decrypt restores secrets tree (04.5)"
+  else
+    bad "age decrypt restores secrets tree (04.5)"
+  fi
+  unset LINUXBKUP_FORCE_OVERWRITE LINUXBKUP_SECRETS_PASS LINUXBKUP_SECRETS_MODE
   rm -rf "${sec_stage}"
 else
   bad "age encrypts secrets and wipes plaintext (need age+age-keygen+openssl)"

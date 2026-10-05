@@ -170,3 +170,137 @@ backup_secrets_encrypt_stage() {
   declare -F term_progress_end >/dev/null 2>&1 && term_progress_end
   log_ok "secrets encrypted → secrets.tar.age"
 }
+
+# Resolve passphrase for decrypt (env/file/TTY). Prints nothing; sets LINUXBKUP_SECRETS_PASS.
+# Returns 1 if unavailable.
+_backup_secrets_pass_for_decrypt() {
+  if [[ -n "${LINUXBKUP_SECRETS_PASS_FILE:-}" && -r "${LINUXBKUP_SECRETS_PASS_FILE}" ]]; then
+    LINUXBKUP_SECRETS_PASS="$(<"${LINUXBKUP_SECRETS_PASS_FILE}")"
+    export LINUXBKUP_SECRETS_PASS
+  fi
+  if [[ -n "${LINUXBKUP_SECRETS_PASS:-}" ]]; then
+    return 0
+  fi
+  if [[ "${LINUXBKUP_YES:-0}" -eq 1 ]]; then
+    log_fatal "decrypt needs LINUXBKUP_SECRETS_PASS or LINUXBKUP_SECRETS_PASS_FILE"
+    return 1
+  fi
+  if [[ ! -t 0 && ! -c /dev/tty ]]; then
+    log_fatal "non-TTY decrypt needs LINUXBKUP_SECRETS_PASS(_FILE)"
+    return 1
+  fi
+  local p
+  if [[ -c /dev/tty ]]; then
+    read -r -s -p "Secrets passphrase (decrypt): " p </dev/tty
+    printf '\n' >/dev/tty
+  else
+    read -r -s -p "Secrets passphrase (decrypt): " p
+    printf '\n'
+  fi
+  if [[ -z "${p}" ]]; then
+    log_fatal "empty passphrase"
+    return 1
+  fi
+  LINUXBKUP_SECRETS_PASS="${p}"
+  export LINUXBKUP_SECRETS_PASS
+  return 0
+}
+
+# Decrypt secrets.tar.age from a stage/extract root into dest_dir (creates secrets/).
+# Args: root [dest_dir] — dest defaults to root/secrets
+# No-op (return 0) when plaintext secrets/ already present or nothing encrypted.
+# Returns 0 ok, 1 hard fail, 2 skipped (no encrypted blob / excluded).
+backup_secrets_decrypt_stage() {
+  local root="$1"
+  local dest="${2:-${root}/secrets}"
+  local envf="${root}/metadata/secrets.env"
+  local blob="${root}/secrets.tar.age"
+  local keyenc="${root}/secrets.agekey.enc"
+  local key err encrypted=""
+
+  if [[ -d "${root}/secrets" ]] && [[ -n "$(find "${root}/secrets" -type f -print -quit 2>/dev/null || true)" ]]; then
+    log_info "secrets/ already plaintext under root — skip decrypt"
+    return 2
+  fi
+  if [[ ! -f "${blob}" || ! -f "${keyenc}" ]]; then
+    log_verbose "no secrets.tar.age — nothing to decrypt"
+    return 2
+  fi
+
+  if [[ -f "${envf}" ]]; then
+    encrypted="$(awk -F= '/^encrypted=/{print $2; exit}' "${envf}" | tr -d '\r')"
+  fi
+  if [[ "${encrypted}" == "false" ]]; then
+    log_warn "secrets.env says encrypted=false but blob present — attempting decrypt anyway"
+  fi
+
+  if [[ "${LINUXBKUP_DRY_RUN:-0}" -eq 1 ]]; then
+    log_info "dry-run — would decrypt ${blob} → ${dest}/"
+    return 0
+  fi
+
+  if ! linuxbkup_require_cmd age openssl tar; then
+    log_fatal "age, openssl, tar required to decrypt secrets"
+    return 1
+  fi
+  if ! _backup_secrets_pass_for_decrypt; then
+    return 1
+  fi
+
+  if [[ -e "${dest}" && "${LINUXBKUP_FORCE_OVERWRITE:-0}" -ne 1 ]]; then
+    log_fatal "refusing to write ${dest} — pass --force-overwrite if intentional"
+    return 1
+  fi
+
+  key="${TMPDIR:-/tmp}/linuxbkup-agekey-dec.$$.$RANDOM"
+  err="${TMPDIR:-/tmp}/linuxbkup-agedec-err.$$.$RANDOM"
+  rm -f "${key}" "${err}"
+
+  if declare -F term_progress_status >/dev/null 2>&1; then
+    term_progress_status "Decrypting secrets with age…"
+  else
+    log_info "Decrypting secrets with age…"
+  fi
+
+  if ! openssl enc -d -aes-256-cbc -pbkdf2 \
+    -pass "pass:${LINUXBKUP_SECRETS_PASS}" \
+    -in "${keyenc}" -out "${key}" 2>"${err}"; then
+    declare -F term_progress_end >/dev/null 2>&1 && term_progress_end
+    log_fatal "openssl unwrap of age identity failed (wrong passphrase?)"
+    [[ -s "${err}" ]] && log_verbose "$(head -n 3 "${err}")"
+    rm -f "${key}" "${err}"
+    unset LINUXBKUP_SECRETS_PASS
+    return 1
+  fi
+  rm -f "${err}"
+
+  rm -rf "${dest}"
+  mkdir -p "${dest}"
+  # blob is age(tar of secrets/); extract so dest gets .ssh/… (strip secrets/ prefix)
+  if ! age -d -i "${key}" -o - "${blob}" 2>/dev/null \
+    | tar -C "${dest}" --strip-components=1 -xf - 2>/dev/null; then
+    # Fallback: extract with secrets/ prefix then move
+    rm -rf "${dest}"
+    mkdir -p "${dest}.__unwrap"
+    if age -d -i "${key}" -o - "${blob}" | tar -C "${dest}.__unwrap" -xf -; then
+      if [[ -d "${dest}.__unwrap/secrets" ]]; then
+        mv "${dest}.__unwrap/secrets" "${dest}"
+        rm -rf "${dest}.__unwrap"
+      else
+        mv "${dest}.__unwrap" "${dest}"
+      fi
+    else
+      declare -F term_progress_end >/dev/null 2>&1 && term_progress_end
+      rm -f "${key}"
+      rm -rf "${dest}" "${dest}.__unwrap"
+      unset LINUXBKUP_SECRETS_PASS
+      log_fatal "age decrypt / tar extract of secrets failed"
+      return 1
+    fi
+  fi
+  rm -f "${key}"
+  unset LINUXBKUP_SECRETS_PASS
+  declare -F term_progress_end >/dev/null 2>&1 && term_progress_end
+  log_ok "secrets decrypted → ${dest}"
+  return 0
+}
