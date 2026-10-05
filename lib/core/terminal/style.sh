@@ -10,6 +10,8 @@ source "${LINUXBKUP_ROOT}/lib/core/terminal/control.sh"
 source "${LINUXBKUP_ROOT}/lib/core/terminal/progress.sh"
 # shellcheck source=lib/core/terminal/notify.sh
 source "${LINUXBKUP_ROOT}/lib/core/terminal/notify.sh"
+# shellcheck source=lib/core/terminal/events.sh
+source "${LINUXBKUP_ROOT}/lib/core/terminal/events.sh"
 
 _ui_init() {
   LINUXBKUP_COLOR=0

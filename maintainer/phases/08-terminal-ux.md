@@ -70,7 +70,7 @@ Default-skip regenerable `~/go`; `/tmp` is **not** in default inspect size targe
 - [x] **08.7** Skip `~/go` by default; drop `/tmp` from default size scan
 - [x] **08.8** Shared environment snapshot helper (`lib/env/snapshot.sh`)
 - [x] **08.9** `backup` prints inspect-class capability sections before staging; note capture coverage
-- [ ] **08.10** Structured log events for major backup steps (detect → decide → stage → checksum → pack)
+- [x] **08.10** Structured log events (`lib/core/terminal/events.sh`) → verbose + `metadata/events.jsonl`
 
 ## Acceptance
 

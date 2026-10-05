@@ -32,7 +32,7 @@ Clean `linuxbkup` / `LINUXBKUP_*` identity (phase 00).
 | 05 | [Space + schema](./05-space-schema.md) | **in progress** (space gate; schema later) |
 | 06 | [Docs content](./06-docs-content.md) | planned |
 | 07 | [VitePress → pages.dev](./07-vitepress.md) | planned |
-| 08 | [Terminal UX](./08-terminal-ux.md) | **done** (08.8–08.9 snapshot; 08.10 queued) |
+| 08 | [Terminal UX](./08-terminal-ux.md) | **done** (through 08.10 events.jsonl) |
 | 09 | [UX fail-fast](./09-ux-failfast.md) | **in progress** (09.1–09.3/09.6 done; banner later) |
 | 10 | [PM/tools research](./10-pm-tools-research.md) | **OPEN standing** — living keep/strip/manifest guide (do not fold) |
 

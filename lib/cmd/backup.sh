@@ -81,8 +81,9 @@ linuxbkup_cmd_backup() {
   log_verbose "backup target user=${user} home=${home}"
   log_debug "dest=${dest} dry_run=${LINUXBKUP_DRY_RUN:-0} yes=${LINUXBKUP_YES:-0}"
 
-  # Backup pipeline: 7 labeled steps (09.5 / aligns with 08.10 vocabulary).
+  # Backup pipeline: 7 labeled steps + structured events (09.5 / 08.10).
   local _bk_steps=7
+  local _ev_tmp=""
 
   ui_heading "Backup"
   ui_kv_path "Home" "${home}"
@@ -90,11 +91,16 @@ linuxbkup_cmd_backup() {
   [[ "${LINUXBKUP_DRY_RUN:-0}" -eq 1 ]] && ui_kv "Mode" "dry-run"
   printf '\n'
 
+  _ev_tmp="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-events.XXXXXX")"
+  linuxbkup_events_begin "${_ev_tmp}"
+
   # 09.1 + 09.4 — fail-fast + one-glance policy before heavy work
-  ui_step 1 "${_bk_steps}" "preflight — secrets, policy, disk"
+  ui_step_event 1 "${_bk_steps}" "preflight" "preflight — secrets, policy, disk"
   ui_section "Preflight"
   backup_preflight_banner
   if ! backup_secrets_preflight "${home}"; then
+    linuxbkup_event fail preflight "reason=secrets"
+    rm -f "${_ev_tmp}"
     return 1
   fi
   local stage_parent
@@ -106,13 +112,16 @@ linuxbkup_cmd_backup() {
   # Early floor check (full estimate runs again inside copy with real sizes)
   if [[ "${LINUXBKUP_DRY_RUN:-0}" -ne 1 ]]; then
     if ! backup_space_preflight "${dest}" "${stage_parent}" 0; then
+      linuxbkup_event fail preflight "reason=space"
+      rm -f "${_ev_tmp}"
       return 1
     fi
   fi
+  linuxbkup_event ok preflight
   printf '\n'
 
   # 08.8 — detect (shared snapshot) after preflight clears
-  ui_step 2 "${_bk_steps}" "detect — environment snapshot"
+  ui_step_event 2 "${_bk_steps}" "detect" "detect — environment snapshot"
   while true; do
     linuxbkup_op_begin "snapshot" "" 0 1
     env_print_snapshot backup
@@ -121,20 +130,30 @@ linuxbkup_cmd_backup() {
       case "${snap_action}" in
         retry) linuxbkup_op_end; continue ;;
         continue|skip) break ;;
-        *) linuxbkup_op_end; return 1 ;;
+        *)
+          linuxbkup_op_end
+          linuxbkup_event fail detect "reason=interrupt"
+          rm -f "${_ev_tmp}"
+          return 1
+          ;;
       esac
     fi
     break
   done
   linuxbkup_op_end
+  linuxbkup_event ok detect
 
   if [[ "${LINUXBKUP_DRY_RUN:-0}" -ne 1 ]]; then
     if ! safety_confirm "Proceed with backup?" "y"; then
       log_skip "backup cancelled"
+      linuxbkup_event skip backup "reason=cancelled"
+      rm -f "${_ev_tmp}"
       return 1
     fi
     if ! mkdir -p "${dest_dir}"; then
       log_fatal "cannot create ${dest_dir} — check permissions or pass --output <path>"
+      linuxbkup_event fail backup "reason=dest_dir"
+      rm -f "${_ev_tmp}"
       return 1
     fi
     log_ok "destination dir ready"
@@ -144,6 +163,7 @@ linuxbkup_cmd_backup() {
   if [[ "${LINUXBKUP_DRY_RUN:-0}" -eq 1 ]]; then
     stage="/tmp/linuxbkup.dry-run.placeholder"
     log_info "dry-run — staging skipped (no files written)"
+    linuxbkup_event ok dry_run
     backup_write_metadata "${stage}" "${user}" "${home}" || true
     apt_capture_manifests "${stage}" || true
     backup_copy_home "${home}" "${stage}" || true
@@ -152,6 +172,8 @@ linuxbkup_cmd_backup() {
     classify_print_backup_summary "${home}"
     printf '\n'
     log_ok "backup complete (dry-run)"
+    rm -f "${_ev_tmp}"
+    linuxbkup_events_end
     return 0
   fi
 
@@ -160,6 +182,17 @@ linuxbkup_cmd_backup() {
   LINUXBKUP_BACKUP_OK=0
   log_ok "staging: ${stage}"
   log_debug "staging created at ${stage}"
+
+  # Persist events into the stage (lands in the archive via pack).
+  mkdir -p "${stage}/metadata"
+  if [[ -n "${_ev_tmp}" && -f "${_ev_tmp}" ]]; then
+    cat "${_ev_tmp}" >"${stage}/metadata/events.jsonl"
+    rm -f "${_ev_tmp}"
+    _ev_tmp=""
+  else
+    : >"${stage}/metadata/events.jsonl"
+  fi
+  LINUXBKUP_EVENTS_FILE="${stage}/metadata/events.jsonl"
 
   _linuxbkup_backup_on_exit() {
     local rc=$?
@@ -182,7 +215,7 @@ linuxbkup_cmd_backup() {
   backup_write_metadata "${stage}" "${user}" "${home}"
   backup_write_schema "${stage}" "${user}" "${home}"
 
-  ui_step 3 "${_bk_steps}" "capture — package manifests"
+  ui_step_event 3 "${_bk_steps}" "capture" "capture — package manifests"
   linuxbkup_op_begin "apt-capture" "" 0 1
   apt_capture_manifests "${stage}"
   if linuxbkup_interrupt_resolve; then
@@ -193,21 +226,29 @@ linuxbkup_cmd_backup() {
         apt_capture_manifests "${stage}"
         ;;
       continue|skip) ;;
-      *) linuxbkup_op_end; return 1 ;;
+      *)
+        linuxbkup_op_end
+        linuxbkup_event fail capture "reason=interrupt"
+        return 1
+        ;;
     esac
   fi
   linuxbkup_op_end
+  linuxbkup_event ok capture
 
-  ui_step 4 "${_bk_steps}" "stage — classify + copy"
+  ui_step_event 4 "${_bk_steps}" "stage" "stage — classify + copy"
   if ! backup_copy_home "${home}" "${stage}"; then
+    linuxbkup_event fail stage "reason=copy"
     log_fatal "home/config copy aborted"
     return 1
   fi
+  linuxbkup_event ok stage
 
-  ui_step 5 "${_bk_steps}" "seal — secrets, INDEX, checksums"
+  ui_step_event 5 "${_bk_steps}" "seal" "seal — secrets, INDEX, checksums"
   linuxbkup_op_begin "secrets" "" 0 1
   if ! backup_secrets_encrypt_stage "${stage}"; then
     linuxbkup_op_end
+    linuxbkup_event fail seal "reason=secrets"
     log_fatal "secrets encrypt step failed"
     return 1
   fi
@@ -218,7 +259,11 @@ linuxbkup_cmd_backup() {
         backup_secrets_encrypt_stage "${stage}" || true
         ;;
       continue|skip) ;;
-      *) linuxbkup_op_end; return 1 ;;
+      *)
+        linuxbkup_op_end
+        linuxbkup_event fail seal "reason=interrupt"
+        return 1
+        ;;
     esac
   fi
   linuxbkup_op_end
@@ -231,6 +276,7 @@ linuxbkup_cmd_backup() {
   linuxbkup_op_begin "index" "" 0 1
   if ! backup_write_index "${stage}"; then
     linuxbkup_op_end
+    linuxbkup_event fail seal "reason=index"
     log_fatal "INDEX step failed"
     return 1
   fi
@@ -241,25 +287,34 @@ linuxbkup_cmd_backup() {
         backup_write_index "${stage}" || true
         ;;
       continue|skip) ;;
-      *) linuxbkup_op_end; return 1 ;;
+      *)
+        linuxbkup_op_end
+        linuxbkup_event fail seal "reason=interrupt"
+        return 1
+        ;;
     esac
   fi
   linuxbkup_op_end
 
   if ! archive_write_checksums "${stage}"; then
+    linuxbkup_event fail seal "reason=checksum"
     log_fatal "checksum step failed"
     return 1
   fi
+  linuxbkup_event ok seal
 
-  ui_step 6 "${_bk_steps}" "pack — tar.zst archive"
+  ui_step_event 6 "${_bk_steps}" "pack" "pack — tar.zst archive"
   if [[ -z "${dest}" ]]; then
+    linuxbkup_event fail pack "reason=empty_dest"
     log_fatal "archive destination is empty — pass -o/--output (refusing to pack)"
     return 1
   fi
   if ! archive_pack_tar_zst "${stage}" "${dest}"; then
+    linuxbkup_event fail pack "reason=tar_zstd"
     log_fatal "archive pack failed"
     return 1
   fi
+  linuxbkup_event ok pack "dest=${dest}"
 
   LINUXBKUP_BACKUP_OK=1
   if [[ "${LINUXBKUP_KEEP_STAGE:-0}" -eq 1 ]]; then
@@ -273,11 +328,13 @@ linuxbkup_cmd_backup() {
   # so Ctrl+C during the summary still gets the menu (not raw SIGINT death).
   trap 'linuxbkup_tty_restore' EXIT
 
-  ui_step 7 "${_bk_steps}" "summary"
+  ui_step_event 7 "${_bk_steps}" "summary" "summary"
   printf '\n'
   linuxbkup_op_begin "summary" "" 0 1
   classify_print_backup_summary "${home}"
   linuxbkup_op_end
+  linuxbkup_event ok summary
+  linuxbkup_events_end
   printf '\n'
   log_ok "backup complete"
   ui_kv_path "Archive" "${dest}"

@@ -56,6 +56,13 @@ archive_verify_schema() {
   else
     log_warn "no metadata/decisions.tsv"
   fi
+  if [[ -f "${root}/metadata/events.jsonl" ]]; then
+    local en
+    en="$(wc -l <"${root}/metadata/events.jsonl" | tr -d ' ')"
+    log_ok "events.jsonl present (${en} lines)"
+  else
+    log_warn "no metadata/events.jsonl (older archive or incomplete stage)"
+  fi
   return 0
 }
 

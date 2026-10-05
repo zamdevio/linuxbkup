@@ -37,6 +37,7 @@ What has actually landed (not aspirational). Binary: **`linuxbkup`**. Env: **`LI
 | UX | Interrupt harden: `without_monitor` for rsync/pack so tty ^C hits the menu; disarm/arm resume; whole-backup step coverage; SIGINT smoke proof |
 | UX | Phase 09.4–09.5: preflight banner (profile/gitignore/max-size/secrets) + `ui_step` backup pipeline labels |
 | UX | Regenerables: asdf/nvm/fnm/sdkman/rbenv install trees stripped (with mise/site-packages/.tmp) |
+| UX | Phase 08.10: structured step events (`events.sh`) + `metadata/events.jsonl` in stage/archive |
 
 ## Not shipped yet (redesign track)
 

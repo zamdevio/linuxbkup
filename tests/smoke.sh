@@ -465,6 +465,26 @@ if [[ "${snap_out}" == *"Preflight"* \
 else
   bad "backup preflight banner + ui_step labels (09.4–09.5)"
 fi
+# 08.10 structured events → jsonl
+# shellcheck source=/dev/null
+source "${ROOT}/lib/core/terminal/events.sh"
+_evf="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-smoke-ev.XXXXXX")"
+linuxbkup_events_begin "${_evf}"
+linuxbkup_event start preflight "n=1" "total=7"
+linuxbkup_event ok preflight
+linuxbkup_events_end
+if [[ -f "${_evf}" ]] \
+  && grep -q '"event":"step"' "${_evf}" \
+  && grep -q '"phase":"start"' "${_evf}" \
+  && grep -q '"step":"preflight"' "${_evf}" \
+  && grep -q '"phase":"ok"' "${_evf}" \
+  && grep -q 'ui_step_event' "${ROOT}/lib/cmd/backup.sh" \
+  && grep -q 'events.jsonl' "${ROOT}/lib/cmd/backup.sh"; then
+  ok "structured step events write jsonl (08.10)"
+else
+  bad "structured step events write jsonl (08.10)"
+fi
+rm -f "${_evf}"
 # shellcheck source=/dev/null
 source "${ROOT}/lib/core/terminal/style.sh"
 if declare -F ui_step >/dev/null && declare -F backup_preflight_banner >/dev/null 2>&1; then
