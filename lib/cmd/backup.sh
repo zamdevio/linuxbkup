@@ -30,6 +30,8 @@ linuxbkup_cmd_backup() {
   source "${LINUXBKUP_ROOT}/lib/backup/schema.sh"
   # shellcheck source=modules/apt.sh
   source "${LINUXBKUP_ROOT}/modules/apt.sh"
+  # shellcheck source=modules/node.sh
+  source "${LINUXBKUP_ROOT}/modules/node.sh"
   # shellcheck source=lib/archive/checksums.sh
   source "${LINUXBKUP_ROOT}/lib/archive/checksums.sh"
   # shellcheck source=lib/archive/pack.sh
@@ -167,6 +169,7 @@ linuxbkup_cmd_backup() {
     backup_write_metadata "${stage}" "${user}" "${home}" || true
     apt_capture_manifests "${stage}" || true
     backup_copy_home "${home}" "${stage}" || true
+    node_capture_manifests "${stage}" || true
     backup_secrets_encrypt_stage "${stage}" || true
     printf '\n'
     classify_print_backup_summary "${home}"
@@ -242,6 +245,8 @@ linuxbkup_cmd_backup() {
     log_fatal "home/config copy aborted"
     return 1
   fi
+  # Node projects after home is staged (package.json under stage/home)
+  node_capture_manifests "${stage}" || true
   linuxbkup_event ok stage
 
   ui_step_event 5 "${_bk_steps}" "seal" "seal — secrets, INDEX, checksums"

@@ -43,9 +43,14 @@ Ends with a short summary and a tip to run `linuxbkup plan` for the full table. 
 linuxbkup -k -f restore ~/Backups/linuxbkup/host.tar.zst
 # /etc + same user home under sudo (not /root):
 sudo -E ./linuxbkup -k -f restore ~/Backups/linuxbkup/host.tar.zst
+# files only — skip node_modules regeneration:
+linuxbkup -k -f --skip-reinstall restore ~/Backups/linuxbkup/host.tar.zst
+# non-interactive: overwrite + reinstall all recorded Node projects:
+linuxbkup -y -f restore ~/Backups/linuxbkup/host.tar.zst
 ```
 
-Passphrase via `LINUXBKUP_SECRETS_PASS` / `_PASS_FILE` or TTY prompt. Existing files need `-f`.
+Passphrase via `LINUXBKUP_SECRETS_PASS` / `_PASS_FILE` or TTY prompt. Existing files need `-f`.  
+Backup writes `packages/reinstalls.json` for projects whose `node_modules` were stripped; restore replays the source PM (`npm`/`pnpm`/`yarn`/`bun`).
 
 ## Dependencies
 

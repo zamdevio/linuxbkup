@@ -71,6 +71,7 @@ cmd_context_begin() {
   [[ "${LINUXBKUP_YES:-0}" -eq 1 ]] && ui_kv "Yes" "enabled (safe defaults only)"
   ui_kv "Profile" "${LINUXBKUP_PROFILE:-balanced}"
   [[ "${LINUXBKUP_KEEP_STAGE:-0}" -eq 1 ]] && ui_kv "Keep stage" "yes"
+  [[ "${LINUXBKUP_SKIP_REINSTALL:-0}" -eq 1 ]] && ui_kv "Reinstalls" "skip"
   [[ -n "${LINUXBKUP_STAGE_DIR:-}" ]] && ui_kv_path "Stage dir" "${LINUXBKUP_STAGE_DIR}"
   [[ "${LINUXBKUP_RECLAIM_ALL:-0}" -eq 1 ]] && ui_kv "Reclaim" "all regenerables"
   [[ "${LINUXBKUP_RECLAIM:-0}" -eq 1 && "${LINUXBKUP_RECLAIM_ALL:-0}" -ne 1 ]] && ui_kv "Reclaim" "interactive"

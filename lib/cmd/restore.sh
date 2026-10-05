@@ -21,16 +21,18 @@ linuxbkup_cmd_restore() {
   source "${LINUXBKUP_ROOT}/lib/backup/secrets_crypt.sh"
   # shellcheck source=lib/backup/restore_files.sh
   source "${LINUXBKUP_ROOT}/lib/backup/restore_files.sh"
+  # shellcheck source=lib/backup/reinstall.sh
+  source "${LINUXBKUP_ROOT}/lib/backup/reinstall.sh"
 
   cmd_context_begin restore \
-    --desc "Reconstruct environment from a backup (extract → secrets → home/config)." \
+    --desc "Reconstruct environment from a backup (extract → secrets → files → reinstalls)." \
     --required tar zstd rsync sha256sum \
     --optional age openssl
 
   local kind="archive" root="" tmp="" extract_rc=0 dec_rc=0 files_rc=0
   local dest_home="${LINUXBKUP_HOME:-${HOME:-}}"
   local dest_user=""
-  local steps=4
+  local steps=5
   # shellcheck source=lib/env/users.sh
   source "${LINUXBKUP_ROOT}/lib/env/users.sh"
   dest_user="$(env_resolve_user)"
@@ -55,6 +57,7 @@ linuxbkup_cmd_restore() {
   ui_kv_path "Backup" "${backup}"
   ui_kv_path "Target home" "${dest_home}"
   ui_kv "Target user" "${dest_user}"
+  [[ "${LINUXBKUP_SKIP_REINSTALL:-0}" -eq 1 ]] && ui_kv "Reinstalls" "skipped (--skip-reinstall)"
   if env_sudo_user_remap; then
     log_info "sudo detected — home/secrets → ${dest_user} (${dest_home}); /etc when writable"
   fi
@@ -66,16 +69,17 @@ linuxbkup_cmd_restore() {
     linuxbkup_event skip extract "reason=staging"
   else
     if [[ "${LINUXBKUP_DRY_RUN:-0}" -eq 1 ]]; then
-      log_info "dry-run — would extract, decrypt secrets, and rsync home/config"
+      log_info "dry-run — would extract, decrypt, rsync home/config, run reinstalls"
       ui_step_event 1 "${steps}" "extract" "extract — unpack archive"
       linuxbkup_event skip extract "reason=dry-run"
       ui_step_event 2 "${steps}" "secrets" "secrets — decrypt if encrypted"
       linuxbkup_event skip secrets "reason=dry-run"
       ui_step_event 3 "${steps}" "files" "files — home / secrets / config"
-      # Best-effort: peek archive listing is expensive; just report intent
       ui_kv "files" "would rsync home+secrets → ${dest_home}/ and config → /etc"
       linuxbkup_event skip files "reason=dry-run"
-      ui_step_event 4 "${steps}" "report" "report — restore status"
+      ui_step_event 4 "${steps}" "reinstall" "reinstall — node_modules from manifest"
+      linuxbkup_event skip reinstall "reason=dry-run"
+      ui_step_event 5 "${steps}" "report" "report — restore status"
       linuxbkup_event ok report
       linuxbkup_events_end
       linuxbkup_op_end
@@ -97,7 +101,6 @@ linuxbkup_cmd_restore() {
     ui_step_event 1 "${steps}" "extract" "extract — unpack archive"
     linuxbkup_op_begin "restore-extract" "${backup}" 0 1
     set +e
-    # --warning=no-timestamp: ignore absurd mtimes in staged trees (noise on extract)
     linuxbkup_without_monitor bash -c \
       "zstd -dcq \"${backup}\" | tar --warning=no-timestamp -C \"${tmp}\" -xf -"
     extract_rc=$?
@@ -165,7 +168,15 @@ linuxbkup_cmd_restore() {
   linuxbkup_event ok files
   linuxbkup_op_end
 
-  ui_step_event 4 "${steps}" "report" "report — restore status"
+  ui_step_event 4 "${steps}" "reinstall" "reinstall — node_modules from manifest"
+  linuxbkup_op_begin "restore-reinstall" "${root}" 0 1
+  set +e
+  reinstall_apply "${root}" "${dest_home}"
+  set -e
+  linuxbkup_event ok reinstall
+  linuxbkup_op_end
+
+  ui_step_event 5 "${steps}" "report" "report — restore status"
   ui_section "Restore status"
   if [[ -d "${root}/home" ]]; then
     ui_kv_path "Staged home" "${root}/home"
@@ -183,9 +194,12 @@ linuxbkup_cmd_restore() {
   if [[ -d "${root}/config/etc" ]]; then
     ui_kv_path "Staged config" "${root}/config/etc"
   fi
+  if [[ -f "${root}/packages/reinstalls.json" ]]; then
+    ui_kv_path "Reinstalls" "${root}/packages/reinstalls.json"
+  fi
   if [[ -f "${root}/packages/apt.manual" ]]; then
     ui_kv_path "APT manuals" "${root}/packages/apt.manual"
-    ui_item note "Package reinstall modules are not applied yet — manifests only."
+    ui_item note "APT package reinstall not applied yet — manifests only."
   fi
   if [[ -n "${tmp:-}" && "${LINUXBKUP_KEEP_STAGE:-0}" -eq 1 ]]; then
     ui_kv_path "Extract kept" "${tmp}"

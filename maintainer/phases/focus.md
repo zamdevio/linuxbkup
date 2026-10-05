@@ -10,18 +10,19 @@
 
 | Priority | Vertical | Notes |
 |----------|----------|-------|
-| 1 | Capture modules | mise/pip freeze from phase 10 when ready |
+| 1 | Node reinstalls | Capture `packages/reinstalls.json` + restore step; harden |
 | 2 | Phases 06–07 docs site | End-user docs + VitePress |
-| 3 | *(open)* | Pull from phase 10 or polish |
+| 3 | *(open)* | Python reinstalls after Node is solid |
 
 ## Queued — do not start
 
 | # | Item | Why parked |
 |---|------|------------|
-| — | *(empty — pull from standing phase 10 as needed)* | |
+| — | Python / Go reinstall slices | Same JSON pattern after Node hardens |
+| — | Capture modules (mise/pip freeze) | Pull from phase 10 when Node done |
 
-**Just folded:** Restore home/config (`restore_files_apply` + `-f`); Phase 04.5 secrets decrypt; Phase 08.10 events; regenerable VM strips; Phase 09.4–09.5.
+**Just folded:** Restore home/config + sudo SUDO_USER; secrets decrypt; events checksum fix.
 
-**Locked:** Fail-fast UX in [`09-ux-failfast.md`](./09-ux-failfast.md). Standing PM/tools research in [`10-pm-tools-research.md`](./10-pm-tools-research.md).
+**Locked:** Fail-fast UX in [`09-ux-failfast.md`](./09-ux-failfast.md). Standing PM/tools research in [`10-pm-tools-research.md`](./10-pm-tools-research.md). Regenerable reinstall doctrine: source PM recipe; `-y` = all; `--skip-reinstall` = none; no `--node`/`--python` overrides.
 
 Umbrella: [`redesign.md`](./redesign.md).

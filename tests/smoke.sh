@@ -388,17 +388,59 @@ else
   bad "age encrypts secrets and wipes plaintext (need age+age-keygen+openssl)"
 fi
 
+# Node reinstalls capture + detect
+# shellcheck source=/dev/null
+source "${ROOT}/modules/node.sh"
+_nd_home="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-smoke-node.XXXXXX")"
+mkdir -p "${_nd_home}/app-pnpm" "${_nd_home}/app-npm" "${_nd_home}/skip/node_modules/pkg"
+printf '%s\n' '{"name":"a"}' >"${_nd_home}/app-pnpm/package.json"
+printf '\n' >"${_nd_home}/app-pnpm/pnpm-lock.yaml"
+printf '%s\n' '{"name":"b"}' >"${_nd_home}/app-npm/package.json"
+printf '{}\n' >"${_nd_home}/app-npm/package-lock.json"
+printf '%s\n' '{"name":"nested"}' >"${_nd_home}/skip/node_modules/pkg/package.json"
+_nd_stage="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-smoke-ndst.XXXXXX")"
+mkdir -p "${_nd_stage}/home"
+cp -a "${_nd_home}/." "${_nd_stage}/home/"
+node_capture_manifests "${_nd_stage}"
+if [[ -f "${_nd_stage}/packages/reinstalls.json" ]] \
+  && [[ -f "${_nd_stage}/packages/reinstalls.tsv" ]] \
+  && grep -q 'app-pnpm' "${_nd_stage}/packages/reinstalls.tsv" \
+  && grep -q $'\tpnpm\t' "${_nd_stage}/packages/reinstalls.tsv" \
+  && grep -q 'app-npm' "${_nd_stage}/packages/reinstalls.tsv" \
+  && grep -q $'\tnpm\t' "${_nd_stage}/packages/reinstalls.tsv" \
+  && ! grep -q 'node_modules/pkg' "${_nd_stage}/packages/reinstalls.tsv" \
+  && grep -q 'linuxbkup.reinstalls/v1' "${_nd_stage}/packages/reinstalls.json"; then
+  ok "node capture writes reinstalls.json/tsv (pnpm+npm, skip nested)"
+else
+  bad "node capture writes reinstalls.json/tsv (pnpm+npm, skip nested)"
+fi
+# shellcheck source=/dev/null
+source "${ROOT}/lib/backup/reinstall.sh"
+_nd_rows=()
+reinstall_load_node_rows "${_nd_stage}" _nd_rows
+if [[ "${#_nd_rows[@]}" -eq 2 ]]; then
+  ok "reinstall_load_node_rows reads tsv"
+else
+  bad "reinstall_load_node_rows reads tsv (n=${#_nd_rows[@]})"
+fi
+if grep -q 'skip-reinstall' "${ROOT}/lib/core/common.sh" \
+  && grep -q 'reinstall_apply' "${ROOT}/lib/cmd/restore.sh" \
+  && grep -q 'node_capture_manifests' "${ROOT}/lib/cmd/backup.sh"; then
+  ok "backup/restore wire node capture + reinstall + --skip-reinstall"
+else
+  bad "backup/restore wire node capture + reinstall + --skip-reinstall"
+fi
+rm -rf "${_nd_home}" "${_nd_stage}"
+
 # sudo → SUDO_USER (not root) for target user
 # shellcheck source=/dev/null
 source "${ROOT}/lib/env/users.sh"
 _sudo_u="$(
   unset LINUXBKUP_USER
-  SUDO_USER="smokeuser" USER="root"
-  # simulate euid 0 check by patching via subshell function redef is hard;
-  # unit-test the remap predicate pieces + resolve when id -u is nonzero skips SUDO
+  SUDO_USER="smokeuser"
+  # non-root euid: SUDO_USER must be ignored (USER left as real login)
   env_resolve_user
 )"
-# without root, SUDO_USER is ignored — still current user
 if [[ "${_sudo_u}" == "$(id -un)" ]]; then
   ok "env_resolve_user ignores SUDO_USER when not root"
 else

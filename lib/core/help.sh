@@ -51,6 +51,7 @@ linuxbkup_usage() {
   ui_kv "-R, --reclaim-all" "Include all regenerable skips (warn: large)"
   ui_kv "-j, --json" "Machine-readable output (plan --json)"
   ui_kv "-f, --force-overwrite" "Allow overwriting conflicting files on restore"
+  ui_kv "--skip-reinstall" "Skip regenerable reinstalls (node_modules, …) on restore"
   ui_kv "--mark-secret" "Treat path as secret (repeatable; age-encrypted)"
   ui_kv "--no-secrets" "Exclude secrets from backup"
   ui_kv "--secrets-plain" "Include secrets unencrypted (explicit)"
@@ -176,7 +177,7 @@ linuxbkup_cmd_help() {
       ;;
     restore)
       ui_heading "linuxbkup restore"
-      ui_item note "Extract → decrypt secrets → rsync home/secrets/config into the live tree."
+      ui_item note "Extract → decrypt → rsync home/config → reinstall stripped node_modules."
       printf '\n'
       ui_section "Usage"
       ui_item note "linuxbkup [globals] restore <archive.tar.zst>"
@@ -184,22 +185,30 @@ linuxbkup_cmd_help() {
       printf '\n'
       ui_section "What is restored"
       ui_item note "home/ + secrets/ → target user's \$HOME; config/etc → /etc (if writable)"
+      ui_item note "Node projects from packages/reinstalls.json (npm/pnpm/yarn/bun)"
       ui_item note "Existing files: refused unless -f/--force-overwrite"
       ui_item note "sudo: home follows SUDO_USER (not /root); use -u root only for root's home"
-      ui_item note "  sudo -E ./linuxbkup -k -f restore <archive>   # /etc + user home"
+      ui_item note "  sudo -E ./linuxbkup -k -f restore <archive>"
+      printf '\n'
+      ui_section "Reinstalls"
+      ui_item note "-y / non-TTY: reinstall all recorded projects"
+      ui_item note "TTY: pick projects (default all); --skip-reinstall skips the step"
+      ui_item note "PM per project comes from the source backup (lockfile / packageManager)"
       printf '\n'
       ui_section "Secrets"
       ui_item note "Passphrase: LINUXBKUP_SECRETS_PASS or LINUXBKUP_SECRETS_PASS_FILE (or TTY prompt)"
       printf '\n'
       ui_section "Requires"
       ui_item note "tar, zstd, rsync, sha256sum  (optional: age, openssl for secrets)"
+      ui_item note "pnpm/npm/yarn/bun on PATH for projects you choose to reinstall"
       printf '\n'
       ui_section "Useful globals"
       ui_kv "-u, --user" "Target home owner (default: you; under sudo: SUDO_USER)"
       ui_kv "-n, --dry-run" "Show plan only"
       ui_kv "-k, --keep-stage" "Keep extract directory after restore"
       ui_kv "-f, --force-overwrite" "Replace existing home/secrets/config files"
-      ui_kv "-y, --yes" "Safe defaults (not overwrite); pass must come from env"
+      ui_kv "--skip-reinstall" "Do not run node (or later language) reinstalls"
+      ui_kv "-y, --yes" "Safe defaults + reinstall all; pass must come from env"
       ;;
     verify)
       ui_heading "linuxbkup verify"

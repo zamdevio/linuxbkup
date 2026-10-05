@@ -34,10 +34,13 @@ Long steps (`classify`, `copy`, `secrets`, `index`, `checksum`, `pack`, `summary
 4. Overwrite gate: existing files require `-f/--force-overwrite` (`--yes` alone is never enough)  
 5. **sudo:** `env_resolve_user` prefers `SUDO_USER` (not root) unless `-u` is set; home/secrets get `rsync --chown=user:group`; `/etc` still applies as root. Refuses dumping into `/root` when `SUDO_USER` is a normal user.
 
+**Node reinstalls:** after home copy, `modules/node.sh` writes `packages/reinstalls.json` (+ `.tsv`). Restore step runs recorded `pnpm i` / `npm ci|i` / `yarn` / `bun` unless `--skip-reinstall`. `-y` / non-TTY = all projects; TTY = multi-select (default all).
+
 ## Still missing
 
-- Multi-PM capture / package reinstall beyond APT manifests
-- Privileged `/etc` restore UX (sudo path) beyond “skip if not writable”
+- Python / Go / mise reinstall arrays in the same JSON
+- APT package reinstall (manifests only today)
+- Privileged `/etc` restore UX beyond “skip if not writable” / sudo
 
 ## Redesign target
 

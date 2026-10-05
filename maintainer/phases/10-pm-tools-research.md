@@ -56,12 +56,14 @@ Doctrine: **never pack what `mise install` / `pip install` / `pnpm i` can recrea
 | Restore | recreate venv + install from lock/requirements |
 | Status | **stripped** via regenerables; freeze capture TBD |
 
-### pnpm / npm / yarn / bun (partial)
+### pnpm / npm / yarn / bun (capture + restore live)
 
 | Strip | `node_modules`, `~/.local/share/pnpm`, `~/.npm`, `.yarn/cache`, bun install cache |
 | Keep | `package.json`, lockfiles, `.npmrc` |
-| Restore | `pnpm i` / `npm ci` / `yarn` / `bun i` |
-| Status | strip live; lockfile-based restore TBD |
+| Manifest | `packages/reinstalls.json` + `.tsv` via `modules/node.sh` (after stage copy) |
+| Detect | `packageManager` field → lockfile → default **pnpm** |
+| Restore | `lib/backup/reinstall.sh` — TTY pick / `-y` all / `--skip-reinstall` none; source PM recipe only |
+| Status | **strip + capture + restore module** (harden in Focus) |
 
 ### uv / pipx / rustup / cargo / go (partial)
 
@@ -105,7 +107,7 @@ When pulling into Focus, name the tool:
 
 - [ ] **10.mise** Capture `mise ls` + config into `packages/mise.*`
 - [ ] **10.python** `pip`/`uv` freeze into packages/
-- [ ] **10.nodejs** Detect package manager per project (later — restore phase)
+- [x] **10.nodejs** Detect PM per project + reinstalls.json + restore step (harden next)
 - [x] **10.asdf-nvm** Strip parity with mise (asdf/nvm/fnm/sdkman/rbenv installs)
 - [ ] **10.asdf-nvm-capture** Manifest capture modules (later)
 - [ ] **10.flatpak** Honest gap report vs runtime dump
