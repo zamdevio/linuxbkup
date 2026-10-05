@@ -43,7 +43,7 @@ lib/tools/          checks + catalog + install helpers
 guides/tools/       install How-To per tool
 lib/env/ fs/ classify/
 modules/            apt, … (phased)
-tests/              smoke tests
+tests/              smoke tests — thin runner `tests/smoke.sh` + suites in `tests/smoke/` (split: [`refactor.md`](maintainer/phases/refactor.md))
 docs/               end-user docs
 maintainer/         agent control plane
 ```

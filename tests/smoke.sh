@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Smoke suite — thin runner. Suites live in tests/smoke/NN-*.sh (refactor R-SMOKE).
+# See maintainer/phases/refactor.md — do not grow this file past the runner.
 set -Eeuo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -433,11 +435,128 @@ if grep -q 'skip-reinstall' "${ROOT}/lib/core/common.sh" \
   && grep -q 'reinstall-only' "${ROOT}/lib/core/common.sh" \
   && grep -q 'reinstall_ensure_pms' "${ROOT}/lib/backup/reinstall.sh" \
   && grep -q 'reinstall_preflight_guide' "${ROOT}/lib/cmd/restore.sh" \
+  && grep -q 'COREPACK_ENABLE_DOWNLOAD_PROMPT=0' "${ROOT}/lib/backup/reinstall.sh" \
+  && grep -q 'reinstall_report_lines' "${ROOT}/lib/backup/reinstall.sh" \
+  && grep -q 'REINSTALL_LAST_REASON' "${ROOT}/lib/backup/reinstall.sh" \
   && grep -q 'REINSTALL_ONLY' "${ROOT}/lib/cmd/restore.sh"; then
   ok "backup/restore wire reinstall-only + PM ensure + peek preflight"
 else
   bad "backup/restore wire reinstall-only + PM ensure + peek preflight"
 fi
+# Fail-skip + non-interactive PM env + end report helpers
+_nd_env="$(reinstall_child_env_args | tr '\n' ' ')"
+if [[ "${_nd_env}" == *COREPACK_ENABLE_DOWNLOAD_PROMPT=0* && "${_nd_env}" == *CI=1* ]]; then
+  ok "reinstall_child_env_args forces non-interactive PM/corepack"
+else
+  bad "reinstall_child_env_args forces non-interactive PM/corepack (${_nd_env})"
+fi
+_nd_home2="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-smoke-fail.XXXXXX")"
+mkdir -p "${_nd_home2}/ok-app" "${_nd_home2}/bad-app"
+printf '%s\n' '{"name":"ok"}' >"${_nd_home2}/ok-app/package.json"
+printf '%s\n' '{"name":"bad"}' >"${_nd_home2}/bad-app/package.json"
+# missing pm → skip with reason
+REINSTALL_LAST_REASON=""
+set +e
+reinstall_run_one "${_nd_home2}" "ok-app" "definitely-missing-pm-xyz" "definitely-missing-pm-xyz i"
+_nd_sk_rc=$?
+set -e
+if [[ "${_nd_sk_rc}" -eq 2 && -n "${REINSTALL_LAST_REASON}" ]]; then
+  ok "reinstall_run_one records skip reason (missing PM)"
+else
+  bad "reinstall_run_one records skip reason (rc=${_nd_sk_rc} reason=${REINSTALL_LAST_REASON})"
+fi
+# end-report function + apply summary strings
+if declare -F reinstall_report_lines >/dev/null 2>&1 \
+  && declare -F reinstall_apply >/dev/null 2>&1; then
+  _nd_rep="$(reinstall_report_lines "Failed projects (skipped — re-run later)" \
+    $'Workers/push/apps/worker\tERR_PNPM_WORKSPACE_PKG_NOT_FOUND @push/core' 2>&1 || true)"
+  if [[ "${_nd_rep}" == *"Failed projects"* && "${_nd_rep}" == *"ERR_PNPM_WORKSPACE_PKG_NOT_FOUND"* ]]; then
+    ok "reinstall_report_lines prints path + error reason"
+  else
+    bad "reinstall_report_lines prints path + error reason"
+  fi
+else
+  bad "reinstall_report_lines / reinstall_apply missing"
+fi
+# run_one fail keeps log path + reason
+mkdir -p "${_nd_home2}/fail-app"
+printf '%s\n' '{"name":"f"}' >"${_nd_home2}/fail-app/package.json"
+_nd_fakepm="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-smoke-fakepm.XXXXXX")"
+printf '#!/bin/sh\necho boom: ERR_TEST_FAIL >&2\nexit 1\n' >"${_nd_fakepm}"
+chmod +x "${_nd_fakepm}"
+# expose fake as command name via PATH shim dir
+_nd_shim="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-smoke-shim.XXXXXX")"
+ln -s "${_nd_fakepm}" "${_nd_shim}/fakepm"
+REINSTALL_LAST_REASON=""
+set +e
+PATH="${_nd_shim}:${PATH}" reinstall_run_one "${_nd_home2}" "fail-app" "fakepm" "fakepm i"
+_nd_fr=$?
+set -e
+if [[ "${_nd_fr}" -eq 1 && "${REINSTALL_LAST_REASON}" == *ERR_TEST_FAIL* ]]; then
+  ok "reinstall_run_one fail keeps error line + non-zero rc"
+else
+  bad "reinstall_run_one fail keeps error line (rc=${_nd_fr} reason=${REINSTALL_LAST_REASON})"
+fi
+# apply continues after fail + prints Failed projects report
+_nd_stage3="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-smoke-apply.XXXXXX")"
+mkdir -p "${_nd_stage3}/packages" "${_nd_home2}/app-a" "${_nd_home2}/app-b"
+printf '%s\n' '{"name":"a"}' >"${_nd_home2}/app-a/package.json"
+printf '%s\n' '{"name":"b"}' >"${_nd_home2}/app-b/package.json"
+printf 'node\tapp-a\tfakepm\t-\tfakepm i\nnode\tapp-b\tfakepm\t-\tfakepm i\n' \
+  >"${_nd_stage3}/packages/reinstalls.tsv"
+_nd_ap_out="$(PATH="${_nd_shim}:${PATH}" LINUXBKUP_YES=1 reinstall_apply "${_nd_stage3}" "${_nd_home2}" 2>&1)" || true
+if [[ "${_nd_ap_out}" == *"Reinstall summary"* \
+  && "${_nd_ap_out}" == *"Failed projects"* \
+  && "${_nd_ap_out}" == *ERR_TEST_FAIL* ]]; then
+  ok "reinstall_apply continues after fail + end report"
+else
+  bad "reinstall_apply continues after fail + end report"
+fi
+# Workspace member detection + pnpm workspace error classify
+_nd_ws="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-smoke-ws.XXXXXX")"
+mkdir -p "${_nd_ws}/packages/nodehunter" "${_nd_ws}/packages/docs"
+printf '%s\n' '{"name":"nodehunter","workspaces":["packages/*"],"dependencies":{"@nodehunter/core":"workspace:*"}}' \
+  >"${_nd_ws}/package.json"
+printf '%s\n' '{"name":"@nodehunter/core"}' >"${_nd_ws}/packages/nodehunter/package.json"
+printf '%s\n' '{"name":"@nodehunter/docs"}' >"${_nd_ws}/packages/docs/package.json"
+printf 'packages:\n  - "packages/*"\n' >"${_nd_ws}/pnpm-workspace.yaml"
+_nd_miss="$(reinstall_workspace_missing "${_nd_ws}" || true)"
+if [[ -z "${_nd_miss}" ]]; then
+  ok "reinstall_workspace_missing empty when members present"
+else
+  bad "reinstall_workspace_missing empty when members present (got ${_nd_miss})"
+fi
+rm -f "${_nd_ws}/packages/nodehunter/package.json"
+_nd_miss="$(reinstall_workspace_missing "${_nd_ws}" || true)"
+if [[ "${_nd_miss}" == *'@nodehunter/core'* ]]; then
+  ok "reinstall_workspace_missing flags absent workspace member"
+else
+  bad "reinstall_workspace_missing flags absent workspace member (got ${_nd_miss})"
+fi
+_nd_wslog="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-smoke-wslog.XXXXXX")"
+cat >"${_nd_wslog}" <<'LOG'
+Scope: all 3 workspace projects
+ERR_PNPM_WORKSPACE_PKG_NOT_FOUND  In : "@nodehunter/core@workspace:*" is in the dependencies but no package named "@nodehunter/core" is present in the workspace
+Packages found in the workspace: nodehunter, @nodehunter/docs
+LOG
+_nd_cls="$(reinstall_classify_fail "${_nd_wslog}" "${_nd_ws}")"
+if [[ "${_nd_cls}" == *"workspace member missing"* && "${_nd_cls}" == *"@nodehunter/core"* ]]; then
+  ok "reinstall_classify_fail names missing workspace member"
+else
+  bad "reinstall_classify_fail names missing workspace member (${_nd_cls})"
+fi
+# run_one skips workspace root when member package.json is gone
+# (workspace root package.json at $_nd_ws; core package.json removed above)
+set +e
+PATH="${_nd_shim}:${PATH}" reinstall_run_one "${_nd_ws}" "." "pnpm" "pnpm i"
+_nd_wsrc=$?
+set -e
+if [[ "${_nd_wsrc}" -eq 2 && "${REINSTALL_LAST_REASON}" == *"workspace member"* ]]; then
+  ok "reinstall_run_one skips incomplete workspace (missing member)"
+else
+  bad "reinstall_run_one skips incomplete workspace (rc=${_nd_wsrc} reason=${REINSTALL_LAST_REASON})"
+fi
+rm -rf "${_nd_home2}" "${_nd_shim}" "${_nd_fakepm}" "${_nd_ws}" "${_nd_wslog}" "${_nd_stage3}"
 # Peek reinstalls.tsv from archive without full extract
 _nd_arch="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-smoke-ndarch.XXXXXX.tar.zst")"
 rm -f "${_nd_arch}"
