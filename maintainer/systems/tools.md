@@ -20,4 +20,4 @@ Commands call `cmd_context_begin` with `--required` / `--optional` tools before 
 ./linuxbkup -w 4 backup   # worker cap for checksums / du batches / zstd -T
 ```
 
-Optional later: `fzf` for ask UI ([phase 03](../phases/03-profiles-ask-flags.md)) — never required.
+Optional later: `fzf` for ask UI (shipped phase 03) — never required.

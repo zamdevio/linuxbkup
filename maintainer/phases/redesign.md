@@ -2,7 +2,7 @@
 
 Umbrella for the Linux-general backup redesign. **Plans only here until Focus says implement.**
 
-After these phase docs are agreed and implementation lands, fold outcomes into [`../shipped/`](../shipped/) and [`../systems/`](../systems/).
+After implementation lands, fold outcomes into [`../shipped/`](../shipped/) and [`../systems/`](../systems/), then **delete** the phase doc (see [`roadmap.md`](./roadmap.md) fold rule).
 
 ## Locked product rules
 
@@ -14,29 +14,25 @@ After these phase docs are agreed and implementation lands, fold outcomes into [
 | Portability default | Archives + `schema.json` restore across machines/distros of the same family where possible; honest gap reports. |
 | `--ask` > `--yes` | If both set: **ignore `--yes`**, print one log line, proceed interactive. |
 | No personal examples | Placeholders only: `/home/user`, `~/Backups/linuxbkup/…`. |
-| Portable defaults | No host-shaped home dirnames in shipped lists (`Projects`/`Workers`/`Tools`/…). Until phase 02 full scan: backup defaults = shell/dotfiles + `.config` / `.local/bin` / secrets paths; extra trees via `--include`. |
-| Filter stack | `du`, rsync, find, and plan sizes honor regenerable defaults + user `--exclude` (exclude wins). Never report “backup size” that includes ignored regenerables. |
-| Capability probes | Inspect detects common package managers, tool managers, process managers, web servers, databases, containers/cloud CLIs — presence only until restore modules exist. |
+| Portable defaults | No host-shaped home dirnames in shipped lists (`Projects`/`Workers`/`Tools`/…). |
+| Filter stack | `du`, rsync, find, and plan sizes honor regenerable defaults + user `--exclude` (exclude wins). |
+| Capability probes | Inspect detects common package managers/tools — presence only until restore modules exist. |
 | fzf | Optional. Rich Bash numbered multi-select always. |
 | Tracking | Implement → update `shipped/` + `systems/`; phase status in `roadmap.md`. |
 
-## Phase index
+## Phase index (live docs only)
 
-| Doc | Topic |
-|-----|--------|
-| [00-identity-and-platform.md](./00-identity-and-platform.md) | Rename, `lib/core/platform/`, dest defaults |
-| [01-verify-staging.md](./01-verify-staging.md) | Verify staging dirs |
-| [02-home-scan-classify.md](./02-home-scan-classify.md) | Full HOME + unexpected paths |
-| [03-profiles-ask-flags.md](./03-profiles-ask-flags.md) | Profiles, ask UI, useful flags |
-| [04-reclaim-secrets.md](./04-reclaim-secrets.md) | Reclaim regenerables + mark-secret/`age` |
-| [05-space-schema.md](./05-space-schema.md) | Space gates + reversible schema |
-| [06-docs-content.md](./06-docs-content.md) | `docs/*.md` ready for VitePress |
-| [07-vitepress.md](./07-vitepress.md) | `apps/docs` → https://linuxbkup.pages.dev |
-| [08-terminal-ux.md](./08-terminal-ux.md) | Progress, OSC links, notify, flag-aware tips |
-| [09-ux-failfast.md](./09-ux-failfast.md) | Fail-fast preflight, honest sizes, no late fatal after long copy |
-| [10-pm-tools-research.md](./10-pm-tools-research.md) | **Standing** keep/strip/manifest/restore map for PMs & tools (does not fold early) |
-| [11-restore-ux.md](./11-restore-ux.md) | Restore interrupt parity (Ctrl+C/Z mid-reinstall) + project picker v2 |
-| [refactor.md](./refactor.md) | Layout hygiene — split large modules into `lib/**/<name>/*.sh` + thin barrels |
+| Doc | Topic | State |
+|-----|--------|-------|
+| [`05-space-schema.md`](./05-space-schema.md) | Schema field docs → fold into 06 | remaining: docs only |
+| [`06-docs-content.md`](./06-docs-content.md) | `docs/*.md` ready for VitePress | planned |
+| [`07-vitepress.md`](./07-vitepress.md) | `apps/docs` → https://linuxbkup.pages.dev | planned |
+| [`10-pm-tools-research.md`](./10-pm-tools-research.md) | **Standing** PM/tools keep/strip/manifest map | open standing |
+| [`refactor.md`](./refactor.md) | Layout hygiene — large files → subdirs + thin barrels | open (parallel) |
+| [`focus.md`](./focus.md) | Active Focus (max 3) | — |
+| [`roadmap.md`](./roadmap.md) | Shipped table + remaining only | — |
+
+Shipped phases (00–04, 08, 09, 11, 12, …) are **folded** — outcomes live in `shipped/` + `systems/`.
 
 ## Discovery → backup (target)
 
@@ -53,9 +49,8 @@ SCAN home → CLASSIFY → REPORT unexpected/large
 | `--profile easy\|balanced\|strict` | Suggestions + `--yes` hard defaults |
 | `--ask` | Interactive; wins over `--yes` |
 | `-y, --yes` | Non-interactive; ignored if `--ask` present (logged) |
-| `plan` / `plan --json` | Show final include/skip/secret table (no writes); JSON envelope |
-| `--keep-stage` | Keep staging after success |
-| `--stage-dir <path>` | Staging location |
+| `plan` / `plan --json` | Final include/skip/secret table (no writes); JSON envelope |
+| `--keep-stage` / `--stage-dir` | Staging lifecycle |
 | `--json` | Machine-readable plan/status |
 | `--reclaim` / `--reclaim-all` | Bring back regenerable basenames |
 | `--mark-secret` | Extra secret paths for `age` |

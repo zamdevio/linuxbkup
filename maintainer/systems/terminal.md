@@ -29,4 +29,4 @@ Signals / interrupt menu: see [`cli.md`](./cli.md) (central API in `lib/core/int
 
 ## Phase
 
-[`../phases/08-terminal-ux.md`](../phases/08-terminal-ux.md)
+phase 08 (folded — see [`../shipped/`](../shipped/))

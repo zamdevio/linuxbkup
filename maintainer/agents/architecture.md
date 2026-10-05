@@ -1,6 +1,6 @@
 # Architecture
 
-Binary: **`linuxbkup`**. Env: **`LINUXBKUP_*`**. See [phase 00](../phases/00-identity-and-platform.md).
+Binary: **`linuxbkup`**. Env: **`LINUXBKUP_*`**. See shipped phase 00 (folded) + [`../systems/platform.md`](../systems/platform.md).
 
 ## 1. Topology
 
@@ -44,7 +44,7 @@ AGENT.md
 ## 3. Safety model
 
 - Uncertain → report + ask (redesign: `--ask`; profile suggests only)
-- `--ask` wins over `--yes` (log ignore) — [phase 03](../phases/03-profiles-ask-flags.md)
+- `--ask` wins over `--yes` (log ignore) — shipped phase 03
 - `--dry-run` → zero modifications
 - `--yes` → profile/non-TTY defaults; never silent plaintext secrets; never overwrite without `--force-overwrite`
 - Soft fail detectors (`SKIP`/`WARN`); hard fail destination/corruption (`FATAL`)

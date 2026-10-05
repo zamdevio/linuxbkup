@@ -1,51 +1,9 @@
-# Phase 05 — Space preflight + reversible schema
+# Phase 05 — Space preflight + schema
 
-**Goal:** Refuse to start a backup that will almost certainly fail on disk; archive carries a restore contract.
+**Status:** **landed** except docs. Space gate + `schema.json` / `decisions.tsv` are in product (`lib/backup/preflight.sh`, `lib/backup/schema.sh`, verify soft-checks). Outcomes already folded in [`../shipped/`](../shipped/) + [`../systems/backup-restore.md`](../systems/backup-restore.md).
 
-## Space
+## Remaining
 
-Before heavy rsync/pack:
+- [ ] **05.5** Document schema fields in `docs/` — **fold into phase 06** (`docs/schema` / concepts); do not reopen this file.
 
-1. Estimate staged size (from plan)
-2. Check free space on `--stage-dir` filesystem
-3. Check free space on `-o/--output` filesystem (incl. `/mnt/c` when that is the dest)
-4. Fail early with clear numbers (human + `--json`)
-
-Same idea later for restore target.
-
-## Schema (restore contract)
-
-Archive includes versioned:
-
-| Artifact | Role |
-|----------|------|
-| `schema.json` | Version, tool version, host hints (distro family), feature flags |
-| `decisions.tsv` (or `.jsonl`) | path, class, action, reason |
-| Existing | package manifests, checksums, metadata |
-
-Restore on another machine:
-
-1. Read schema / compatibility
-2. Decrypt secrets if needed
-3. Restore files idempotently
-4. Reinstall packages from manifests
-5. Report gaps honestly (no silent invent)
-
-## Slices
-
-- [x] **05.1** Platform free-space helper (`lib/core/platform/fs_space.sh`)
-- [x] **05.2** Backup preflight gate (`lib/backup/preflight.sh` — floor + est+10%)
-- [x] **05.3** Write `schema.json` + `decisions.tsv` during stage (`lib/backup/schema.sh`)
-- [x] **05.4** `verify` soft-checks schema / decisions presence
-- [ ] **05.5** Document schema fields in `docs/` (phase 06)
-- [x] **05.6** Smoke: schema.json + decisions.tsv writers (fixture stage)
-
-## Acceptance
-
-- Intentionally tiny `--stage-dir` filesystem → abort before rsync with readable error
-- Untarring archive shows `schema.json` + decisions
-- Schema version field is stable and bumped intentionally
-
-## After ship
-
-`systems/backup-restore.md` + `shipped/`.
+Umbrella: [`redesign.md`](./redesign.md). Focus: [`focus.md`](./focus.md).

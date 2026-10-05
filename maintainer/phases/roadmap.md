@@ -3,43 +3,44 @@
 Progress tracker. Update when a phase lands or focus shifts.
 See [`focus.md`](./focus.md) (max 3 active) and [`redesign.md`](./redesign.md) (locked redesign rules).
 
+**Fold rule:** when a phase ships, delete its `phases/NN-*.md`, keep the outcome in [`../shipped/`](../shipped/) + matching [`../systems/`](../systems/). Partial phases stay here as a **remaining-work list only** — no full implementation prose.
+
 ## Identity
 
-**linuxbkup** — Bash-first Linux backup/restore CLI (desktop, VPS, WSL).  
-Clean `linuxbkup` / `LINUXBKUP_*` identity (phase 00).
+**linuxbkup** — Bash-first Linux backup/restore CLI (desktop, VPS, WSL).
+Clean `linuxbkup` / `LINUXBKUP_*` identity (phase 00 — folded).
 
-## Historical (pre-redesign)
+## Shipped (docs folded → shipped/ + systems/)
 
-| Phase | Name | Status | Notes |
-|-------|------|--------|-------|
-| 0 | CLI skeleton | **done** | Dispatch, safety, globals, Bash layout |
-| 1 | `inspect` | **done** | Distro/users/caps, du, classify, Downloads preview |
-| — | Terminal UI | **done** | `lib/core/terminal/`, OSC 8 links, styled help |
-| — | Constraints | **done** | Path lists + `--full`/`--top` (to be rule-based in redesign 02) |
-| — | `deps` | **done** | status / install / howto + guides |
-| 2 | `backup` core | **done (v1)** | APT + allowlisted paths + tar.zst + checksums + verify |
-| — | INDEX/pipefail | **done** | Staging kept on pack failure (`32b5b11`) |
+| Phase | Name | Notes |
+|-------|------|-------|
+| 0 | CLI skeleton | Dispatch, safety, globals, Bash layout |
+| 1 | `inspect` | Distro/users/caps, du, classify, Downloads preview |
+| — | Terminal UI | `lib/core/terminal/`, OSC 8 links, styled help |
+| — | Constraints | Path lists + `--full`/`--top` |
+| — | `deps` | status / install / howto + guides |
+| 2 | `backup` core v1 | APT + allowlisted paths + tar.zst + checksums + verify |
+| 00 | Identity + platform | `lib/core/platform/`, dest defaults, smoke identity gate |
+| 01 | Verify staging | Archive or staging dir + checksums |
+| 02 | Home scan + classify | Full-home scan; unexpected auto-include |
+| 03 | Profiles / ask / flags | `--profile`, `--ask`>`--yes`, short aliases |
+| 04 | Reclaim + secrets | age encrypt/decrypt; home/config rsync |
+| 08 | Terminal UX | Progress, notify, tips, events.jsonl |
+| 09 | UX fail-fast | Secrets preflight, byte estimates, banner, `ui_step` |
+| 11 | Restore UX | Soft-quit reinstall batch, picker v2, failure re-run, R1 split |
+| 12 | Reinstall hardening | Prefix extract, picker counts, pnpm allow-all-builds, workspace-root installs, interrupt boundary |
 
-## Redesign track (planned)
+## Open — remaining work only
 
-| Phase | Doc | Status |
-|-------|-----|--------|
-| 00 | [Identity + platform](./00-identity-and-platform.md) | **done** |
-| 01 | [Verify staging](./01-verify-staging.md) | **done** |
-| 02 | [Home scan + classify](./02-home-scan-classify.md) | **done** |
-| 03 | [Profiles, ask, flags](./03-profiles-ask-flags.md) | **done** |
-| 04 | [Reclaim + secrets](./04-reclaim-secrets.md) | **done** (encrypt + decrypt + home/config rsync) |
-| 05 | [Space + schema](./05-space-schema.md) | **in progress** (space gate; schema later) |
-| 06 | [Docs content](./06-docs-content.md) | planned |
-| 07 | [VitePress → pages.dev](./07-vitepress.md) | planned |
-| 08 | [Terminal UX](./08-terminal-ux.md) | **done** (through 08.10 events.jsonl) |
-| 09 | [UX fail-fast](./09-ux-failfast.md) | **in progress** (09.1–09.3/09.6 done; banner later) |
-| 10 | [PM/tools research](./10-pm-tools-research.md) | **OPEN standing** — living keep/strip/manifest guide (do not fold) |
-| 11 | [Restore UX](./11-restore-ux.md) | **landed** — soft-quit reinstall batch (Ctrl+C menu + partial summary) + picker v2 (e/i/p/g/f/n/u) + failure re-run + R1 split |
-| 12 | [Restore reinstall hardening](./12-restore-reinstall-hardening.md) | **landed** — archive prefix extract, picker counts, pnpm allow-all-builds, workspace-root-only installs, interrupt boundary |
-| R | [Refactor / large-file split](./refactor.md) | **open (parallel)** — R-SMOKE `tests/smoke/*.sh` then reinstall → `lib/backup/reinstall/*.sh`; soft ≤250 / hard 400 |
+| Phase | Doc | Remaining |
+|-------|-----|-----------|
+| 05 | [`05-space-schema.md`](./05-space-schema.md) | **Docs only:** schema fields → fold into phase 06 (space gate + schema **code already shipped**) |
+| 06 | [`06-docs-content.md`](./06-docs-content.md) | Rewrite `docs/*` for linuxbkup + schema/secrets/troubleshooting |
+| 07 | [`07-vitepress.md`](./07-vitepress.md) | `apps/docs` VitePress → https://linuxbkup.pages.dev |
+| 10 | [`10-pm-tools-research.md`](./10-pm-tools-research.md) | **OPEN standing** — keep/strip/manifest guide; capture modules later (do not fold early) |
+| R | [`refactor.md`](./refactor.md) | **open (parallel)** — R-SMOKE smoke split, then R2–R9 large-file splits; soft ≤250 / hard 400 |
 
-Later product phases (after redesign foundation): restore polish, language modules, systemd/`/etc`, Docker — re-queue in focus when ready.
+Later product phases (after docs site): language modules (Python/Go reinstall), systemd/`/etc`, Docker — re-queue in focus when ready.
 
 ## Definition of done (Near-full)
 
@@ -47,4 +48,4 @@ Fresh Linux host (same package family) + `linuxbkup restore <archive>` gets pack
 
 ## Fold-back rule
 
-When a redesign phase ships → update [`../shipped/`](../shipped/) and the matching [`../systems/`](../systems/) doc the same PR/session.
+When a phase ships → update [`../shipped/`](../shipped/) + [`../systems/`](../systems/) the same session, then **delete** the phase doc and point this table at shipped/.

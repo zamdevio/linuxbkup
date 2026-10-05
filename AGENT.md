@@ -15,11 +15,11 @@ Scaffolded via `@zamdevio/scaffolder` (`cli` preset), then **pivoted to Bash**. 
 
 1. Read this file.
 2. Read [`maintainer/phases/focus.md`](maintainer/phases/focus.md) (max 3 Focus items).
-3. For redesign work: [`maintainer/phases/redesign.md`](maintainer/phases/redesign.md) + the phase doc Focus names (`00`–`07`).
+3. For redesign work: [`maintainer/phases/redesign.md`](maintainer/phases/redesign.md) + open phase docs named in [`roadmap.md`](maintainer/phases/roadmap.md) (05–07, 10, refactor).
 4. Map reality via [`maintainer/systems/`](maintainer/systems/) and [`maintainer/shipped/`](maintainer/shipped/).
 5. Architecture / git gates: [`maintainer/agents/`](maintainer/agents/).
 6. Large-file budget + subdir split + smoke suite split: [`maintainer/phases/refactor.md`](maintainer/phases/refactor.md) (soft ≤250 / hard 400; parallel track).
-7. Restore UX plan (interrupt parity + picker v2): [`maintainer/phases/11-restore-ux.md`](maintainer/phases/11-restore-ux.md).
+7. Shipped phases are folded (docs deleted) — outcomes live in `shipped/` + `systems/`.
 
 `maintainer/temp/` is scratch (gitignored).
 

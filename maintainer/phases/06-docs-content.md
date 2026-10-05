@@ -40,7 +40,7 @@ docs/
 - [ ] **06.1** Rewrite `docs/README.md` + `docs/cli.md` for linuxbkup
 - [ ] **06.2** Add install, concepts, guide
 - [ ] **06.3** Add profiles, ask-and-automation, platforms
-- [ ] **06.4** Add schema, secrets, troubleshooting
+- [ ] **06.4** Add schema, secrets, troubleshooting — **includes phase 05.5 schema field docs** (05 code shipped; docs live here only)
 - [ ] **06.5** Cross-link consistently; match real flags from phases 00–05
 - [ ] **06.6** Root `README.md` points at docs + https://linuxbkup.pages.dev (once live)
 
