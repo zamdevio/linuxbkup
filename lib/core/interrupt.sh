@@ -98,9 +98,8 @@ _interrupt_read() {
     return 0
   fi
   # Prompt + read on the real tty (fish/job-control can swallow stdout traps).
-  if [[ -c /dev/tty ]]; then
-    printf '%s' "${prompt}" >/dev/tty 2>/dev/null || printf '%s' "${prompt}" >&2
-    read -r reply </dev/tty || true
+  if { [[ -c /dev/tty ]] && printf '%s' "${prompt}" >/dev/tty; } 2>/dev/null; then
+    read -r reply </dev/tty || reply=""
   elif [[ -t 0 ]]; then
     read -r -p "${prompt}" reply || true
   else
@@ -113,27 +112,24 @@ _interrupt_read() {
 # Fish + SIGINT traps often drop stdout — never rely on it for the menu body.
 _interrupt_tty() {
   local msg="$1"
-  if [[ -c /dev/tty ]] && ( : >/dev/tty ) 2>/dev/null; then
-    printf '%s' "${msg}" >/dev/tty
-  else
-    printf '%s' "${msg}" >&2
+  if { [[ -c /dev/tty ]] && printf '%s' "${msg}" >/dev/tty; } 2>/dev/null; then
+    return 0
   fi
+  printf '%s' "${msg}" >&2
 }
 
 # ui_* helpers forced onto /dev/tty so fish traps stay visible (backup look).
 _interrupt_ui_section() {
-  if [[ -c /dev/tty ]] && ( : >/dev/tty ) 2>/dev/null; then
-    ui_section "$1" >/dev/tty
-  else
-    ui_section "$1"
+  if { [[ -c /dev/tty ]] && ui_section "$1" >/dev/tty; } 2>/dev/null; then
+    return 0
   fi
+  ui_section "$1"
 }
 _interrupt_ui_kv() {
-  if [[ -c /dev/tty ]] && ( : >/dev/tty ) 2>/dev/null; then
-    ui_kv "$1" "$2" >/dev/tty
-  else
-    ui_kv "$1" "$2"
+  if { [[ -c /dev/tty ]] && ui_kv "$1" "$2" >/dev/tty; } 2>/dev/null; then
+    return 0
   fi
+  ui_kv "$1" "$2"
 }
 
 # Sets LINUXBKUP_INTERRUPT_ACTION. Safe from trap or after rsync rc=20.
@@ -148,7 +144,9 @@ linuxbkup_interrupt_menu() {
   declare -F term_live_park >/dev/null 2>&1 && term_live_park
   declare -F term_cursor_show >/dev/null 2>&1 && term_cursor_show
 
-  printf '\n' >/dev/tty 2>/dev/null || printf '\n' >&2
+  if ! { printf '\n' >/dev/tty; } 2>/dev/null; then
+    printf '\n' >&2
+  fi
   _interrupt_ui_section "Interrupted"
   if [[ -n "${LINUXBKUP_OP_STEP:-}" ]]; then
     _interrupt_ui_kv "Step" "${LINUXBKUP_OP_STEP}"

@@ -304,12 +304,12 @@ safety_on_term() {
 }
 
 # Prefer /dev/tty — live progress often owns stderr.
+# Open failure (no controlling tty) must stay silent — fall back to stderr.
 _safety_tty_msg() {
-  if [[ -c /dev/tty ]]; then
-    printf '%s\n' "$*" >/dev/tty 2>/dev/null || printf '%s\n' "$*" >&2
-  else
-    printf '%s\n' "$*" >&2
+  if { [[ -c /dev/tty ]] && printf '%s\n' "$*" >/dev/tty; } 2>/dev/null; then
+    return 0
   fi
+  printf '%s\n' "$*" >&2
 }
 
 LINUXBKUP_WAS_SUSPENDED=0
