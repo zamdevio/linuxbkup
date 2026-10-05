@@ -19,6 +19,12 @@ linuxbkup_events_end() {
   LINUXBKUP_EVENTS_FILE=""
 }
 
+# Stop writing the jsonl file (verbose/debug events continue). Use before stage
+# cleanup so pack/summary cannot race a deleted path.
+linuxbkup_events_detach_file() {
+  LINUXBKUP_EVENTS_FILE=""
+}
+
 # Escape a value for a minimal JSON string (no newlines).
 _linuxbkup_event_json_str() {
   local s="$1"
@@ -54,7 +60,11 @@ linuxbkup_event() {
   line+="}"
 
   if [[ -n "${LINUXBKUP_EVENTS_FILE:-}" ]]; then
-    printf '%s\n' "${line}" >>"${LINUXBKUP_EVENTS_FILE}" 2>/dev/null || true
+    local _ev_dir
+    _ev_dir="$(dirname -- "${LINUXBKUP_EVENTS_FILE}")"
+    if [[ -d "${_ev_dir}" ]]; then
+      printf '%s\n' "${line}" >>"${LINUXBKUP_EVENTS_FILE}" 2>/dev/null || true
+    fi
   fi
 
   case "${phase}" in

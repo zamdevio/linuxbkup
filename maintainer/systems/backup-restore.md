@@ -22,6 +22,8 @@ Backup prints shared **environment snapshot** (`lib/env/snapshot.sh`) after pref
 
 Long steps (`classify`, `copy`, `secrets`, `index`, `checksum`, `pack`, `summary`, …) use `linuxbkup_op_begin` + `linuxbkup_interrupt_resolve` (see [`cli.md`](./cli.md)). Copy/pack long waits run under `linuxbkup_without_monitor` so tty Ctrl+C cannot skip the menu via a child-only process group.
 
+**events.jsonl:** written under `metadata/` through pack ok; detached before stage cleanup (summary is verbose-only). Excluded from `checksums.sha256` — verify soft-warns if an older archive hashed it and it drifts. Payload mismatches still **fail + stop**.
+
 ## Restore (live)
 
 `lib/cmd/restore.sh` + `lib/backup/restore_files.sh` + `lib/backup/secrets_crypt.sh`:

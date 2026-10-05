@@ -545,12 +545,32 @@ if [[ -f "${_evf}" ]] \
   && grep -q '"step":"preflight"' "${_evf}" \
   && grep -q '"phase":"ok"' "${_evf}" \
   && grep -q 'ui_step_event' "${ROOT}/lib/cmd/backup.sh" \
-  && grep -q 'events.jsonl' "${ROOT}/lib/cmd/backup.sh"; then
+  && grep -q 'events.jsonl' "${ROOT}/lib/cmd/backup.sh" \
+  && grep -q 'events_detach_file' "${ROOT}/lib/cmd/backup.sh" \
+  && grep -q "metadata/events.jsonl" "${ROOT}/lib/archive/checksums.sh"; then
   ok "structured step events write jsonl (08.10)"
 else
   bad "structured step events write jsonl (08.10)"
 fi
 rm -f "${_evf}"
+# events.jsonl mismatch must not fail verify (telemetry drift)
+# shellcheck source=/dev/null
+source "${ROOT}/lib/archive/verify.sh"
+_ev_stage="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-smoke-evck.XXXXXX")"
+mkdir -p "${_ev_stage}/metadata" "${_ev_stage}/home"
+printf 'payload\n' >"${_ev_stage}/home/a.txt"
+printf 'line1\n' >"${_ev_stage}/metadata/events.jsonl"
+(
+  cd "${_ev_stage}" && find . -type f ! -name checksums.sha256 -printf '%P\n' | sort | xargs -r sha256sum
+) >"${_ev_stage}/checksums.sha256"
+printf 'line1\nline2-mutated\n' >"${_ev_stage}/metadata/events.jsonl"
+_ev_vfy="$(archive_verify_checksums_inplace "${_ev_stage}" 2>&1)" && _ev_vfy_rc=0 || _ev_vfy_rc=$?
+if [[ "${_ev_vfy_rc}" -eq 0 && "${_ev_vfy}" == *"events.jsonl checksum drift"* ]]; then
+  ok "verify soft-warns events.jsonl drift (payload still hard-fail)"
+else
+  bad "verify soft-warns events.jsonl drift (rc=${_ev_vfy_rc})"
+fi
+rm -rf "${_ev_stage}"
 # shellcheck source=/dev/null
 source "${ROOT}/lib/core/terminal/style.sh"
 if declare -F ui_step >/dev/null && declare -F backup_preflight_banner >/dev/null 2>&1; then

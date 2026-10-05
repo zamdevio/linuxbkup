@@ -45,7 +45,12 @@ archive_write_checksums() {
   worker_sh="${LINUXBKUP_ROOT}/lib/archive/_checksum_worker.sh"
 
   list="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-cksum.XXXXXX")"
-  find "${stage}" -type f ! -name 'checksums.sha256' -printf '%P\n' >"${list}" || true
+  # Exclude checksums.sha256 itself and events.jsonl (step telemetry may still
+  # append after seal; payload integrity must not depend on it).
+  find "${stage}" -type f \
+    ! -name 'checksums.sha256' \
+    ! -path '*/metadata/events.jsonl' \
+    -printf '%P\n' >"${list}" || true
   total="$(wc -l <"${list}" | tr -d ' ')"
   : >"${out}"
   if [[ "${total}" -eq 0 ]]; then

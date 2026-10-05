@@ -316,6 +316,9 @@ linuxbkup_cmd_backup() {
   fi
   linuxbkup_event ok pack "dest=${dest}"
 
+  # Detach jsonl before stage may disappear — summary still emits verbose events.
+  linuxbkup_events_detach_file
+
   LINUXBKUP_BACKUP_OK=1
   if [[ "${LINUXBKUP_KEEP_STAGE:-0}" -eq 1 ]]; then
     log_info "keeping staging (--keep-stage): ${stage}"

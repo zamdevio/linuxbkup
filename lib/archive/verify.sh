@@ -68,9 +68,10 @@ archive_verify_schema() {
 
 # Verify checksums.sha256 in place under root. Returns 0 on match, 1 on fail.
 # Warns and returns 2 if file missing. Uses worker policy for large lists.
+# metadata/events.jsonl is soft: warn-only (step telemetry; may drift on older archives).
 archive_verify_checksums_inplace() {
   local root="$1"
-  local n workers i work rc=0
+  local n workers i work rc=0 cklist=""
   local -a wpids=()
 
   if [[ ! -f "${root}/checksums.sha256" ]]; then
@@ -78,7 +79,28 @@ archive_verify_checksums_inplace() {
     return 2
   fi
   ui_section "Checksums"
-  n="$(wc -l <"${root}/checksums.sha256" | tr -d ' ')"
+
+  cklist="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-vfyck.XXXXXX")"
+  # Hard-check payload only — drop events.jsonl from the fatal path.
+  if ! grep -vE '[[:space:]](\./)?metadata/events\.jsonl$' \
+    "${root}/checksums.sha256" >"${cklist}"; then
+    : >"${cklist}"
+  fi
+  if grep -qE '[[:space:]](\./)?metadata/events\.jsonl$' "${root}/checksums.sha256"; then
+    if ! (
+      cd "${root}" && grep -E '[[:space:]](\./)?metadata/events\.jsonl$' checksums.sha256 \
+        | sha256sum -c --quiet >/dev/null 2>&1
+    ); then
+      log_warn "metadata/events.jsonl checksum drift (non-fatal — step log, not payload)"
+    fi
+  fi
+
+  n="$(wc -l <"${cklist}" | tr -d ' ')"
+  if [[ "${n}" -eq 0 ]]; then
+    rm -f "${cklist}"
+    log_ok "checksums matched (0 hard entries)"
+    return 0
+  fi
 
   # shellcheck source=lib/core/workers.sh
   source "${LINUXBKUP_ROOT}/lib/core/workers.sh"
@@ -87,11 +109,13 @@ archive_verify_checksums_inplace() {
 
   if [[ "${workers}" -le 1 || "${n}" -lt 16 ]]; then
     if (
-      cd "${root}" && sha256sum -c checksums.sha256 --quiet
+      cd "${root}" && sha256sum -c "${cklist}" --quiet
     ); then
+      rm -f "${cklist}"
       log_ok "all checksums matched (${n} entries)"
       return 0
     fi
+    rm -f "${cklist}"
     log_fatal "checksum mismatch"
     return 1
   fi
@@ -106,7 +130,8 @@ archive_verify_checksums_inplace() {
     [[ -z "${line}" || "${line}" == \#* ]] && continue
     printf '%s\n' "${line}" >>"${work}/part.$((i % workers))"
     i=$((i + 1))
-  done <"${root}/checksums.sha256"
+  done <"${cklist}"
+  rm -f "${cklist}"
 
   for ((i = 0; i < workers; i++)); do
     [[ -s "${work}/part.${i}" ]] || continue
