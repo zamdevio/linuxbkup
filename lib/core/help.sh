@@ -175,11 +175,15 @@ linuxbkup_cmd_help() {
       ;;
     restore)
       ui_heading "linuxbkup restore"
-      ui_item note "Extract backup + decrypt secrets.tar.age (home file restore later)."
+      ui_item note "Extract → decrypt secrets → rsync home/secrets/config into the live tree."
       printf '\n'
       ui_section "Usage"
       ui_item note "linuxbkup [globals] restore <archive.tar.zst>"
       ui_item note "linuxbkup [globals] restore <staging-dir>"
+      printf '\n'
+      ui_section "What is restored"
+      ui_item note "home/ → \$HOME   secrets/ → \$HOME   config/etc → /etc (if writable)"
+      ui_item note "Existing files: refused unless -f/--force-overwrite"
       printf '\n'
       ui_section "Secrets"
       ui_item note "Passphrase: LINUXBKUP_SECRETS_PASS or LINUXBKUP_SECRETS_PASS_FILE (or TTY prompt)"
@@ -190,7 +194,7 @@ linuxbkup_cmd_help() {
       ui_section "Useful globals"
       ui_kv "-n, --dry-run" "Show plan only"
       ui_kv "-k, --keep-stage" "Keep extract directory after restore"
-      ui_kv "-f, --force-overwrite" "Replace existing secrets/ dest"
+      ui_kv "-f, --force-overwrite" "Replace existing home/secrets/config files"
       ui_kv "-y, --yes" "Safe defaults (not overwrite); pass must come from env"
       ;;
     verify)

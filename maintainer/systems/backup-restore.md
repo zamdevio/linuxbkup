@@ -22,12 +22,19 @@ Backup prints shared **environment snapshot** (`lib/env/snapshot.sh`) after pref
 
 Long steps (`classify`, `copy`, `secrets`, `index`, `checksum`, `pack`, `summary`, …) use `linuxbkup_op_begin` + `linuxbkup_interrupt_resolve` (see [`cli.md`](./cli.md)). Copy/pack long waits run under `linuxbkup_without_monitor` so tty Ctrl+C cannot skip the menu via a child-only process group.
 
-## Stub / missing
+## Restore (live)
 
-- `restore` — extract + secrets decrypt live; **home/config file restore** not wired yet
-- Multi-PM capture beyond APT (after 08.8 snapshot UI)
+`lib/cmd/restore.sh` + `lib/backup/restore_files.sh` + `lib/backup/secrets_crypt.sh`:
 
-Decrypt: `backup_secrets_decrypt_stage` in `lib/backup/secrets_crypt.sh` (openssl unwrap age identity → `age -d` → tar).
+1. Extract archive (or use staging) → schema soft-check  
+2. Decrypt `secrets.tar.age` when present  
+3. Rsync `home/` + `secrets/` → `$HOME`; `config/etc` → `/etc` if writable  
+4. Overwrite gate: existing files require `-f/--force-overwrite` (`--yes` alone is never enough)
+
+## Still missing
+
+- Multi-PM capture / package reinstall beyond APT manifests
+- Privileged `/etc` restore UX (sudo path) beyond “skip if not writable”
 
 ## Redesign target
 

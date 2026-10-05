@@ -387,6 +387,59 @@ if command -v age >/dev/null 2>&1 && command -v age-keygen >/dev/null 2>&1 && co
 else
   bad "age encrypts secrets and wipes plaintext (need age+age-keygen+openssl)"
 fi
+
+# Home/config restore: rsync staged trees; --force-overwrite for conflicts
+LINUXBKUP_ROOT="${ROOT}"
+export LINUXBKUP_ROOT
+# shellcheck source=/dev/null
+source "${ROOT}/lib/core/terminal/style.sh"
+# shellcheck source=/dev/null
+source "${ROOT}/lib/core/safety.sh"
+# shellcheck source=/dev/null
+source "${ROOT}/lib/backup/restore_files.sh"
+_rf_stage="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-smoke-rf.XXXXXX")"
+_rf_dest="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-smoke-rfd.XXXXXX")"
+mkdir -p "${_rf_stage}/home/dot" "${_rf_stage}/secrets/.ssh" "${_rf_stage}/config/etc"
+printf 'home-a\n' >"${_rf_stage}/home/dot/a.txt"
+printf 'sec-k\n' >"${_rf_stage}/secrets/.ssh/id_test"
+printf 'etc-x\n' >"${_rf_stage}/config/etc/linuxbkup-smoke.conf"
+# First apply into empty dest (no -f needed)
+LINUXBKUP_FORCE_OVERWRITE=0
+LINUXBKUP_DRY_RUN=0
+if restore_files_copy_tree "${_rf_stage}/home" "${_rf_dest}" "home" \
+  && [[ -f "${_rf_dest}/dot/a.txt" ]] \
+  && grep -q 'home-a' "${_rf_dest}/dot/a.txt"; then
+  ok "restore home tree into empty dest"
+else
+  bad "restore home tree into empty dest"
+fi
+# Conflict without -f must refuse
+printf 'old\n' >"${_rf_dest}/dot/a.txt"
+_rf_err="$(restore_files_copy_tree "${_rf_stage}/home" "${_rf_dest}" "home" 2>&1)" && _rf_rc=0 || _rf_rc=$?
+if [[ "${_rf_rc}" -ne 0 && "${_rf_err}" == *"force-overwrite"* ]]; then
+  ok "restore refuses overwrite without --force-overwrite"
+else
+  bad "restore refuses overwrite without --force-overwrite (rc=${_rf_rc})"
+fi
+# With -f, overwrite + secrets merge
+LINUXBKUP_FORCE_OVERWRITE=1
+if restore_files_apply "${_rf_stage}" "${_rf_dest}" \
+  && grep -q 'home-a' "${_rf_dest}/dot/a.txt" \
+  && [[ -f "${_rf_dest}/.ssh/id_test" ]] \
+  && grep -q 'sec-k' "${_rf_dest}/.ssh/id_test"; then
+  ok "restore -f applies home + secrets into dest"
+else
+  bad "restore -f applies home + secrets into dest"
+fi
+unset LINUXBKUP_FORCE_OVERWRITE
+rm -rf "${_rf_stage}" "${_rf_dest}"
+if grep -q 'restore_files_apply' "${ROOT}/lib/cmd/restore.sh" \
+  && grep -q 'files — home' "${ROOT}/lib/cmd/restore.sh"; then
+  ok "restore cmd wires home/config files step"
+else
+  bad "restore cmd wires home/config files step"
+fi
+
 help04="$("${CLI}" --no-color --help 2>/dev/null)" || true
 if [[ "${help04}" == *"--reclaim"* && "${help04}" == *"--mark-secret"* ]]; then
   ok "help lists reclaim/mark-secret"

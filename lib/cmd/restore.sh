@@ -19,13 +19,17 @@ linuxbkup_cmd_restore() {
   source "${LINUXBKUP_ROOT}/lib/archive/verify.sh"
   # shellcheck source=lib/backup/secrets_crypt.sh
   source "${LINUXBKUP_ROOT}/lib/backup/secrets_crypt.sh"
+  # shellcheck source=lib/backup/restore_files.sh
+  source "${LINUXBKUP_ROOT}/lib/backup/restore_files.sh"
 
   cmd_context_begin restore \
-    --desc "Reconstruct environment from a backup (secrets decrypt live; home copy later)." \
+    --desc "Reconstruct environment from a backup (extract → secrets → home/config)." \
     --required tar zstd rsync sha256sum \
     --optional age openssl
 
-  local kind="archive" root="" tmp="" extract_rc=0 dec_rc=0
+  local kind="archive" root="" tmp="" extract_rc=0 dec_rc=0 files_rc=0
+  local dest_home="${LINUXBKUP_HOME:-${HOME:-}}"
+  local steps=4
 
   if [[ -d "${backup}" ]]; then
     kind="staging"
@@ -40,15 +44,28 @@ linuxbkup_cmd_restore() {
   linuxbkup_op_begin "restore" "${backup}" 0 1
   ui_kv "Source" "${kind}"
   ui_kv_path "Backup" "${backup}"
+  ui_kv_path "Target home" "${dest_home}"
 
   if [[ "${kind}" == "staging" ]]; then
     root="${backup}"
+    ui_step_event 1 "${steps}" "extract" "extract — unpack archive"
     log_ok "using staging directory — no extract"
+    linuxbkup_event skip extract "reason=staging"
   else
     if [[ "${LINUXBKUP_DRY_RUN:-0}" -eq 1 ]]; then
-      log_info "dry-run — would extract archive and decrypt secrets if present"
-      linuxbkup_op_end
+      log_info "dry-run — would extract, decrypt secrets, and rsync home/config"
+      ui_step_event 1 "${steps}" "extract" "extract — unpack archive"
+      linuxbkup_event skip extract "reason=dry-run"
+      ui_step_event 2 "${steps}" "secrets" "secrets — decrypt if encrypted"
+      linuxbkup_event skip secrets "reason=dry-run"
+      ui_step_event 3 "${steps}" "files" "files — home / secrets / config"
+      # Best-effort: peek archive listing is expensive; just report intent
+      ui_kv "files" "would rsync home+secrets → ${dest_home}/ and config → /etc"
+      linuxbkup_event skip files "reason=dry-run"
+      ui_step_event 4 "${steps}" "report" "report — restore status"
+      linuxbkup_event ok report
       linuxbkup_events_end
+      linuxbkup_op_end
       return 0
     fi
     tmp="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-restore.XXXXXX")"
@@ -64,7 +81,7 @@ linuxbkup_cmd_restore() {
     }
     trap '_linuxbkup_restore_on_exit' EXIT
 
-    ui_step_event 1 3 "extract" "extract — unpack archive"
+    ui_step_event 1 "${steps}" "extract" "extract — unpack archive"
     linuxbkup_op_begin "restore-extract" "${backup}" 0 1
     set +e
     linuxbkup_without_monitor bash -c "zstd -dcq \"${backup}\" | tar -C \"${tmp}\" -xf -"
@@ -99,7 +116,7 @@ linuxbkup_cmd_restore() {
     archive_verify_schema "${root}"
   fi
 
-  ui_step_event 2 3 "secrets" "secrets — decrypt if encrypted"
+  ui_step_event 2 "${steps}" "secrets" "secrets — decrypt if encrypted"
   linuxbkup_op_begin "restore-secrets" "${root}" 0 1
   set +e
   backup_secrets_decrypt_stage "${root}"
@@ -119,26 +136,42 @@ linuxbkup_cmd_restore() {
   esac
   linuxbkup_op_end
 
-  ui_step_event 3 3 "report" "report — restore status"
+  ui_step_event 3 "${steps}" "files" "files — home / secrets / config"
+  linuxbkup_op_begin "restore-files" "${root}" 0 1
+  set +e
+  restore_files_apply "${root}" "${dest_home}"
+  files_rc=$?
+  set -e
+  if [[ "${files_rc}" -ne 0 ]]; then
+    linuxbkup_event fail files
+    linuxbkup_op_end
+    return 1
+  fi
+  linuxbkup_event ok files
+  linuxbkup_op_end
+
+  ui_step_event 4 "${steps}" "report" "report — restore status"
   ui_section "Restore status"
   if [[ -d "${root}/home" ]]; then
-    ui_kv "Home tree" "present (file restore not wired yet)"
     ui_kv_path "Staged home" "${root}/home"
+    ui_kv_path "Applied to" "${dest_home}"
   else
-    ui_kv "Home tree" "missing"
+    ui_kv "Home tree" "missing in backup"
   fi
   if [[ -d "${root}/secrets" ]]; then
-    ui_kv_path "Secrets" "${root}/secrets"
-    log_ok "secrets ready under extract/staging"
+    ui_kv_path "Secrets (staged)" "${root}/secrets"
   elif [[ -f "${root}/secrets.tar.age" ]]; then
     ui_kv "Secrets" "still encrypted (decrypt failed or skipped)"
   else
     ui_kv "Secrets" "none in backup"
   fi
+  if [[ -d "${root}/config/etc" ]]; then
+    ui_kv_path "Staged config" "${root}/config/etc"
+  fi
   if [[ -f "${root}/packages/apt.manual" ]]; then
     ui_kv_path "APT manuals" "${root}/packages/apt.manual"
+    ui_item note "Package reinstall modules are not applied yet — manifests only."
   fi
-  ui_item note "Full home/config restore lands next on the restore Focus."
   if [[ -n "${tmp:-}" && "${LINUXBKUP_KEEP_STAGE:-0}" -eq 1 ]]; then
     ui_kv_path "Extract kept" "${tmp}"
   fi
@@ -146,6 +179,6 @@ linuxbkup_cmd_restore() {
   linuxbkup_event ok report
   linuxbkup_events_end
   linuxbkup_op_end
-  log_ok "restore secrets path complete"
+  log_ok "restore complete"
   return 0
 }
