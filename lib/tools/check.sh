@@ -1,8 +1,22 @@
 # shellcheck shell=bash
 # Tool presence checks + platform How-To guides from guides/tools/<name>.guide
 
+# shellcheck source=lib/core/platform/detect.sh
+[[ -n "${LINUXBKUP_ROOT:-}" ]] && source "${LINUXBKUP_ROOT}/lib/core/platform/detect.sh"
+# shellcheck source=lib/constraints/list.sh
+[[ -n "${LINUXBKUP_ROOT:-}" ]] && source "${LINUXBKUP_ROOT}/lib/constraints/list.sh"
+
 tools_guides_dir() {
   printf '%s\n' "${LINUXBKUP_ROOT}/guides/tools"
+}
+
+# Linux-native path for a tool (skips Windows/interop shims). Falls back to command -v.
+tools_resolve() {
+  local tool="$1"
+  if declare -F platform_linux_command >/dev/null 2>&1; then
+    platform_linux_command "${tool}" && return 0
+  fi
+  command -v "${tool}" 2>/dev/null
 }
 
 # Detect package family for install hints.
@@ -83,7 +97,7 @@ tools_print_howto_body() {
   local family
   family="$(tools_pkg_family)"
 
-  if linuxbkup_require_cmd "${tool}"; then
+  if tools_resolve "${tool}" >/dev/null 2>&1; then
     status_label="installed"
   else
     status_label="missing"
@@ -111,6 +125,7 @@ tools_print_howto_body() {
   if [[ "${status_label}" == "installed" ]]; then
     printf '\n'
     log_ok "${tool} is already installed — no action needed"
+    ui_item ok "${tool}  →  $(tools_resolve "${tool}")"
     note="$(tools_guide_get "${tool}" "NOTE" || true)"
     [[ -n "${note}" ]] && ui_item note "${note}"
     printf '\n'
@@ -138,11 +153,13 @@ tools_print_howto() {
 }
 
 # Check a list of tools. Args: --required t1 t2 --optional o1 o2
+# Ready tools listed with resolved Linux paths; list policy truncates >10.
 # Returns 1 if any required tool is missing (after printing howtos).
 tools_check() {
   local -a required=() optional=()
   local mode="required" t
   local missing_req=0
+  local -a ready_lines=()
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -161,25 +178,43 @@ tools_check() {
   done
 
   for t in "${required[@]+"${required[@]}"}"; do
-    if linuxbkup_require_cmd "${t}"; then
-      ui_item ok "${t}  (required)"
+    if tools_resolve "${t}" >/dev/null 2>&1; then
+      ready_lines+=("$(printf '  %s✓%s %s  →  %s  (required)' \
+        "${UI_GREEN:-}" "${UI_RESET:-}" "${t}" "$(tools_resolve "${t}")")")
+    elif command -v "${t}" >/dev/null 2>&1; then
+      ready_lines+=("$(printf '  %s~%s %s  →  %s  — Windows/interop only' \
+        "${UI_YELLOW:-}" "${UI_RESET:-}" "${t}" "$(command -v "${t}")")")
+      missing_req=1
     else
-      ui_item warn "${t}  (required — missing)"
+      ready_lines+=("$(printf '  %s-%s %s  (required — missing)' \
+        "${UI_DIM:-}" "${UI_RESET:-}" "${t}")")
       missing_req=1
     fi
   done
   for t in "${optional[@]+"${optional[@]}"}"; do
-    if linuxbkup_require_cmd "${t}"; then
-      ui_item ok "${t}  (optional)"
+    if tools_resolve "${t}" >/dev/null 2>&1; then
+      ready_lines+=("$(printf '  %s✓%s %s  →  %s  (optional)' \
+        "${UI_GREEN:-}" "${UI_RESET:-}" "${t}" "$(tools_resolve "${t}")")")
+    elif command -v "${t}" >/dev/null 2>&1; then
+      ready_lines+=("$(printf '  %s~%s %s  — Windows/interop only, not usable' \
+        "${UI_YELLOW:-}" "${UI_RESET:-}" "${t}")")
     else
-      ui_item off "${t}  (optional — missing)"
+      ready_lines+=("$(printf '  %s-%s %s  (optional — missing)' \
+        "${UI_DIM:-}" "${UI_RESET:-}" "${t}")")
     fi
   done
+
+  if [[ "${#ready_lines[@]}" -gt 0 ]]; then
+    printf '%s\n' "${ready_lines[@]}" | constraints_list_apply
+    if declare -F constraints_list_footer >/dev/null 2>&1; then
+      constraints_list_footer "tool(s)"
+    fi
+  fi
 
   if [[ "${missing_req}" -eq 1 ]]; then
     printf '\n'
     for t in "${required[@]+"${required[@]}"}"; do
-      linuxbkup_require_cmd "${t}" && continue
+      tools_resolve "${t}" >/dev/null 2>&1 && continue
       tools_print_howto "${t}"
     done
     return 1
@@ -195,7 +230,7 @@ tools_install_one() {
   local how
 
   # Belt-and-suspenders: never run pkg manager if tool is present
-  if linuxbkup_require_cmd "${tool}"; then
+  if tools_resolve "${tool}" >/dev/null 2>&1; then
     log_skip "${tool} already installed — skipping"
     return 0
   fi
@@ -234,14 +269,14 @@ tools_install_one() {
   fi
 
   # Final check right before executing
-  if linuxbkup_require_cmd "${tool}"; then
+  if tools_resolve "${tool}" >/dev/null 2>&1; then
     log_skip "${tool} appeared on PATH — skipping install"
     return 0
   fi
 
   if bash -lc "${how}"; then
-    if linuxbkup_require_cmd "${tool}"; then
-      log_ok "${tool} installed"
+    if tools_resolve "${tool}" >/dev/null 2>&1; then
+      log_ok "${tool} installed → $(tools_resolve "${tool}")"
       return 0
     fi
     log_warn "${tool} install finished but command not on PATH yet — open a new shell?"

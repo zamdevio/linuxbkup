@@ -8,3 +8,4 @@
 6. Prefer small verified steps (`./tests/smoke.sh`, `bash -n`).
 7. Examples: generic paths only (`/home/user`, …).
 8. **Do not commit or push unless the user explicitly asks** — see [`git.md`](./git.md).
+9. **Layout budget:** soft ≤250 lines/file, hard cap 400. Over cap → split into `lib/**/<name>/*.sh` with a thin barrel at the old path (see [`../phases/refactor.md`](../phases/refactor.md)). Call sites keep sourcing the barrel.

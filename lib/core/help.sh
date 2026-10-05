@@ -193,9 +193,13 @@ linuxbkup_cmd_help() {
       printf '\n'
       ui_section "Reinstalls"
       ui_item note "-y / non-TTY: reinstall all recorded projects"
-      ui_item note "TTY: pick projects (default all); --skip-reinstall skips the step"
+      ui_item note "TTY pick: Enter=all · numbers/ranges · f=fzf · n=none · q=skip"
+      ui_item note "--ask (-a): interactive project pick + overwrite confirms (wins over -y)"
       ui_item note "--reinstall-only: manifest + installs only (after PMs installed)"
-      ui_item note "Missing pnpm/yarn: tries corepack when node is present"
+      ui_item note "Before extract: peeks reinstalls.tsv; lists PMs with resolved Linux paths"
+      ui_item note "Windows/interop shims (/mnt/…) are ignored — install Linux Node/PMs"
+      ui_item note "Missing pnpm/yarn: tries corepack when Linux node is present"
+      ui_item note "PM lists use top-10 policy — pass -F/--full or -T/--top <n>"
       ui_item note "PM per project comes from the source backup (lockfile / packageManager)"
       printf '\n'
       ui_section "Secrets"
@@ -203,15 +207,17 @@ linuxbkup_cmd_help() {
       printf '\n'
       ui_section "Requires"
       ui_item note "tar, zstd, rsync, sha256sum  (optional: age, openssl for secrets)"
-      ui_item note "pnpm/npm/yarn/bun on PATH for projects you choose to reinstall"
+      ui_item note "Linux-native pnpm/npm/yarn/bun for projects you choose to reinstall"
       printf '\n'
       ui_section "Useful globals"
       ui_kv "-u, --user" "Target home owner (default: you; under sudo: SUDO_USER)"
       ui_kv "-n, --dry-run" "Show plan only"
       ui_kv "-k, --keep-stage" "Keep extract directory after restore"
+      ui_kv "-a, --ask" "Interactive overwrite + reinstall picks (wins over -y)"
       ui_kv "-f, --force-overwrite" "Replace existing home/secrets/config files"
       ui_kv "--skip-reinstall" "Do not run node (or later language) reinstalls"
       ui_kv "--reinstall-only" "Skip extract of home — only regenerate node_modules"
+      ui_kv "-F/--full, -T/--top" "Listing policy for PM/tool lists (default top 10)"
       ui_kv "-y, --yes" "Safe defaults + reinstall all; pass must come from env"
       ;;
     verify)

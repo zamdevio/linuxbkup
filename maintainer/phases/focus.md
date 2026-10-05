@@ -10,7 +10,7 @@
 
 | Priority | Vertical | Notes |
 |----------|----------|-------|
-| 1 | Node reinstalls | Capture `packages/reinstalls.json` + restore step; harden |
+| 1 | Node reinstalls | PM status + list policy + fzf pick; Kali soak next |
 | 2 | Phases 06–07 docs site | End-user docs + VitePress |
 | 3 | *(open)* | Python reinstalls after Node is solid |
 
@@ -18,6 +18,7 @@
 
 | # | Item | Why parked |
 |---|------|------------|
+| — | **Refactor layout** ([`refactor.md`](./refactor.md)) | Pure structure; open a Focus slot when ready (R1=reinstall split first) |
 | — | Python / Go reinstall slices | Same JSON pattern after Node hardens |
 | — | Capture modules (mise/pip freeze) | Pull from phase 10 when Node done |
 

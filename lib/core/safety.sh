@@ -37,13 +37,26 @@ safety_confirm() {
 }
 
 # Destructive overwrite gate. --yes alone is never enough.
+# Returns: 0 allow · 2 soft-decline (--ask said no) · 1 hard refuse.
+# -f/--force-overwrite always allows; --ask prompts on a real TTY only.
 safety_require_force_overwrite() {
   local what="$1"
   if [[ "${LINUXBKUP_FORCE_OVERWRITE:-0}" -eq 1 ]]; then
     log_warn "force-overwrite enabled for: ${what}"
     return 0
   fi
-  log_fatal "Refusing to overwrite ${what}. Pass --force-overwrite if intentional."
+  if [[ "${LINUXBKUP_ASK:-0}" -eq 1 && -t 0 ]]; then
+    if safety_confirm "Overwrite ${what}?" n; then
+      log_warn "overwrite approved via --ask for: ${what}"
+      return 0
+    fi
+    log_skip "overwrite declined for: ${what}"
+    return 2
+  fi
+  if [[ "${LINUXBKUP_ASK:-0}" -eq 1 ]]; then
+    log_warn "--ask needs a TTY to confirm overwrite — refusing ${what}"
+  fi
+  log_fatal "Refusing to overwrite ${what}. Pass -f/--force-overwrite, or -a/--ask in a TTY."
   return 1
 }
 

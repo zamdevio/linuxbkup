@@ -432,12 +432,88 @@ fi
 if grep -q 'skip-reinstall' "${ROOT}/lib/core/common.sh" \
   && grep -q 'reinstall-only' "${ROOT}/lib/core/common.sh" \
   && grep -q 'reinstall_ensure_pms' "${ROOT}/lib/backup/reinstall.sh" \
+  && grep -q 'reinstall_preflight_guide' "${ROOT}/lib/cmd/restore.sh" \
   && grep -q 'REINSTALL_ONLY' "${ROOT}/lib/cmd/restore.sh"; then
-  ok "backup/restore wire reinstall-only + PM ensure + skip"
+  ok "backup/restore wire reinstall-only + PM ensure + peek preflight"
 else
-  bad "backup/restore wire reinstall-only + PM ensure + skip"
+  bad "backup/restore wire reinstall-only + PM ensure + peek preflight"
 fi
-rm -rf "${_nd_home}" "${_nd_stage}"
+# Peek reinstalls.tsv from archive without full extract
+_nd_arch="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-smoke-ndarch.XXXXXX.tar.zst")"
+rm -f "${_nd_arch}"
+tar -C "${_nd_stage}" -cf - packages | zstd -q -o "${_nd_arch}"
+_nd_peek=()
+reinstall_peek_from_backup "${_nd_arch}" archive _nd_peek
+if [[ "${#_nd_peek[@]}" -eq 3 ]]; then
+  ok "reinstall_peek_from_backup reads tsv without full extract"
+else
+  bad "reinstall_peek_from_backup reads tsv without full extract (n=${#_nd_peek[@]})"
+fi
+_nd_pf_out=""
+_nd_pf_rc=0
+set +e
+_nd_pf_out="$(LINUXBKUP_YES=1 reinstall_preflight_guide "${_nd_arch}" archive 2>&1)"
+_nd_pf_rc=$?
+set -e
+if [[ "${_nd_pf_rc}" -eq 0 && "${_nd_pf_out}" == *"Reinstall preflight"* ]]; then
+  ok "reinstall_preflight_guide under -y (no hang)"
+else
+  bad "reinstall_preflight_guide under -y (rc=${_nd_pf_rc})"
+fi
+# Windows/interop PM shims must not count as ready
+# shellcheck source=/dev/null
+source "${ROOT}/lib/core/platform/detect.sh"
+if platform_path_is_windows_interop "/mnt/d/Tools/Global/pnpm/bin/pnpm" \
+  && platform_path_is_windows_interop "/mnt/d/Tools/NodeJS/npm" \
+  && platform_path_is_windows_interop "/mnt/c/Windows/System32/cmd.exe" \
+  && ! platform_path_is_windows_interop "/usr/bin/pnpm"; then
+  ok "platform_path_is_windows_interop flags /mnt/* paths"
+else
+  bad "platform_path_is_windows_interop flags /mnt/* paths"
+fi
+# .exe-only PATH entry must not resolve as a Linux PM
+_fake_win_dir="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-smoke-winbin.XXXXXX")"
+printf '#!/bin/sh\necho win-pnpm\n' >"${_fake_win_dir}/pnpm.exe"
+chmod +x "${_fake_win_dir}/pnpm.exe"
+_nd_res="$(PATH="${_fake_win_dir}:${PATH}" platform_linux_command pnpm 2>/dev/null || true)"
+if [[ -z "${_nd_res}" || "${_nd_res}" != "${_fake_win_dir}"/* ]]; then
+  ok "platform_linux_command skips .exe-only pnpm shims"
+else
+  bad "platform_linux_command must not accept .exe pnpm (got ${_nd_res})"
+fi
+# PM status line includes resolved path for ready PMs
+_nd_st="$(reinstall_pm_status_line bash "$((5))")"
+if [[ "${_nd_st}" == $'ready\tbash\t'* ]]; then
+  ok "reinstall_pm_status_line lists ready PM with resolved path"
+else
+  bad "reinstall_pm_status_line lists ready PM with resolved path (${_nd_st})"
+fi
+# List policy: 12 fake ready lines → show top 10
+# shellcheck source=/dev/null
+source "${ROOT}/lib/constraints/list.sh"
+ND_LIST_LINES=()
+for _nd_i in $(seq 1 12); do
+  ND_LIST_LINES+=("  ✓ tool${_nd_i}  →  /usr/bin/tool${_nd_i}")
+done
+_nd_plimit_out="$(printf '%s\n' "${ND_LIST_LINES[@]}" | constraints_list_apply 2>/dev/null)" || true
+_nd_plimit_n="$(printf '%s\n' "${_nd_plimit_out}" | grep -c 'tool' || true)"
+if [[ "${_nd_plimit_n}" -eq 10 ]]; then
+  ok "list policy auto-truncates >10 items to top 10"
+else
+  bad "list policy auto-truncates >10 items to top 10 (n=${_nd_plimit_n})"
+fi
+# --ask wins over --yes (profile precedence)
+# shellcheck source=/dev/null
+source "${ROOT}/lib/core/profile.sh"
+LINUXBKUP_YES=1 LINUXBKUP_ASK=1
+linuxbkup_apply_ask_yes_precedence 2>/dev/null || true
+if [[ "${LINUXBKUP_YES}" -eq 0 && "${LINUXBKUP_ASK}" -eq 1 ]]; then
+  ok "--ask precedence clears --yes"
+else
+  bad "--ask precedence clears --yes (yes=${LINUXBKUP_YES} ask=${LINUXBKUP_ASK})"
+fi
+rm -rf "${_nd_home}" "${_nd_stage}" "${_nd_arch}" "${_fake_win_dir}"
+unset LINUXBKUP_ASK LINUXBKUP_YES
 
 # sudo → SUDO_USER (not root) for target user
 # shellcheck source=/dev/null

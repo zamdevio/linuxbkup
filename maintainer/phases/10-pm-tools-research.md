@@ -62,8 +62,8 @@ Doctrine: **never pack what `mise install` / `pip install` / `pnpm i` can recrea
 | Keep | `package.json`, lockfiles, `.npmrc` |
 | Manifest | `packages/reinstalls.json` + `.tsv` via `modules/node.sh` (after stage copy) |
 | Detect | `packageManager` field → lockfile → default **pnpm** |
-| Restore | `lib/backup/reinstall.sh` — TTY pick / `-y` all / `--skip-reinstall` none; source PM recipe only |
-| Status | **strip + capture + restore module** (harden in Focus) |
+| Restore | `lib/backup/reinstall.sh` — peek tsv + PM status with Linux paths + list policy; TTY pick / fzf / `-y` all / `--skip-reinstall`; Windows/interop PMs ignored |
+| Status | **strip + capture + restore + preflight + Linux-only PM resolve** (Python/etc. same pattern later) |
 
 ### uv / pipx / rustup / cargo / go (partial)
 
@@ -107,7 +107,7 @@ When pulling into Focus, name the tool:
 
 - [ ] **10.mise** Capture `mise ls` + config into `packages/mise.*`
 - [ ] **10.python** `pip`/`uv` freeze into packages/
-- [x] **10.nodejs** Detect PM per project + reinstalls.json + restore step (harden next)
+- [x] **10.nodejs** Detect PM per project + reinstalls.json + restore step + peek/preflight PM guide
 - [x] **10.asdf-nvm** Strip parity with mise (asdf/nvm/fnm/sdkman/rbenv installs)
 - [ ] **10.asdf-nvm-capture** Manifest capture modules (later)
 - [ ] **10.flatpak** Honest gap report vs runtime dump

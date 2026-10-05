@@ -49,6 +49,7 @@ linuxbkup_cmd_deps() {
 }
 
 # Count present/missing across core + optional. Sets DEPS_* globals.
+# Present = Linux-native binary (Windows/interop shims do not count).
 _deps_count_catalog() {
   local tool
   DEPS_PRESENT=0
@@ -58,7 +59,7 @@ _deps_count_catalog() {
 
   for tool in "${LINUXBKUP_DEPS_CORE[@]}"; do
     DEPS_TOTAL=$((DEPS_TOTAL + 1))
-    if linuxbkup_require_cmd "${tool}"; then
+    if tools_resolve "${tool}" >/dev/null 2>&1; then
       DEPS_PRESENT=$((DEPS_PRESENT + 1))
     else
       DEPS_MISSING_CORE=$((DEPS_MISSING_CORE + 1))
@@ -66,7 +67,7 @@ _deps_count_catalog() {
   done
   for tool in "${LINUXBKUP_DEPS_OPTIONAL[@]}"; do
     DEPS_TOTAL=$((DEPS_TOTAL + 1))
-    if linuxbkup_require_cmd "${tool}"; then
+    if tools_resolve "${tool}" >/dev/null 2>&1; then
       DEPS_PRESENT=$((DEPS_PRESENT + 1))
     else
       DEPS_MISSING_OPT=$((DEPS_MISSING_OPT + 1))
@@ -113,28 +114,44 @@ _deps_banner() {
 }
 
 _deps_status() {
-  local tool
+  local tool path
+  local -a lines=()
 
   _deps_banner "linuxbkup deps"
 
-  ui_section "Core (needed for backup/restore)"
+  # Core + optional listed with resolved Linux paths (list policy top-10)
+  ui_section "Core / optional"
+  lines=()
   for tool in "${LINUXBKUP_DEPS_CORE[@]}"; do
-    if linuxbkup_require_cmd "${tool}"; then
-      ui_item ok "${tool}"
+    if path="$(tools_resolve "${tool}")"; then
+      lines+=("$(printf '  %s✓%s %s  →  %s  (required)' \
+        "${UI_GREEN:-}" "${UI_RESET:-}" "${tool}" "${path}")")
+    elif command -v "${tool}" >/dev/null 2>&1; then
+      lines+=("$(printf '  %s~%s %s  →  %s  — Windows/interop only' \
+        "${UI_YELLOW:-}" "${UI_RESET:-}" "${tool}" "$(command -v "${tool}")")")
     else
-      ui_item warn "${tool}  — missing"
+      lines+=("$(printf '  %s-%s %s  — missing' \
+        "${UI_DIM:-}" "${UI_RESET:-}" "${tool}")")
     fi
   done
-
-  printf '\n'
-  ui_section "Optional"
   for tool in "${LINUXBKUP_DEPS_OPTIONAL[@]}"; do
-    if linuxbkup_require_cmd "${tool}"; then
-      ui_item ok "${tool}"
+    if path="$(tools_resolve "${tool}")"; then
+      lines+=("$(printf '  %s✓%s %s  →  %s  (optional)' \
+        "${UI_GREEN:-}" "${UI_RESET:-}" "${tool}" "${path}")")
+    elif command -v "${tool}" >/dev/null 2>&1; then
+      lines+=("$(printf '  %s~%s %s  — Windows/interop only, not usable' \
+        "${UI_YELLOW:-}" "${UI_RESET:-}" "${tool}")")
     else
-      ui_item off "${tool}  — missing"
+      lines+=("$(printf '  %s-%s %s  — missing (optional)' \
+        "${UI_DIM:-}" "${UI_RESET:-}" "${tool}")")
     fi
   done
+  if [[ "${#lines[@]}" -gt 0 ]]; then
+    printf '%s\n' "${lines[@]}" | constraints_list_apply
+    if declare -F constraints_list_footer >/dev/null 2>&1; then
+      constraints_list_footer "tool(s)"
+    fi
+  fi
 
   local has_extra=0
   while IFS= read -r tool; do
@@ -146,14 +163,23 @@ _deps_status() {
   if [[ "${has_extra}" -eq 1 ]]; then
     printf '\n'
     ui_section "Other guides"
+    lines=()
     while IFS= read -r tool; do
       [[ "$(tools_dep_tier "${tool}")" == "extra" ]] || continue
-      if linuxbkup_require_cmd "${tool}"; then
-        ui_item ok "${tool}"
+      if path="$(tools_resolve "${tool}")"; then
+        lines+=("$(printf '  %s✓%s %s  →  %s' \
+          "${UI_GREEN:-}" "${UI_RESET:-}" "${tool}" "${path}")")
       else
-        ui_item off "${tool}"
+        lines+=("$(printf '  %s-%s %s' \
+          "${UI_DIM:-}" "${UI_RESET:-}" "${tool}")")
       fi
     done < <(tools_catalog_all)
+    if [[ "${#lines[@]}" -gt 0 ]]; then
+      printf '%s\n' "${lines[@]}" | constraints_list_apply
+      if declare -F constraints_list_footer >/dev/null 2>&1; then
+        constraints_list_footer "tool(s)"
+      fi
+    fi
   fi
 
   printf '\n'

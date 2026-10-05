@@ -51,8 +51,10 @@ linuxbkup -y -f restore ~/Backups/linuxbkup/host.tar.zst
 linuxbkup -y --reinstall-only restore ~/Backups/linuxbkup/host.tar.zst
 ```
 
-Passphrase via `LINUXBKUP_SECRETS_PASS` / `_PASS_FILE` or TTY prompt. Existing files need `-f`.  
-Backup writes `packages/reinstalls.json` for **workspace roots / lockfile dirs** (not every nested `package.json`). Restore tries `corepack` for missing pnpm/yarn when Node is present.
+Passphrase via `LINUXBKUP_SECRETS_PASS` / `_PASS_FILE` or TTY prompt. Existing files need `-f` (or `-a/--ask` to confirm per tree).  
+Backup writes `packages/reinstalls.json` for **workspace roots / lockfile dirs** (not every nested `package.json`).  
+Restore **peeks** `packages/reinstalls.tsv` and lists **required PMs with resolved Linux paths** (Windows/interop `/mnt/...` shims are ignored). Missing PMs get install recipes; Enter re-checks. PM/tool lists auto-truncate via listing policy (default **top 10**; `-F/--full`, `-T/--top <n>`).  
+`-a/--ask` on restore: interactive reinstall project pick + overwrite confirms (wins over `-y`). TTY pick supports `a`/`n`/`1-3,5`/`f` (fzf)/`q`. After installing Linux PMs: `linuxbkup -y --reinstall-only restore <archive|staging>`. Tries `corepack` for pnpm/yarn when Linux `node` is present.
 
 ## Dependencies
 

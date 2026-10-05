@@ -22,6 +22,8 @@ Backup prints shared **environment snapshot** (`lib/env/snapshot.sh`) after pref
 
 Long steps (`classify`, `copy`, `secrets`, `index`, `checksum`, `pack`, `summary`, …) use `linuxbkup_op_begin` + `linuxbkup_interrupt_resolve` (see [`cli.md`](./cli.md)). Copy/pack long waits run under `linuxbkup_without_monitor` so tty Ctrl+C cannot skip the menu via a child-only process group.
 
+**Layout:** large modules split into `lib/**/<name>/*.sh` with thin barrels at the old path — budget + slices in [`../phases/refactor.md`](../phases/refactor.md) (soft ≤250 / hard 400 lines).
+
 **events.jsonl:** written under `metadata/` through pack ok; detached before stage cleanup (summary is verbose-only). Excluded from `checksums.sha256` — verify soft-warns if an older archive hashed it and it drifts. Payload mismatches still **fail + stop**.
 
 ## Restore (live)
@@ -34,7 +36,7 @@ Long steps (`classify`, `copy`, `secrets`, `index`, `checksum`, `pack`, `summary
 4. Overwrite gate: existing files require `-f/--force-overwrite` (`--yes` alone is never enough)  
 5. **sudo:** `env_resolve_user` prefers `SUDO_USER` (not root) unless `-u` is set; home/secrets get `rsync --chown=user:group`; `/etc` still applies as root. Refuses dumping into `/root` when `SUDO_USER` is a normal user.
 
-**Node reinstalls:** after home copy, `modules/node.sh` writes `packages/reinstalls.json` (+ `.tsv`) for **workspace roots / lockfile dirs** (skips nested packages, `.claude`, `.var`, fixtures). Restore runs installs unless `--skip-reinstall`. `-y` / non-TTY = all; TTY = pick. Missing pnpm/yarn → try `corepack` when Node exists. `--reinstall-only` = manifest extract + installs (no home re-copy).
+**Node reinstalls:** after home copy, `modules/node.sh` writes `packages/reinstalls.json` (+ `.tsv`) for **workspace roots / lockfile dirs** (skips nested packages, `.claude`, `.var`, fixtures). Before full extract, restore **peeks** `packages/reinstalls.tsv` (`tar -xO`) and lists **PMs with resolved Linux paths** (`platform_linux_command` — Windows/interop `/mnt/*` shims ignored). Missing PMs get recipes; Enter re-check / continue / skip / quit. `-y` / non-TTY: tips + continue. Then installs unless `--skip-reinstall`. `-y` = all projects; TTY = pick (`a`/`n`/`1-3`/`f` fzf/`q`); `--ask` forces interactive pick + overwrite confirms. PM/tool lists auto-truncate via `lib/constraints/list.sh` (default top 10, `-F`/`-T`). `--reinstall-only` = manifest extract + installs (no home re-copy).`
 
 ## Still missing
 

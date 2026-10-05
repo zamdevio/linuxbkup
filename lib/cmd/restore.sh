@@ -41,6 +41,7 @@ linuxbkup_cmd_restore() {
   local kind="archive" root="" tmp="" extract_rc=0 dec_rc=0 files_rc=0
   local dest_home="${LINUXBKUP_HOME:-${HOME:-}}"
   local dest_user=""
+  local _pf_rc=0
   local steps=5
   [[ "${reinstall_only}" -eq 1 ]] && steps=3
   # shellcheck source=lib/env/users.sh
@@ -71,6 +72,23 @@ linuxbkup_cmd_restore() {
   [[ "${reinstall_only}" -eq 1 ]] && ui_kv "Mode" "reinstall-only"
   if env_sudo_user_remap; then
     log_info "sudo detected — home/secrets → ${dest_user} (${dest_home}); /etc when writable"
+  fi
+
+  # Peek reinstalls.tsv only (no full extract) → guide PM installs immediately
+  if [[ "${LINUXBKUP_SKIP_REINSTALL:-0}" -ne 1 && "${LINUXBKUP_DRY_RUN:-0}" -ne 1 ]]; then
+    set +e
+    reinstall_preflight_guide "${backup}" "${kind}"
+    _pf_rc=$?
+    set -e
+    case "${_pf_rc}" in
+      0) ;;
+      2) ui_kv "Reinstalls" "skipped (preflight)" ;;
+      *)
+        linuxbkup_events_end
+        linuxbkup_op_end
+        return 1
+        ;;
+    esac
   fi
 
   # --- extract / open stage -------------------------------------------------

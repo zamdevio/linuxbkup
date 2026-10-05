@@ -61,9 +61,15 @@ restore_files_copy_tree() {
   fi
 
   if [[ "${conflicts}" -gt 0 ]]; then
-    if ! safety_require_force_overwrite "${label} (${conflicts} existing file(s) under ${dest})"; then
-      return 1
-    fi
+    set +e
+    safety_require_force_overwrite "${label} (${conflicts} existing file(s) under ${dest})"
+    rc=$?
+    set -e
+    case "${rc}" in
+      0) ;;
+      2) return 2 ;; # --ask declined → skip this tree
+      *) return 1 ;;
+    esac
   fi
 
   mkdir -p "${dest}"

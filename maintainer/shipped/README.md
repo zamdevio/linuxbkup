@@ -40,7 +40,7 @@ What has actually landed (not aspirational). Binary: **`linuxbkup`**. Env: **`LI
 | UX | Phase 08.10: structured step events (`events.sh`) + `metadata/events.jsonl` in stage/archive |
 | Phase 04.5 | `restore` decrypts `secrets.tar.age` (passphrase env/TTY) |
 | Restore files | `restore` rsyncs `home/` + `secrets/` → `$HOME` and `config/etc` → `/etc`; `-f` for overwrite |
-| Node reinstalls | `packages/reinstalls.json` on backup; restore regenerates `node_modules` (`-y` all / `--skip-reinstall` / TTY pick) |
+| Node reinstalls | `packages/reinstalls.json` on backup; restore peeks tsv, lists PMs with **resolved Linux paths** (interop shims ignored), top-10 list policy, regenerates `node_modules` (`-y` all / `--skip-reinstall` / TTY+fzf pick / `--ask`) |
 
 ## Not shipped yet (redesign track)
 

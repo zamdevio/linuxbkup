@@ -21,7 +21,7 @@ Surface: root **`linuxbkup`** bin. Env: `LINUXBKUP_*`.
 | `verify` | Live for archive **or** staging |
 | `deps` | Live |
 | `list` | Thin / early |
-| `restore` | Stub |
+| `restore` | Live (extract → secrets → files → Node reinstalls; peek PM preflight) |
 
 ## Global flags (today)
 

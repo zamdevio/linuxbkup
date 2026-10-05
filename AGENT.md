@@ -18,6 +18,7 @@ Scaffolded via `@zamdevio/scaffolder` (`cli` preset), then **pivoted to Bash**. 
 3. For redesign work: [`maintainer/phases/redesign.md`](maintainer/phases/redesign.md) + the phase doc Focus names (`00`–`07`).
 4. Map reality via [`maintainer/systems/`](maintainer/systems/) and [`maintainer/shipped/`](maintainer/shipped/).
 5. Architecture / git gates: [`maintainer/agents/`](maintainer/agents/).
+6. Large-file budget + subdir split: [`maintainer/phases/refactor.md`](maintainer/phases/refactor.md) (soft ≤250 / hard 400 lines).
 
 `maintainer/temp/` is scratch (gitignored).
 
