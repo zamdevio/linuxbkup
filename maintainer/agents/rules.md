@@ -9,3 +9,4 @@
 7. Examples: generic paths only (`/home/user`, …).
 8. **Do not commit or push unless the user explicitly asks** — see [`git.md`](./git.md).
 9. **Layout budget:** soft ≤250 lines/file, hard cap 400. Over cap → split into `lib/**/<name>/*.sh` with a thin barrel at the old path (see [`../phases/refactor.md`](../phases/refactor.md)). Call sites keep sourcing the barrel. Smoke suite splits the same way (`tests/smoke/*.sh` + thin `tests/smoke.sh` runner) — **parallel** track, not a Focus slot.
+10. **Restore interrupt parity:** all `restore` ops (extract → secrets → files → reinstalls) must use the central interrupt API (`op_begin` + `without_monitor` + menu) like backup; picker v2 modes in [`../phases/11-restore-ux.md`](../phases/11-restore-ux.md).

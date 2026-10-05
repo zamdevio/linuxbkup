@@ -35,6 +35,7 @@ After these phase docs are agreed and implementation lands, fold outcomes into [
 | [08-terminal-ux.md](./08-terminal-ux.md) | Progress, OSC links, notify, flag-aware tips |
 | [09-ux-failfast.md](./09-ux-failfast.md) | Fail-fast preflight, honest sizes, no late fatal after long copy |
 | [10-pm-tools-research.md](./10-pm-tools-research.md) | **Standing** keep/strip/manifest/restore map for PMs & tools (does not fold early) |
+| [11-restore-ux.md](./11-restore-ux.md) | Restore interrupt parity (Ctrl+C/Z mid-reinstall) + project picker v2 |
 | [refactor.md](./refactor.md) | Layout hygiene — split large modules into `lib/**/<name>/*.sh` + thin barrels |
 
 ## Discovery → backup (target)

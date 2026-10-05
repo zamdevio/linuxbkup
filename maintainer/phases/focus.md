@@ -14,7 +14,7 @@
 |----------|----------|-------|
 | 1 | Node reinstalls | PM status + list policy + fzf pick; Kali soak next |
 | 2 | Phases 06–07 docs site | End-user docs + VitePress |
-| 3 | *(open)* | Python reinstalls after Node is solid |
+| 3 | *(open)* | **Restore UX** ([`11-restore-ux.md`](./11-restore-ux.md)) — Ctrl+C/Z in reinstall + picker v2 |
 
 ## Parallel — refactor (open)
 

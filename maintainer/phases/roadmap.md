@@ -35,6 +35,7 @@ Clean `linuxbkup` / `LINUXBKUP_*` identity (phase 00).
 | 08 | [Terminal UX](./08-terminal-ux.md) | **done** (through 08.10 events.jsonl) |
 | 09 | [UX fail-fast](./09-ux-failfast.md) | **in progress** (09.1–09.3/09.6 done; banner later) |
 | 10 | [PM/tools research](./10-pm-tools-research.md) | **OPEN standing** — living keep/strip/manifest guide (do not fold) |
+| 11 | [Restore UX](./11-restore-ux.md) | **planned** — Ctrl+C/Z parity in reinstall + picker v2 (exclude/PM/grep/fzf) |
 | R | [Refactor / large-file split](./refactor.md) | **open (parallel)** — R-SMOKE `tests/smoke/*.sh` then reinstall → `lib/backup/reinstall/*.sh`; soft ≤250 / hard 400 |
 
 Later product phases (after redesign foundation): restore polish, language modules, systemd/`/etc`, Docker — re-queue in focus when ready.
