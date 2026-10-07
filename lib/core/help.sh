@@ -152,7 +152,7 @@ linuxbkup_cmd_help() {
       ui_item note "linuxbkup [globals] backup"
       printf '\n'
       ui_section "Requires"
-      ui_item note "tar, zstd, rsync, du, sha256sum  (optional: age)"
+      ui_item note "tar, zstd, rsync, du, sha256sum|shasum|openssl  (optional: age)"
       printf '\n'
       ui_section "Useful globals"
       ui_kv "-o, --output" "Archive destination (see platform defaults)"
@@ -160,7 +160,7 @@ linuxbkup_cmd_help() {
       ui_kv "-y, --yes" "Accept copy confirmation; soft-skip unreadable files"
       ui_kv "-a, --ask" "Interactive unexpected/large picks (ignores --yes)"
       ui_kv "-p, --profile" "easy|balanced|strict — large-path suggestions/defaults"
-      ui_kv "-k, --keep-stage" "Keep staging dir after successful backup"
+      ui_kv "-k, --keep-stage" "Keep staging dir after successful backup (path printed)"
       ui_kv "-S, --stage-dir" "Parent directory for staging"
       ui_kv "-m, --max-size" "Abort if staging exceeds SIZE (uncompressed)"
       ui_kv "-w, --workers" "Checksum parallelism cap (default 4; scales down for tiny jobs)"
@@ -215,13 +215,13 @@ linuxbkup_cmd_help() {
       ui_item note "Passphrase: LINUXBKUP_SECRETS_PASS or LINUXBKUP_SECRETS_PASS_FILE (or TTY prompt)"
       printf '\n'
       ui_section "Requires"
-      ui_item note "tar, zstd, rsync, sha256sum  (optional: age, openssl for secrets)"
+      ui_item note "tar, zstd, rsync, sha256sum|shasum|openssl  (optional: age, openssl for secrets)"
       ui_item note "Linux-native pnpm/npm/yarn/bun for projects you choose to reinstall"
       printf '\n'
       ui_section "Useful globals"
       ui_kv "-u, --user" "Target home owner (default: you; under sudo: SUDO_USER)"
       ui_kv "-n, --dry-run" "Show plan only"
-      ui_kv "-k, --keep-stage" "Keep extract directory after restore"
+      ui_kv "-k, --keep-stage" "Keep extract directory after restore (path printed)"
       ui_kv "-a, --ask" "Interactive overwrite + reinstall picks (wins over -y)"
       ui_kv "-f, --force-overwrite" "Replace existing home/secrets/config files"
       ui_kv "--skip-reinstall" "Do not run node (or later language) reinstalls"
@@ -242,8 +242,8 @@ linuxbkup_cmd_help() {
       ui_item note "linuxbkup verify /tmp/linuxbkup.12345.67890"
       printf '\n'
       ui_section "Requires"
-      ui_item note "Archive: tar, zstd, sha256sum"
-      ui_item note "Staging: sha256sum (checksums.sha256 required)"
+      ui_item note "Archive: tar, zstd, sha256sum|shasum|openssl"
+      ui_item note "Staging: sha256sum|shasum|openssl (checksums.sha256 required)"
       ;;
     list)
       ui_heading "linuxbkup list"

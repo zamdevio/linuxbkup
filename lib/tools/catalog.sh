@@ -62,6 +62,12 @@ tools_install_command() {
     yum) how="$(tools_guide_get "${tool}" "HOW_YUM" || tools_guide_get "${tool}" "HOW_DNF" || true)" ;;
     pacman) how="$(tools_guide_get "${tool}" "HOW_PACMAN" || true)" ;;
     apk) how="$(tools_guide_get "${tool}" "HOW_APK" || true)" ;;
+    pkg)
+      # Termux — prefer pkg(1); fall back to apk/apt guides
+      how="$(tools_guide_get "${tool}" "HOW_PKG" || true)"
+      [[ -n "${how}" ]] || how="$(tools_guide_get "${tool}" "HOW_APK" || true)"
+      [[ -n "${how}" ]] || how="$(tools_guide_get "${tool}" "HOW_APT" || true)"
+      ;;
     brew) how="$(tools_guide_get "${tool}" "HOW_BREW" || true)" ;;
     *) how="" ;;
   esac

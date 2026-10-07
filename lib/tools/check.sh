@@ -11,8 +11,16 @@ tools_guides_dir() {
 }
 
 # Linux-native path for a tool (skips Windows/interop shims). Falls back to command -v.
+# Phase 13: sha256sum is satisfied by any sha256 provider (shasum/openssl).
 tools_resolve() {
   local tool="$1"
+  if [[ "${tool}" == "sha256sum" ]] && declare -F compat_sha_tool >/dev/null 2>&1; then
+    local sha
+    sha="$(compat_sha_tool)"
+    if [[ -n "${sha}" ]]; then
+      command -v "${sha}" 2>/dev/null && return 0
+    fi
+  fi
   if declare -F platform_linux_command >/dev/null 2>&1; then
     platform_linux_command "${tool}" && return 0
   fi
@@ -20,8 +28,15 @@ tools_resolve() {
 }
 
 # Detect package family for install hints.
+# Phase 13 D2: Termux `pkg` before apt; Alpine prefers apk.
 tools_pkg_family() {
-  if linuxbkup_require_cmd apt-get || linuxbkup_require_cmd apt; then
+  if [[ -n "${TERMUX_VERSION:-}" ]] && command -v pkg >/dev/null 2>&1; then
+    printf '%s\n' "pkg"
+  elif command -v apk >/dev/null 2>&1 \
+    && ! command -v apt-get >/dev/null 2>&1 \
+    && ! command -v apt >/dev/null 2>&1; then
+    printf '%s\n' "apk"
+  elif linuxbkup_require_cmd apt-get || linuxbkup_require_cmd apt; then
     printf '%s\n' "apt"
   elif linuxbkup_require_cmd dnf; then
     printf '%s\n' "dnf"

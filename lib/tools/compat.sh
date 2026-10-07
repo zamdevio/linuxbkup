@@ -39,13 +39,36 @@ tools_compat_tar_zstd() {
     log_fatal "compat: tar and zstd required for archive pack/extract"
     return 1
   fi
+  # Prefer compat wrappers when loaded (BusyBox-safe flags)
+  if declare -F compat_tar_pack_stream >/dev/null 2>&1 \
+    && declare -F compat_zstd_compress >/dev/null 2>&1; then
+    local tmp out
+    tmp="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-compat-tz.XXXXXX")"
+    out="${tmp}/t.zst"
+    printf 'linuxbkup-compat\n' >"${tmp}/f"
+    if ! compat_tar_pack_stream "${tmp}" | compat_zstd_compress "${out}" 1; then
+      rm -rf "${tmp}"
+      log_fatal "compat: tar|zstd pipe failed — check tar + zstd install"
+      return 1
+    fi
+    if ! compat_zstd_decompress "${out}" | compat_tar_list_stream >/dev/null 2>&1; then
+      rm -rf "${tmp}"
+      log_fatal "compat: zstd|tar extract probe failed"
+      return 1
+    fi
+    rm -rf "${tmp}"
+    LINUXBKUP_COMPAT_TAR_ZSTD=1
+    export LINUXBKUP_COMPAT_TAR_ZSTD
+    log_verbose "compat: tar+zstd pipe OK (impl=$(compat_tar_type 2>/dev/null || echo '?'))"
+    return 0
+  fi
   local tmp out
   tmp="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-compat-tz.XXXXXX")"
   out="${tmp}/t.zst"
   printf 'linuxbkup-compat\n' >"${tmp}/f"
   if ! tar -C "${tmp}" -cf - f 2>/dev/null | zstd -T1 -q -o "${out}" 2>/dev/null; then
     rm -rf "${tmp}"
-    log_fatal "compat: tar|zstd pipe failed — check GNU tar + zstd install"
+    log_fatal "compat: tar|zstd pipe failed — check tar + zstd install"
     return 1
   fi
   if ! zstd -dcq "${out}" 2>/dev/null | tar -t >/dev/null 2>&1; then
@@ -108,6 +131,27 @@ tools_compat_age() {
 
 tools_compat_sha256sum() {
   if [[ "${LINUXBKUP_COMPAT_SHA256:-}" == "1" ]]; then
+    return 0
+  fi
+  # Prefer the shared compat layer (sha256sum | shasum -a 256 | openssl)
+  if declare -F compat_sha_tool >/dev/null 2>&1; then
+    local tool h t
+    tool="$(compat_sha_tool)"
+    if [[ -z "${tool}" ]]; then
+      log_fatal "compat: no sha256 provider (need sha256sum, shasum, or openssl)"
+      return 1
+    fi
+    t="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-compat-sha.XXXXXX")"
+    printf 'x\n' >"${t}"
+    h="$(compat_sha256_hash "${t}" 2>/dev/null | awk '{print $1}')"
+    rm -f "${t}"
+    if [[ ! "${h}" =~ ^[0-9a-f]{64}$ ]]; then
+      log_fatal "compat: ${tool} probe produced unexpected output"
+      return 1
+    fi
+    LINUXBKUP_COMPAT_SHA256=1
+    export LINUXBKUP_COMPAT_SHA256
+    log_verbose "compat: sha256 via ${tool} OK"
     return 0
   fi
   if ! linuxbkup_require_cmd sha256sum; then

@@ -42,6 +42,10 @@ fs_parse_size_to_bytes() {
 # Bytes → short human (no trailing B when numfmt missing).
 fs_bytes_human() {
   local bytes="${1:-0}"
+  if declare -F compat_numfmt_human >/dev/null 2>&1; then
+    compat_numfmt_human "${bytes}"
+    return 0
+  fi
   [[ "${bytes}" =~ ^[0-9]+$ ]] || bytes=0
   if command -v numfmt >/dev/null 2>&1; then
     numfmt --to=iec --suffix=B "${bytes}" 2>/dev/null || printf '%sB\n' "${bytes}"

@@ -5,6 +5,8 @@
 source "${LINUXBKUP_ROOT}/lib/tools/check.sh"
 # shellcheck source=lib/tools/compat.sh
 source "${LINUXBKUP_ROOT}/lib/tools/compat.sh"
+# shellcheck source=lib/core/compat/compat.sh
+source "${LINUXBKUP_ROOT}/lib/core/compat/compat.sh"
 # shellcheck source=lib/core/workers.sh
 source "${LINUXBKUP_ROOT}/lib/core/workers.sh"
 
@@ -110,7 +112,12 @@ cmd_context_begin() {
     case "${t}" in
       tar|zstd) need_compat+=(tar_zstd) ;;
       rsync) need_compat+=(rsync) ;;
-      sha256sum) need_compat+=(sha256sum) ;;
+      sha256sum|shasum|openssl)
+        # Any sha256 provider satisfies checksum requirements
+        if [[ "${t}" == "sha256sum" ]] || [[ "${t}" == "shasum" ]] || [[ "${t}" == "openssl" ]]; then
+          need_compat+=(sha256sum)
+        fi
+        ;;
       age) need_compat+=(age) ;;
     esac
   done
@@ -127,6 +134,8 @@ cmd_context_begin() {
     if ! tools_compat_require "${uniq[@]}"; then
       exit 2
     fi
+    # Capability matrix (tar impl, sha tool, rsync features)
+    compat_print_capabilities
     ui_item ok "operation probes passed (${uniq[*]})"
   fi
   printf '\n'

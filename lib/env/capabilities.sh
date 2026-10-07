@@ -167,7 +167,11 @@ env_print_backup_tools() {
   _cap_line rsync rsync || true
   _cap_line tar tar || true
   _cap_line zstd zstd || true
-  _cap_line sha256sum sha256sum || true
+  if declare -F compat_sha_tool >/dev/null 2>&1; then
+    _cap_line "Checksum" "$(compat_sha_tool)" || true
+  else
+    _cap_line sha256sum sha256sum || true
+  fi
   _cap_line age age || true
   _cap_line du du || true
   _cap_line find find || true

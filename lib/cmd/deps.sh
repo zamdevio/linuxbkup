@@ -102,6 +102,7 @@ _deps_banner() {
       yum) pkg="$(tools_guide_get "${focus}" "YUM" || tools_guide_get "${focus}" "DNF" || true)" ;;
       pacman) pkg="$(tools_guide_get "${focus}" "PACMAN" || true)" ;;
       apk) pkg="$(tools_guide_get "${focus}" "APK" || true)" ;;
+      pkg) pkg="$(tools_guide_get "${focus}" "APK" || tools_guide_get "${focus}" "APT" || true)" ;;
       brew) pkg="$(tools_guide_get "${focus}" "BREW" || true)" ;;
       *) pkg="" ;;
     esac
@@ -111,6 +112,47 @@ _deps_banner() {
   fi
   DEPS_BANNER_SHOWN=1
   printf '\n'
+}
+
+# One-command install for a set of tools on the detected package family.
+# Args: tool…  → prints command or empty.
+_deps_bootstrap_command() {
+  local family pkgs=() tool pkg
+  family="$(tools_pkg_family)"
+  for tool in "$@"; do
+    tools_guide_pkg_how "${tool}"
+    pkg="${TOOLS_GUIDE_PKG:-}"
+    [[ -n "${pkg}" ]] || pkg="${tool}"
+    pkgs+=("${pkg}")
+  done
+  [[ "${#pkgs[@]}" -gt 0 ]] || return 0
+  case "${family}" in
+    apt)
+      printf 'sudo apt update && sudo apt install -y %s\n' "${pkgs[*]}"
+      ;;
+    dnf)
+      printf 'sudo dnf install -y %s\n' "${pkgs[*]}"
+      ;;
+    yum)
+      printf 'sudo yum install -y %s\n' "${pkgs[*]}"
+      ;;
+    pacman)
+      printf 'sudo pacman -S --needed %s\n' "${pkgs[*]}"
+      ;;
+    apk)
+      printf 'sudo apk add %s\n' "${pkgs[*]}"
+      ;;
+    pkg)
+      # Termux
+      printf 'pkg install -y %s\n' "${pkgs[*]}"
+      ;;
+    brew)
+      printf 'brew install %s\n' "${pkgs[*]}"
+      ;;
+    *)
+      return 0
+      ;;
+  esac
 }
 
 _deps_status() {
@@ -284,7 +326,45 @@ _deps_install() {
   done
   printf '\n'
 
-  local failed=0
+  # Phase 13 D2 — one-command bootstrap for the whole missing set
+  local boot="" failed=0
+  if [[ "${#to_install[@]}" -gt 1 ]]; then
+    boot="$(_deps_bootstrap_command "${to_install[@]}")"
+    if [[ -n "${boot}" ]]; then
+      ui_section "Bootstrap (one command)"
+      ui_item note "${boot}"
+      ui_item note "-y runs this non-interactively; TTY confirms first"
+      printf '\n'
+      if [[ "${LINUXBKUP_YES:-0}" -eq 1 ]] || safety_confirm "Run bootstrap for ${#to_install[@]} tool(s)?" "y"; then
+        if [[ "${LINUXBKUP_DRY_RUN:-0}" -eq 1 ]]; then
+          log_info "dry-run — not executing bootstrap"
+        else
+          log_info "running: ${boot}"
+          if bash -lc "${boot}"; then
+            local _t
+            for _t in "${to_install[@]}"; do
+              if tools_resolve "${_t}" >/dev/null 2>&1; then
+                log_ok "${_t} → $(tools_resolve "${_t}")"
+              else
+                failed=1
+                log_warn "${_t} still missing after bootstrap"
+              fi
+            done
+            if [[ "${failed}" -eq 0 ]]; then
+              log_ok "deps bootstrap complete"
+              return 0
+            fi
+            log_warn "bootstrap left tools missing — falling back to per-tool install"
+          else
+            log_warn "bootstrap command failed — falling back to per-tool install"
+          fi
+        fi
+      else
+        log_skip "bootstrap cancelled — falling back to per-tool install"
+      fi
+    fi
+  fi
+
   for tool in "${to_install[@]}"; do
     # Re-check immediately before each install (race / prior step)
     if linuxbkup_require_cmd "${tool}"; then
