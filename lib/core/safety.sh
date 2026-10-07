@@ -316,6 +316,9 @@ LINUXBKUP_WAS_SUSPENDED=0
 
 # Ctrl+Z — park UI, STOP process group (bash + children). Needs set -m;
 # otherwise only the child stops and bash wedges in wait. Not a kill path.
+# Phase 13 B: cover restore extract/rsync/reinstall (not only backup pack).
+# BusyBox hosts may lack reliable job control — fall back to stopping self
+# after children so fg/bg still resume.
 safety_on_tstp() {
   LINUXBKUP_WAS_SUSPENDED=1
   printf '\033[?25h' >/dev/tty 2>/dev/null || true
@@ -327,16 +330,32 @@ safety_on_tstp() {
   if [[ -n "${LINUXBKUP_OP_STEP:-}" ]]; then
     _safety_tty_msg "[INFO] Step: ${LINUXBKUP_OP_STEP}${LINUXBKUP_OP_ITEM:+ — ${LINUXBKUP_OP_ITEM}}"
   fi
+  if [[ -n "${REINSTALL_ACTIVE_PM:-}" ]]; then
+    _safety_tty_msg "[INFO] PM: ${REINSTALL_ACTIVE_PM}${REINSTALL_ACTIVE_DIR:+ — ${REINSTALL_ACTIVE_DIR}}"
+  fi
 
   trap - TSTP
-  kill -STOP 0 2>/dev/null || kill -STOP -$$ 2>/dev/null || kill -STOP "$$" 2>/dev/null || true
+  # Monitor mode so tty ^Z suspends the whole job group (restore extract,
+  # rsync, reinstall all run under without_monitor → set +m; re-assert here).
+  set -m 2>/dev/null || true
+  # STOP children first (explicit PIDs), then the process group, then self.
+  # kill -STOP 0 alone can miss children when monitor mode was off mid-op.
+  local _pid
+  for _pid in $(_safety_child_pids 2>/dev/null); do
+    [[ -n "${_pid}" ]] && kill -STOP "${_pid}" 2>/dev/null || true
+  done
+  kill -STOP 0 2>/dev/null || kill -STOP -$$ 2>/dev/null || true
+  kill -STOP "$$" 2>/dev/null || true
   trap 'safety_on_tstp' TSTP
 }
 
-# After fg/bg+CONT: reset ETA and redraw progress.
+# After fg/bg+CONT: reset ETA, re-assert monitor mode, redraw progress.
 safety_on_cont() {
   [[ "${LINUXBKUP_WAS_SUSPENDED:-0}" -eq 1 ]] || return 0
   LINUXBKUP_WAS_SUSPENDED=0
+  # Restore may have been mid without_monitor (set +m) — re-enable job control
+  # so the next Ctrl+Z suspends the whole group again.
+  set -m 2>/dev/null || true
   if [[ -n "${TERM_PROGRESS_T0+x}" ]]; then
     TERM_PROGRESS_T0="$(date +%s)"
   fi
