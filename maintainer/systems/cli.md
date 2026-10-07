@@ -25,6 +25,8 @@ Surface: root **`linuxbkup`** bin. Env: `LINUXBKUP_*`.
 
 **Restore reinstall batch (phase 11–12):** Ctrl+C menu **always writes to `/dev/tty`** (fish/job-control can swallow stdout `ui_*`). Body: separator + step/item + `[i/N]` project + `What next?` + `→ applied:` echo. Empty Enter **re-prompts** (does not silently quit). `q` = soft-quit batch. Ctrl+Z suspends like backup. Picker v2 shows a **numbered project list** under listing policy (`-F/--full`, `-T/--top`; default top 10). Failure-first re-run: `[Enter]` failed-only · `[p]` pick again · `[q]` quit. Read-only node_modules check: `maintainer/temp/check-node-modules.sh`.
 
+**Phase 13 (shipped):** compat wrappers in `lib/core/compat/compat.sh` — no raw `tar --warning` / `sha256sum` in `lib/cmd/`. Stage/extract paths print via `compat_print_stage_path`. `deps install` offers one-command bootstrap (apk/apt/pacman/pkg/…). Atomic pack (`dest.tmp` → verify → `mv`). Ctrl+Z covers restore extract/rsync/reinstall.
+
 ## Global flags (today)
 
 Short aliases on frequent flags (one row each in `--help`):
@@ -97,6 +99,6 @@ Never silent “Continuing…”. Trap stops children (rsync/du/workers), then m
 - Command body runs under `set +e` so a handled Ctrl+C (status 130) does not abort after “Continuing…”.
 
 
-## Known gaps → phase 13
+## Known gaps → done in phase 13
 
-Stage/extract path printing + shared naming, Ctrl+Z restore hang, GNU-only tar/rsync/sha flags on BusyBox/iSH, atomic archives, deps bootstrap — [`../phases/13-platform-compat.md`](../phases/13-platform-compat.md).
+Stage/extract path printing + shared naming, Ctrl+Z restore hang, GNU-only tar/rsync/sha flags on BusyBox/iSH, atomic archives, deps bootstrap — **shipped** in phase 13 (see [`../shipped/`](../shipped/) + [`platform.md`](./platform.md)). Remaining: real iSH/Termux soak (hardware) + docs site 06–07.

@@ -19,7 +19,7 @@ Scaffolded via `@zamdevio/scaffolder` (`cli` preset), then **pivoted to Bash**. 
 4. Map reality via [`maintainer/systems/`](maintainer/systems/) and [`maintainer/shipped/`](maintainer/shipped/).
 5. Architecture / git gates: [`maintainer/agents/`](maintainer/agents/).
 6. Large-file budget + smoke split: [`maintainer/phases/refactor.md`](maintainer/phases/refactor.md) (soft ≤250 / hard 400; parallel).
-7. **Next product phase:** [`maintainer/phases/13-platform-compat.md`](maintainer/phases/13-platform-compat.md) — compat layer, Ctrl+Z restore, stage paths, atomic archives.
+7. **Next product focus:** restore soak (iSH/Termux/Kali checklist `maintainer/temp/13-soak-checklist.md`) then docs site phases [06](maintainer/phases/06-docs-content.md)–[07](maintainer/phases/07-vitepress.md). Phase 13 platform compat is **shipped** (compat layer `lib/core/compat/`).
 
 `maintainer/temp/` is scratch (gitignored).
 

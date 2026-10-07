@@ -16,7 +16,7 @@ linuxbkup version
 | `restore` | Extract → decrypt secrets → rsync home/config (needs `-f` to overwrite). `sudo` targets `SUDO_USER` home, not `/root`. Node reinstalls from manifest. |
 | `verify` | Integrity check (archive or staging dir) |
 | `list` | High-level archive listing |
-| `deps` | Tool status / install / How-To |
+| `deps` | Tool status / install / How-To / one-command bootstrap |
 
 ## Plan
 
@@ -24,8 +24,8 @@ linuxbkup version
 linuxbkup plan
 linuxbkup plan -F
 linuxbkup plan --json
-linuxbkup -y plan          # unexpected shown as auto-include
-linuxbkup -v plan          # filter-aware sizes
+linuxbkup -y plan
+linuxbkup -v plan
 ```
 
 ## Backup
@@ -33,49 +33,59 @@ linuxbkup -v plan          # filter-aware sizes
 ```bash
 linuxbkup -y backup
 linuxbkup -o ~/Backups/linuxbkup/host.tar.zst backup
-linuxbkup -k backup        # keep staging dir after success
+linuxbkup -k backup        # keep staging after success (path always printed)
 ```
 
-Ends with a short summary and a tip to run `linuxbkup plan` for the full table. Unreadable files soft-skip (never auto-sudo). Staging lives under a `linuxbkup-*` prefix (same family as restore extract — see **Known gaps** for path printing work).
+Staging lives under `linuxbkup.<pid>.<rand>` (same family as restore extract). Archives are **atomic**: pack to `*.tar.zst.tmp` → integrity check → rename.
 
 ## Restore
 
 ```bash
 linuxbkup -k -f restore ~/Backups/linuxbkup/host.tar.zst
-# /etc + same user home under sudo (not /root):
 sudo -E ./linuxbkup -k -f restore ~/Backups/linuxbkup/host.tar.zst
-# files only — skip node_modules regeneration:
 linuxbkup -k -f --skip-reinstall restore ~/Backups/linuxbkup/host.tar.zst
-# non-interactive: overwrite + reinstall all recorded Node projects:
 linuxbkup -y -f restore ~/Backups/linuxbkup/host.tar.zst
-# after installing pnpm/node — reinstall only (no home re-copy):
 linuxbkup -y --reinstall-only restore ~/Backups/linuxbkup/host.tar.zst
 ```
 
-Passphrase via `LINUXBKUP_SECRETS_PASS` / `_PASS_FILE` or TTY prompt. Existing files need `-f` (or `-a/--ask` to confirm per tree).
+Passphrase via `LINUXBKUP_SECRETS_PASS` / `_PASS_FILE` or TTY prompt. Existing files need `-f` (or `-a/--ask`).
 
-Backup writes `packages/reinstalls.json` for **workspace roots / lockfile dirs** (not every nested `package.json`).
-
-Restore **peeks** `packages/reinstalls.tsv` and lists **required PMs with resolved Linux paths** (Windows/interop `/mnt/...` shims are ignored). Missing PMs get install recipes; Enter re-checks. PM/tool lists auto-truncate via listing policy (default **top 10**; `-F/--full`, `-T/--top <n>`).
-
-Reinstalls **skip failed projects** (never abort the whole run). Corepack/npm are forced non-interactive (`CI=1`, `COREPACK_ENABLE_DOWNLOAD_PROMPT=0`). pnpm runs with allow-all-builds so restore does not stop on `ERR_PNPM_IGNORED_BUILDS`. Nested workspace members are not separate rows — one root `pnpm i` covers the tree. Missing workspace **sources** on disk → skip with “run a full restore first”.
-
-TTY **picker v2**: numbered list under `-F`/`-T`; **✓ already installed auto-skipped** (`LINUXBKUP_REINSTALL_FORCE=1` overrides); confirm screen lists **selected only**. Modes: `e` exclude · `i` include-only · `p` PM · `g` grep · `f` fzf · `n` none · `u` undo · Enter=all. After fails: `[Enter]` re-run failed only · `[p]` pick again · `[q]` quit.
-
-Read-only check: `bash maintainer/temp/check-node-modules.sh <home> --tsv <reinstalls.tsv>` (contributor helper).
+Backup writes `packages/reinstalls.json` for workspace roots / lockfile dirs. Restore peeks `packages/reinstalls.tsv` and lists required PMs with resolved Linux paths. Reinstalls skip failed projects. TTY picker v2 + soft-quit batch (`q`) unchanged.
 
 ## Dependencies
 
 ```bash
 linuxbkup deps
-linuxbkup deps install          # missing core
-linuxbkup deps install all      # core + optional, skip present
+linuxbkup deps install          # missing core (one-command bootstrap when 2+ missing)
+linuxbkup -y deps install all
 linuxbkup deps howto fzf
 ```
 
-Install guides: `guides/tools/<name>.guide`.
+Bootstrap detects **apk | apt | pacman | pkg (Termux) | dnf | yum | brew**.
 
-**Hosts:** GNU Linux (desktop/VPS/WSL) is the happy path. Alpine/iSH, Termux, and old distros may lack `zstd`, GNU `tar` flags, or `sha256sum` — **compat wrappers are phase 13**; run `deps` first and treat missing tools as fatal until that lands.
+## Supported hosts
+
+| Host | Notes |
+|------|-------|
+| GNU Linux (desktop / VPS / WSL) | Happy path |
+| Alpine / BusyBox | tar flag fallbacks; `deps` + `zstd` required; sha via shasum/openssl if needed |
+| iSH / Termux | Best-effort — no FHS assumptions; run `deps` first |
+| FAT / exFAT / NTFS / 9p mounts | rsync **metadata mode** — no hard-fail on chmod/symlink |
+
+**Checksum providers:** `sha256sum` | `shasum -a 256` | `openssl dgst`.
+
+**Tar:** impl probed (`gnu` / `busybox` / `bsd`); GNU-only flags omitted where unsupported.
+
+## Stage paths
+
+| Command | Path |
+|---------|------|
+| `backup` | `…/linuxbkup.<pid>.<rand>` |
+| `backup -k` | same — **path printed** |
+| `restore` (archive) | `…/linuxbkup-restore-<ts>.<pid>` — **path printed**; kept with `-k` |
+| `verify` (archive) | `…/linuxbkup-verify-<ts>.<pid>` — **path printed** |
+
+Parent: `-S/--stage-dir` if set, else `${TMPDIR:-/tmp}`.
 
 ## Path filters
 
@@ -84,29 +94,26 @@ linuxbkup inspect --exclude '\.cache' -T 5
 linuxbkup -y backup --include /home/user/extra-pattern
 ```
 
-Full `$HOME` shallow scan classifies known / secret / skip / unexpected. Unexpected auto-includes with `-y` or non-TTY.
+Unexpected auto-includes with `-y` or non-TTY.
 
 ## Signals (TTY)
 
 | Key | Behavior |
 |-----|----------|
-| **Ctrl+C** | Immediate `[INT]` notice (PM / project / PID) → TERM→wait→KILL → menu on `/dev/tty`. Mid-reinstall: `q` = soft-quit batch. Empty Enter **re-prompts**. Wait: `LINUXBKUP_INT_STOP_WAIT_DS` (default 30 = 3s) |
-| **Ctrl+Z** | Intended: suspend whole job (`fg`/`bg`). **Restore can still hang on some hosts** — fix tracked in phase 13 |
-
-## Known gaps (honest)
-
-| Gap | Status |
-|-----|--------|
-| Stage/extract path not always printed; naming differs backup vs restore/verify | Phase 13 **A** |
-| Ctrl+Z restore hang | Phase 13 **B** |
-| GNU-only tar/rsync/sha flags on BusyBox/iSH | Phase 13 **C** |
-| Partial archive on crash (need tmp+rename) | Phase 13 **D** |
-| `deps` bootstrap via apk/apt/pacman one-shot | Phase 13 **D** |
-| Full end-user docs site | Phases 06–07 |
+| **Ctrl+C** | `[INT]` notice → TERM→wait→KILL → menu on `/dev/tty`. Mid-reinstall: `q` = soft-quit batch. Wait: `LINUXBKUP_INT_STOP_WAIT_DS` (default 30 = 3s) |
+| **Ctrl+Z** | Suspend whole job (`fg`/`bg`) on **backup and restore** (extract / rsync / reinstall). Children STOPped first, then process group |
 
 ## Logging
 
 | Flag | Role |
 |------|------|
-| `-v` / `--verbose` | Human detail (sizes, progress) |
+| `-v` / `--verbose` | Human detail |
 | `-d` / `--debug` | Forensic why/commands on stderr (implies `-v`) |
+
+## Known remaining gaps
+
+| Gap | Status |
+|-----|--------|
+| Full end-user docs site | Phases 06–07 |
+| Real iSH/Termux/Kali soak | Checklist only — hardware run pending |
+| Python / Go reinstall arrays | Queued (same JSON pattern) |

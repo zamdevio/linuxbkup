@@ -29,17 +29,19 @@ Clean `linuxbkup` / `LINUXBKUP_*` identity (phase 00 — folded).
 | 09 | UX fail-fast | Secrets preflight, byte estimates, banner, `ui_step` |
 | 11 | Restore UX | Soft-quit reinstall batch, picker v2, failure re-run, R1 split |
 | 12 | Reinstall hardening | Prefix extract, picker counts, pnpm allow-all-builds, workspace-root installs, interrupt boundary + nm auto-skip |
+| 13 | Platform compat | Stage paths, Ctrl+Z restore/backup, tar/sha/rsync compat layer, atomic archives, deps bootstrap — see [`../shipped/`](../shipped/) + [`../systems/`](../systems/) |
 
 ## Open — remaining work only
 
 | Phase | Doc | Remaining |
 |-------|-----|-----------|
 | 05 | [`05-space-schema.md`](./05-space-schema.md) | **Docs only:** schema fields → fold into phase 06 |
-| **13** | [`13-platform-compat.md`](./13-platform-compat.md) | **Next Focus** — stage paths, Ctrl+Z restore/backup, tar/sha/rsync compat, atomic archives, deps bootstrap |
-| 06 | [`06-docs-content.md`](./06-docs-content.md) | Rewrite `docs/*` **after** 13 so content matches shipped behavior |
+| 06 | [`06-docs-content.md`](./06-docs-content.md) | Rewrite `docs/*` **now that 13 shipped** — content matches shipped behavior |
 | 07 | [`07-vitepress.md`](./07-vitepress.md) | `apps/docs` VitePress → https://linuxbkup.pages.dev |
 | 10 | [`10-pm-tools-research.md`](./10-pm-tools-research.md) | **OPEN standing** — keep/strip/manifest guide (do not fold early) |
 | R | [`refactor.md`](./refactor.md) | **open (parallel)** — R-SMOKE then R2–R9; soft ≤250 / hard 400 |
+
+**Soak (not a phase doc):** real iSH/Termux/Kali hardware run — checklist `maintainer/temp/13-soak-checklist.md`.
 
 Later product phases: language modules (Python/Go reinstall), systemd/`/etc`, Docker — re-queue in focus when ready.
 
