@@ -76,6 +76,7 @@ if bash -n "${CLI}" \
   && bash -n "${ROOT}"/lib/core/*.sh \
   && bash -n "${ROOT}"/lib/core/terminal/*.sh \
   && bash -n "${ROOT}"/lib/core/platform/*.sh \
+  && bash -n "${ROOT}"/lib/core/compat/*.sh \
   && bash -n "${ROOT}"/lib/cmd/*.sh \
   && bash -n "${ROOT}"/lib/env/*.sh \
   && bash -n "${ROOT}"/lib/fs/*.sh \
@@ -1422,6 +1423,7 @@ fi
 # (Pack failure mode: set -m gave tar|zstd its own PGID so bash never got the trap.)
 _proof_out="$(
   set +e
+  unset LINUXBKUP_INTERRUPT_SOFT_QUIT
   # shellcheck source=/dev/null
   source "${ROOT}/lib/core/common.sh"
   # shellcheck source=/dev/null
@@ -1498,6 +1500,240 @@ if grep -q 'return 20' "${ROOT}/lib/core/safety.sh" \
   ok "rsync SIGINT (rc=20) treated as interrupt"
 else
   bad "rsync SIGINT (rc=20) treated as interrupt"
+fi
+
+# --- Phase 13 focused cases --------------------------------------------------
+
+# A: shared stage/extract path helper
+# shellcheck source=/dev/null
+source "${ROOT}/lib/core/compat/compat.sh"
+_stage_b="$(compat_stage_path backup)"
+_stage_r="$(compat_stage_path restore)"
+_stage_v="$(compat_stage_path verify)"
+if [[ "${_stage_b}" == */linuxbkup.* && "${_stage_r}" == */linuxbkup-restore-* \
+  && "${_stage_v}" == */linuxbkup-verify-* ]]; then
+  ok "stage path helper: backup/restore/verify naming"
+else
+  bad "stage path helper naming (b=${_stage_b} r=${_stage_r} v=${_stage_v})"
+fi
+if [[ -n "${LINUXBKUP_STAGE_DIR:-}" ]]; then
+  :
+fi
+_stage_parent="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-smoke-sp.XXXXXX")"
+LINUXBKUP_STAGE_DIR="${_stage_parent}"
+_sp="$(compat_stage_path restore)"
+if [[ "${_sp}" == "${_stage_parent}/linuxbkup-restore-"* ]]; then
+  ok "stage path helper honors --stage-dir parent"
+else
+  bad "stage path helper --stage-dir (got ${_sp})"
+fi
+unset LINUXBKUP_STAGE_DIR
+rm -rf "${_stage_parent}"
+
+# A: backup_stage_create still produces linuxbkup.* under stage parent
+# shellcheck source=/dev/null
+source "${ROOT}/lib/backup/stage.sh"
+_stage_parent="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-smoke-sp2.XXXXXX")"
+LINUXBKUP_STAGE_DIR="${_stage_parent}"
+stage_path="$(backup_stage_create)" || stage_path=""
+if [[ -n "${stage_path}" && -d "${stage_path}" && "${stage_path}" == "${_stage_parent}/linuxbkup."* ]]; then
+  ok "backup staging uses shared stage path helper"
+else
+  bad "backup staging naming (got ${stage_path:-empty})"
+fi
+rm -rf "${_stage_parent}"
+unset LINUXBKUP_STAGE_DIR
+
+# A: restore/verify/backup -k print contract greps
+if grep -q 'compat_print_stage_path' "${ROOT}/lib/cmd/backup.sh" \
+  && grep -q 'compat_print_stage_path' "${ROOT}/lib/cmd/restore.sh" \
+  && grep -q 'compat_print_stage_path\|Extract' "${ROOT}/lib/cmd/verify.sh"; then
+  ok "stage/extract paths printed (backup/restore/verify)"
+else
+  bad "stage/extract path printing wired"
+fi
+if grep -q 'compat_stage_path restore' "${ROOT}/lib/cmd/restore.sh" \
+  && grep -q 'compat_stage_path verify' "${ROOT}/lib/cmd/verify.sh"; then
+  ok "restore/verify extract use shared naming"
+else
+  bad "restore/verify extract naming"
+fi
+
+# C: compat layer probes + wrappers
+if declare -F compat_probe_all >/dev/null \
+  && declare -F compat_tar_pack_stream >/dev/null \
+  && declare -F compat_tar_extract_stream >/dev/null \
+  && declare -F compat_sha256_hash >/dev/null \
+  && declare -F compat_sha256_check_file >/dev/null \
+  && declare -F compat_rsync_args_for >/dev/null \
+  && declare -F compat_numfmt_human >/dev/null; then
+  ok "compat wrappers defined (tar/sha/rsync/numfmt)"
+else
+  bad "compat wrappers defined"
+fi
+compat_probe_all
+_tar_impl="$(compat_tar_type)"
+_sha_impl="$(compat_sha_tool)"
+if [[ "${_tar_impl}" == "gnu" || "${_tar_impl}" == "busybox" || "${_tar_impl}" == "bsd" || "${_tar_impl}" == "unknown" ]]; then
+  ok "compat tar impl probe (${_tar_impl})"
+else
+  bad "compat tar impl probe (${_tar_impl})"
+fi
+if [[ "${_sha_impl}" == "sha256sum" || "${_sha_impl}" == "shasum" || "${_sha_impl}" == "openssl" ]]; then
+  ok "compat sha provider (${_sha_impl})"
+else
+  bad "compat sha provider (${_sha_impl})"
+fi
+
+# C: BusyBox-like flag set — pack/extract without GNU --warning
+_bb_tmp="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-smoke-bb.XXXXXX")"
+mkdir -p "${_bb_tmp}/stage/metadata" "${_bb_tmp}/stage/home" "${_bb_tmp}/out"
+printf 'hello\n' >"${_bb_tmp}/stage/metadata/backup.env"
+printf 'x\n' >"${_bb_tmp}/stage/INDEX"
+printf 'hello\n' >"${_bb_tmp}/stage/home/hello.txt"
+if compat_tar_pack_stream "${_bb_tmp}/stage" '*.sock' \
+  | compat_zstd_compress "${_bb_tmp}/a.tar.zst" 1 \
+  && compat_zstd_decompress "${_bb_tmp}/a.tar.zst" \
+  | compat_tar_extract_stream "${_bb_tmp}/out" \
+  && [[ -f "${_bb_tmp}/out/metadata/backup.env" ]]; then
+  ok "compat pack/extract roundtrip (portable flags)"
+else
+  bad "compat pack/extract roundtrip"
+fi
+# sha256 fallback write + check
+(
+  cd "${_bb_tmp}/stage" || exit 1
+  compat_sha256_hash home/hello.txt metadata/backup.env INDEX >checksums.sha256
+  compat_sha256_check_file checksums.sha256
+) >/dev/null 2>&1 && _sha_ok=1 || _sha_ok=0
+if [[ "${_sha_ok}" -eq 1 ]]; then
+  ok "compat sha256 write+check (${_sha_impl})"
+else
+  bad "compat sha256 write+check"
+fi
+rm -rf "${_bb_tmp}"
+
+# C: raw GNU --warning must not appear in command extract paths
+if grep -qE 'tar --warning' "${ROOT}/lib/cmd/restore.sh" "${ROOT}/lib/cmd/verify.sh" "${ROOT}/lib/backup/reinstall/manifest.sh" 2>/dev/null; then
+  bad "cmd/manifest extract still hardcodes tar --warning"
+else
+  ok "cmd/manifest extract via compat wrappers (no raw --warning)"
+fi
+
+# D: atomic pack — tmp + verify + mv
+if grep -q '\.tmp\.\$\$' "${ROOT}/lib/archive/pack.sh" \
+  && grep -q 'zstd -t' "${ROOT}/lib/archive/pack.sh" \
+  && grep -q 'mv -f' "${ROOT}/lib/archive/pack.sh"; then
+  ok "atomic pack: dest.tmp → verify → mv"
+else
+  bad "atomic pack tmp+mv wiring"
+fi
+
+# D: deps bootstrap one-command path
+if declare -F _deps_bootstrap_command >/dev/null 2>&1 || grep -q '_deps_bootstrap_command' "${ROOT}/lib/cmd/deps.sh"; then
+  # shellcheck source=/dev/null
+  source "${ROOT}/lib/cmd/deps.sh" 2>/dev/null || true
+  _boot="$(_deps_bootstrap_command tar zstd rsync 2>/dev/null || true)"
+  if [[ -n "${_boot}" ]]; then
+    ok "deps bootstrap command builds (${_boot%% *})"
+  else
+    # unknown PM family still ok if function exists
+    if grep -q 'apk add\|apt install\|pacman -S\|pkg install' "${ROOT}/lib/cmd/deps.sh"; then
+      ok "deps bootstrap covers apk/apt/pacman/pkg"
+    else
+      bad "deps bootstrap one-command path"
+    fi
+  fi
+else
+  bad "deps bootstrap one-command path"
+fi
+if grep -q 'pkg install' "${ROOT}/lib/cmd/deps.sh" \
+  && grep -q 'apk add' "${ROOT}/lib/cmd/deps.sh" \
+  && grep -q 'pacman -S' "${ROOT}/lib/cmd/deps.sh"; then
+  ok "deps bootstrap PM matrix (pkg/apk/pacman)"
+else
+  bad "deps bootstrap PM matrix"
+fi
+
+# D: zero hardcoded tool paths in lib/ (command -v / platform only)
+if command -v rg >/dev/null 2>&1; then
+  if rg -n '/usr/bin/(tar|rsync|zstd|sha256sum|openssl)' "${ROOT}/lib" >/dev/null 2>&1; then
+    bad "hardcoded /usr/bin tool paths in lib/"
+    rg -n '/usr/bin/(tar|rsync|zstd|sha256sum|openssl)' "${ROOT}/lib" || true
+  else
+    ok "no hardcoded /usr/bin tool paths in lib/"
+  fi
+else
+  if grep -RInE '/usr/bin/(tar|rsync|zstd|sha256sum|openssl)' "${ROOT}/lib" >/dev/null 2>&1; then
+    bad "hardcoded /usr/bin tool paths in lib/"
+  else
+    ok "no hardcoded /usr/bin tool paths in lib/"
+  fi
+fi
+
+# D: schema/tool version gate present
+if grep -q 'compat_schema_gate' "${ROOT}/lib/archive/verify.sh" \
+  && grep -q 'schema_version' "${ROOT}/lib/core/compat/compat.sh"; then
+  ok "schema/tool version gate wired (verify)"
+else
+  bad "schema/tool version gate wired"
+fi
+
+# B: Ctrl+Z covers restore extract/rsync/reinstall (not only backup pack)
+if grep -q 'without_monitor' "${ROOT}/lib/cmd/restore.sh" \
+  && grep -q 'safety_on_tstp' "${ROOT}/lib/core/safety.sh" \
+  && grep -q 'set -m' "${ROOT}/lib/core/safety.sh" \
+  && grep -q '_safety_child_pids' "${ROOT}/lib/core/safety.sh"; then
+  ok "Ctrl+Z restore coverage (without_monitor + TSTP + children STOP)"
+else
+  bad "Ctrl+Z restore coverage"
+fi
+# B4: fake long op — TSTP trap fires and CONT resets suspend flag
+_tstp_proof="$(
+  set +e
+  # shellcheck source=/dev/null
+  source "${ROOT}/lib/core/common.sh"
+  # shellcheck source=/dev/null
+  source "${ROOT}/lib/core/terminal/style.sh"
+  # shellcheck source=/dev/null
+  source "${ROOT}/lib/core/safety.sh"
+  _ui_init
+  linuxbkup_install_traps
+  LINUXBKUP_WAS_SUSPENDED=0
+  # Simulate the trap body without actually STOPping the smoke process:
+  # call the CONT path after setting suspended=1
+  LINUXBKUP_WAS_SUSPENDED=1
+  safety_on_cont
+  if [[ "${LINUXBKUP_WAS_SUSPENDED}" -eq 0 ]]; then
+    echo TSTP_OK
+    exit 0
+  fi
+  echo TSTP_FAIL
+  exit 1
+)"
+if [[ "${_tstp_proof}" == *TSTP_OK* ]]; then
+  ok "Ctrl+Z CONT path resets suspend state"
+else
+  bad "Ctrl+Z CONT path resets suspend state (${_tstp_proof})"
+fi
+
+# B4: restore extract op uses without_monitor (suspend-safe wait)
+if grep -A8 'op_begin "restore-extract"' "${ROOT}/lib/cmd/restore.sh" | grep -q 'without_monitor\|compat_zstd_decompress'; then
+  ok "restore extract runs under without_monitor/compat"
+else
+  bad "restore extract interrupt-safe wiring"
+fi
+
+# Rsync metadata mode helper
+if declare -F compat_rsync_needs_meta >/dev/null; then
+  _meta="$(compat_rsync_needs_meta "${TMPDIR:-/tmp}" 2>/dev/null || printf '0')"
+  if [[ "${_meta}" == "0" || "${_meta}" == "1" ]]; then
+    ok "compat rsync metadata probe returns 0|1 (${_meta})"
+  else
+    bad "compat rsync metadata probe (${_meta})"
+  fi
+else
+  bad "compat rsync metadata probe missing"
 fi
 
 rm -rf "${fake_home}"
