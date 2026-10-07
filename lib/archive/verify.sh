@@ -41,6 +41,10 @@ archive_print_verify_summary() {
 archive_verify_schema() {
   local root="$1"
   ui_section "Schema"
+  # Phase 13 D4 — schema/tool version gate (soft-warn unknown)
+  if declare -F compat_schema_gate >/dev/null 2>&1; then
+    compat_schema_gate "${root}" || true
+  fi
   if [[ -f "${root}/metadata/schema.json" ]]; then
     local ver
     ver="$(awk -F: '/"schema_version"/{gsub(/[^0-9]/,"",$2); print $2; exit}' "${root}/metadata/schema.json" 2>/dev/null || true)"
@@ -80,6 +84,9 @@ archive_verify_checksums_inplace() {
   fi
   ui_section "Checksums"
 
+  # shellcheck source=lib/core/compat/compat.sh
+  [[ -n "${LINUXBKUP_ROOT:-}" ]] && source "${LINUXBKUP_ROOT}/lib/core/compat/compat.sh"
+
   cklist="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-vfyck.XXXXXX")"
   # Hard-check payload only — drop events.jsonl from the fatal path.
   if ! grep -vE '[[:space:]](\./)?metadata/events\.jsonl$' \
@@ -89,10 +96,11 @@ archive_verify_checksums_inplace() {
   if grep -qE '[[:space:]](\./)?metadata/events\.jsonl$' "${root}/checksums.sha256"; then
     if ! (
       cd "${root}" && grep -E '[[:space:]](\./)?metadata/events\.jsonl$' checksums.sha256 \
-        | sha256sum -c --quiet >/dev/null 2>&1
+        >"${cklist}.events" && compat_sha256_check_file "${cklist}.events" >/dev/null 2>&1
     ); then
       log_warn "metadata/events.jsonl checksum drift (non-fatal — step log, not payload)"
     fi
+    rm -f "${cklist}.events" 2>/dev/null || true
   fi
 
   n="$(wc -l <"${cklist}" | tr -d ' ')"
@@ -109,7 +117,7 @@ archive_verify_checksums_inplace() {
 
   if [[ "${workers}" -le 1 || "${n}" -lt 16 ]]; then
     if (
-      cd "${root}" && sha256sum -c "${cklist}" --quiet
+      cd "${root}" && compat_sha256_check_file "${cklist}"
     ); then
       rm -f "${cklist}"
       log_ok "all checksums matched (${n} entries)"
@@ -137,7 +145,7 @@ archive_verify_checksums_inplace() {
     [[ -s "${work}/part.${i}" ]] || continue
     (
       cd "${root}" || exit 1
-      if sha256sum -c "${work}/part.${i}" --quiet; then
+      if compat_sha256_check_file "${work}/part.${i}"; then
         exit 0
       fi
       exit 1

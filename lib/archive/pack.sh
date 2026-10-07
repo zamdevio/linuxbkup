@@ -1,12 +1,13 @@
-# shellcheck shell=bash
-# Pack staging → tar.zst. Pipeline runs without monitor mode so Ctrl+C hits
-# our interrupt trap (set -m would give tar|zstd its own PGID and skip the menu).
+# shellcheck source=lib/core/common.sh
+# (callers already have linuxbkup_require_cmd)
+
+# shellcheck source=lib/core/compat/compat.sh
+[[ -n "${LINUXBKUP_ROOT:-}" ]] && source "${LINUXBKUP_ROOT}/lib/core/compat/compat.sh"
 
 archive_pack_tar_zst() {
   local stage="$1"
   local dest="$2"
-  local dest_dir size threads
-  local pack_rc=0 action=""
+  local dest_dir size threads tmp pack_rc=0 action=""
 
   if [[ -z "${dest}" ]]; then
     log_fatal "refusing to pack: empty destination path (pass -o/--output)"
@@ -37,13 +38,22 @@ archive_pack_tar_zst() {
     safety_require_force_overwrite "${dest}" || return 1
   fi
 
+  # Atomic: pack to sibling .tmp, verify stream, then mv
+  tmp="${dest}.tmp.$$"
+  rm -f "${tmp}" 2>/dev/null || true
+
   linuxbkup_workers_note pack "${threads}" "tar | zstd -T${threads}"
   linuxbkup_op_begin "pack" "${dest}" 0 1
   term_progress_status "Packing tar.zst (${threads} threads) → ${dest}"
 
   _archive_pack_pipeline() {
-    tar -C "${stage}" --exclude='*.sock' -cf - . 2>/dev/null \
-      | zstd -T"${threads}" -q -o "${dest}"
+    if declare -F compat_tar_pack_stream >/dev/null 2>&1; then
+      compat_tar_pack_stream "${stage}" '*.sock' \
+        | compat_zstd_compress "${tmp}" "${threads}"
+    else
+      tar -C "${stage}" --exclude='*.sock' -cf - . 2>/dev/null \
+        | zstd -T"${threads}" -q -o "${tmp}"
+    fi
   }
 
   linuxbkup_interrupt_arm
@@ -60,10 +70,10 @@ archive_pack_tar_zst() {
     pkill -TERM -P "${BASHPID:-$$}" -x zstd 2>/dev/null || true
     wait 2>/dev/null || true
     LINUXBKUP_WAS_INTERRUPTED=1
+    rm -f "${tmp}" 2>/dev/null || true
 
     linuxbkup_interrupt_resolve
     action="${LINUXBKUP_INTERRUPT_RESULT}"
-    rm -f "${dest}" 2>/dev/null || true
     linuxbkup_op_end
     if [[ "${action}" == "retry" || "${action}" == "continue" || "${action}" == "skip" ]]; then
       log_info "pack: re-running tar|zstd (overwrite partial)"
@@ -79,16 +89,34 @@ archive_pack_tar_zst() {
 
   if [[ "${pack_rc}" -ne 0 ]]; then
     log_fatal "tar|zstd failed writing ${dest}"
-    rm -f "${dest}" 2>/dev/null || true
+    rm -f "${tmp}" 2>/dev/null || true
     return 1
   fi
 
-  if [[ ! -f "${dest}" ]]; then
-    log_fatal "archive missing after pack: ${dest}"
+  if [[ ! -f "${tmp}" ]]; then
+    log_fatal "archive missing after pack: ${tmp}"
     return 1
   fi
 
-  log_ok "archive written"
+  # Verify the tmp stream is readable before rename (atomic commit)
+  if ! zstd -t "${tmp}" >/dev/null 2>&1; then
+    log_fatal "packed archive failed zstd integrity check — not renaming"
+    rm -f "${tmp}" 2>/dev/null || true
+    return 1
+  fi
+  if ! (zstd -dcq "${tmp}" 2>/dev/null | tar -tf - >/dev/null 2>&1); then
+    log_fatal "packed archive failed tar list check — not renaming"
+    rm -f "${tmp}" 2>/dev/null || true
+    return 1
+  fi
+
+  if ! mv -f "${tmp}" "${dest}"; then
+    log_fatal "failed to rename archive into place: ${dest}"
+    rm -f "${tmp}" 2>/dev/null || true
+    return 1
+  fi
+
+  log_ok "archive written (atomic)"
   ui_kv_path "Archive" "${dest}"
   size="$(du -sh "${dest}" 2>/dev/null | awk '{print $1}')"
   ui_kv "Size" "${size:-?}"

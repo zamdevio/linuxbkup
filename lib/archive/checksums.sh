@@ -43,6 +43,11 @@ archive_write_checksums() {
   fi
 
   worker_sh="${LINUXBKUP_ROOT}/lib/archive/_checksum_worker.sh"
+  # Compat: workers inherit the host sha tool (sha256sum|shasum|openssl)
+  if declare -F compat_sha_tool >/dev/null 2>&1; then
+    export LINUXBKUP_COMPAT_SHA_TOOL
+    LINUXBKUP_COMPAT_SHA_TOOL="$(compat_sha_tool)"
+  fi
 
   list="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-cksum.XXXXXX")"
   # Exclude checksums.sha256 itself and events.jsonl (step telemetry may still
