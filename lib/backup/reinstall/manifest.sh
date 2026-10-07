@@ -4,6 +4,8 @@
 
 # shellcheck source=modules/node.sh
 [[ -n "${LINUXBKUP_ROOT:-}" ]] && source "${LINUXBKUP_ROOT}/modules/node.sh"
+# shellcheck source=lib/core/compat/compat.sh
+[[ -n "${LINUXBKUP_ROOT:-}" ]] && source "${LINUXBKUP_ROOT}/lib/core/compat/compat.sh"
 
 # Load node rows from a reinstalls.tsv file path.
 # Args: tsv_path out_array_name
@@ -59,8 +61,8 @@ reinstall_peek_from_backup() {
   [[ -n "${prefix}" ]] || prefix="packages"
   tmp="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-reinst-peek.XXXXXX")"
   for member in "${prefix}/reinstalls.tsv" "./${prefix#./}/reinstalls.tsv" "packages/reinstalls.tsv" "./packages/reinstalls.tsv"; do
-    if zstd -dcq "${backup}" 2>/dev/null \
-      | tar --warning=no-timestamp -xO "${member}" >"${tmp}" 2>/dev/null \
+    if compat_zstd_decompress "${backup}" 2>/dev/null \
+      | compat_tar_member_stream "${member}" >"${tmp}" 2>/dev/null \
       && [[ -s "${tmp}" ]]; then
       reinstall_load_node_rows_file "${tmp}" "${out_name}"
       rm -f "${tmp}"
@@ -80,8 +82,8 @@ reinstall_archive_pkg_prefix() {
   local list=""
 
   [[ -f "${backup}" ]] || return 0
-  list="$(zstd -dcq "${backup}" 2>/dev/null \
-    | tar --warning=no-timestamp -tf - 2>/dev/null \
+  list="$(compat_zstd_decompress "${backup}" 2>/dev/null \
+    | compat_tar_list_stream 2>/dev/null \
     | head -n 400 || true)"
   [[ -n "${list}" ]] || return 0
   if printf '%s\n' "${list}" | grep -qE '^\./packages(/|$)'; then
@@ -103,16 +105,16 @@ reinstall_extract_manifest() {
   prefix="$(reinstall_archive_pkg_prefix "${backup}")"
   if [[ -z "${prefix}" ]]; then
     # Last-ditch: try both member styles
-    if zstd -dcq "${backup}" 2>/dev/null \
-      | tar --warning=no-timestamp -C "${dest}" -xf - ./packages 2>/dev/null; then
+    if compat_zstd_decompress "${backup}" 2>/dev/null \
+      | compat_tar_extract_stream "${dest}" ./packages 2>/dev/null; then
       return 0
     fi
-    zstd -dcq "${backup}" 2>/dev/null \
-      | tar --warning=no-timestamp -C "${dest}" -xf - packages
+    compat_zstd_decompress "${backup}" 2>/dev/null \
+      | compat_tar_extract_stream "${dest}" packages
     return $?
   fi
-  zstd -dcq "${backup}" 2>/dev/null \
-    | tar --warning=no-timestamp -C "${dest}" -xf - "${prefix}"
+  compat_zstd_decompress "${backup}" 2>/dev/null \
+    | compat_tar_extract_stream "${dest}" "${prefix}"
 }
 
 # Read package.json "name" for a dir (empty if none).
