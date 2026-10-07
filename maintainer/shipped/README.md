@@ -46,7 +46,11 @@ What has actually landed (not aspirational). Binary: **`linuxbkup`**. Env: **`LI
 
 ## Not shipped yet
 
-See [`../phases/roadmap.md`](../phases/roadmap.md) — **remaining work only** (docs site 06–07, PM research 10, refactor R-SMOKE/R2+). Shipped phase docs are folded/deleted; outcomes live above.
+See [`../phases/roadmap.md`](../phases/roadmap.md) — remaining work only.
+
+**Next:** phase 13 [`../phases/13-platform-compat.md`](../phases/13-platform-compat.md) — platform/tool compat (tar/sha/rsync wrappers), Ctrl+Z restore, stage-path printing, atomic archives, deps bootstrap.
+
+Also open: docs site 06–07, PM research 10 (standing), refactor R-SMOKE/R2+. Shipped phase docs are folded/deleted; outcomes live above.
 
 
 Umbrella: [`../phases/redesign.md`](../phases/redesign.md). When a phase lands, add a row here and update the matching `systems/` doc in the same change.

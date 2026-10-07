@@ -53,3 +53,9 @@ Long steps (`classify`, `copy`, `secrets`, `index`, `checksum`, `pack`, `summary
 SCAN → CLASSIFY → REPORT unexpected → DECIDE → RECLAIM/SECRET → SPACE → STAGE → schema → checksum → `tar.zst`.
 
 Track: [`../phases/redesign.md`](../phases/redesign.md).
+
+## Stage paths (open — phase 13 A)
+
+- Backup staging: `platform_staging_prefix` family (`linuxbkup-*` under stage parent or `/tmp`).
+- Restore extract: currently `mktemp` under `${TMPDIR:-/tmp}/linuxbkup-restore.*` — **not the same naming**, and `-k` does not always **print** the path for verify/restore.
+- Contract to implement: one helper for stage/extract path; `backup -k` / `restore -k` / `verify` always `ui_kv_path` the path. See [`../phases/13-platform-compat.md`](../phases/13-platform-compat.md).

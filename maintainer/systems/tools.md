@@ -20,4 +20,16 @@ Commands call `cmd_context_begin` with `--required` / `--optional` tools before 
 ./linuxbkup -w 4 backup   # worker cap for checksums / du batches / zstd -T
 ```
 
-Optional later: `fzf` for ask UI (shipped phase 03) — never required.
+## Tool expectations (today vs phase 13)
+
+| Tool | Today | Phase 13 target |
+|------|--------|-----------------|
+| `tar` | GNU flags in pack/extract (`--warning`, etc.) | Impl probe + BusyBox/BSD flag sets |
+| `zstd` | Required; missing → fail | Same + clearer iSH/Termux install path |
+| `sha256sum` | Required | Fallback: `shasum -a 256` / openssl |
+| `rsync` | `-a` + filter stack; chmod/symlink on non-Linux dest can fail | Feature probe + metadata-manifest mode |
+| `numfmt` | Optional; bash fallback strings | Keep optional |
+| `age` | Optional for secrets | Unchanged |
+| `fzf` | Optional picker | Non-interactive fallback already required |
+
+Optional later: `fzf` for ask UI (shipped phase 03) — never required. Bootstrap install via apk/apt/pacman is **phase 13 D2**, not implemented.

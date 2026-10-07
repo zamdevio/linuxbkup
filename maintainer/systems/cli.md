@@ -95,3 +95,8 @@ Never silent “Continuing…”. Trap stops children (rsync/du/workers), then m
 - User Enter mid-bar may leave a blank row; the next update clears and repaints.
 - Cursor hidden during the bar; always restored on end / interrupt / process exit.
 - Command body runs under `set +e` so a handled Ctrl+C (status 130) does not abort after “Continuing…”.
+
+
+## Known gaps → phase 13
+
+Stage/extract path printing + shared naming, Ctrl+Z restore hang, GNU-only tar/rsync/sha flags on BusyBox/iSH, atomic archives, deps bootstrap — [`../phases/13-platform-compat.md`](../phases/13-platform-compat.md).

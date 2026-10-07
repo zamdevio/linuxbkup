@@ -13,7 +13,7 @@ linuxbkup version
 | `inspect` | Read-only environment scan |
 | `plan` | What backup would include/skip (no writes) |
 | `backup` | Create archive |
-| `restore` | Extract → decrypt secrets → rsync home/config (needs `-f` to overwrite). `sudo` targets `SUDO_USER` home, not `/root`. |
+| `restore` | Extract → decrypt secrets → rsync home/config (needs `-f` to overwrite). `sudo` targets `SUDO_USER` home, not `/root`. Node reinstalls from manifest. |
 | `verify` | Integrity check (archive or staging dir) |
 | `list` | High-level archive listing |
 | `deps` | Tool status / install / How-To |
@@ -33,9 +33,10 @@ linuxbkup -v plan          # filter-aware sizes
 ```bash
 linuxbkup -y backup
 linuxbkup -o ~/Backups/linuxbkup/host.tar.zst backup
+linuxbkup -k backup        # keep staging dir after success
 ```
 
-Ends with a short summary and a tip to run `linuxbkup plan` for the full table. Unreadable files soft-skip (never auto-sudo).
+Ends with a short summary and a tip to run `linuxbkup plan` for the full table. Unreadable files soft-skip (never auto-sudo). Staging lives under a `linuxbkup-*` prefix (same family as restore extract — see **Known gaps** for path printing work).
 
 ## Restore
 
@@ -51,13 +52,17 @@ linuxbkup -y -f restore ~/Backups/linuxbkup/host.tar.zst
 linuxbkup -y --reinstall-only restore ~/Backups/linuxbkup/host.tar.zst
 ```
 
-Passphrase via `LINUXBKUP_SECRETS_PASS` / `_PASS_FILE` or TTY prompt. Existing files need `-f` (or `-a/--ask` to confirm per tree).  
-Backup writes `packages/reinstalls.json` for **workspace roots / lockfile dirs** (not every nested `package.json`).  
-Restore **peeks** `packages/reinstalls.tsv` and lists **required PMs with resolved Linux paths** (Windows/interop `/mnt/...` shims are ignored). Missing PMs get install recipes; Enter re-checks. PM/tool lists auto-truncate via listing policy (default **top 10**; `-F/--full`, `-T/--top <n>`).  
-Reinstalls **skip failed projects** (never abort the whole run). Corepack/npm are forced non-interactive (`CI=1`, `COREPACK_ENABLE_DOWNLOAD_PROMPT=0`). PM logs are quiet unless `-v`; failures print the error line + `/tmp` log path. End summary lists OK / Skipped / Failed with reasons.  
-`-a/--ask` on restore: interactive reinstall project pick + overwrite confirms (wins over `-y`).  
-TTY **picker v2**: Enter=all · `e` exclude some · `i` include only · `p` PM filter · `g` grep path · `f` fzf · `n` none · `u` undo · `q` skip step. After fails: `[Enter]` re-run failed only · `[p]` pick again · `[q]` quit.  
-**Signals during reinstall batch:** Ctrl+C → menu `r` retry / `s` skip / `c` continue / `q` quit batch (soft — partial summary, logs kept). Ctrl+Z suspends/resumes (`fg`/`bg`). After installing Linux PMs: `linuxbkup -y --reinstall-only restore <archive|staging>`.
+Passphrase via `LINUXBKUP_SECRETS_PASS` / `_PASS_FILE` or TTY prompt. Existing files need `-f` (or `-a/--ask` to confirm per tree).
+
+Backup writes `packages/reinstalls.json` for **workspace roots / lockfile dirs** (not every nested `package.json`).
+
+Restore **peeks** `packages/reinstalls.tsv` and lists **required PMs with resolved Linux paths** (Windows/interop `/mnt/...` shims are ignored). Missing PMs get install recipes; Enter re-checks. PM/tool lists auto-truncate via listing policy (default **top 10**; `-F/--full`, `-T/--top <n>`).
+
+Reinstalls **skip failed projects** (never abort the whole run). Corepack/npm are forced non-interactive (`CI=1`, `COREPACK_ENABLE_DOWNLOAD_PROMPT=0`). pnpm runs with allow-all-builds so restore does not stop on `ERR_PNPM_IGNORED_BUILDS`. Nested workspace members are not separate rows — one root `pnpm i` covers the tree. Missing workspace **sources** on disk → skip with “run a full restore first”.
+
+TTY **picker v2**: numbered list under `-F`/`-T`; **✓ already installed auto-skipped** (`LINUXBKUP_REINSTALL_FORCE=1` overrides); confirm screen lists **selected only**. Modes: `e` exclude · `i` include-only · `p` PM · `g` grep · `f` fzf · `n` none · `u` undo · Enter=all. After fails: `[Enter]` re-run failed only · `[p]` pick again · `[q]` quit.
+
+Read-only check: `bash maintainer/temp/check-node-modules.sh <home> --tsv <reinstalls.tsv>` (contributor helper).
 
 ## Dependencies
 
@@ -68,7 +73,9 @@ linuxbkup deps install all      # core + optional, skip present
 linuxbkup deps howto fzf
 ```
 
-Install guides: `guides/tools/<name>.guide` (see maintainer systems doc for contributors).
+Install guides: `guides/tools/<name>.guide`.
+
+**Hosts:** GNU Linux (desktop/VPS/WSL) is the happy path. Alpine/iSH, Termux, and old distros may lack `zstd`, GNU `tar` flags, or `sha256sum` — **compat wrappers are phase 13**; run `deps` first and treat missing tools as fatal until that lands.
 
 ## Path filters
 
@@ -83,12 +90,19 @@ Full `$HOME` shallow scan classifies known / secret / skip / unexpected. Unexpec
 
 | Key | Behavior |
 |-----|----------|
-| **Ctrl+C** | Immediate `[INT]` notice (PM / project / PID) → TERM→wait→KILL → same menu as backup on `/dev/tty`. Mid-reinstall: `q` = soft-quit batch. Empty Enter **re-prompts**. Wait window: `LINUXBKUP_INT_STOP_WAIT_DS` (default 30 = 3s) |
-| **Ctrl+Z** | Suspend the whole job (`fg` / `bg` to resume) — backup **and** restore/reinstall |
+| **Ctrl+C** | Immediate `[INT]` notice (PM / project / PID) → TERM→wait→KILL → menu on `/dev/tty`. Mid-reinstall: `q` = soft-quit batch. Empty Enter **re-prompts**. Wait: `LINUXBKUP_INT_STOP_WAIT_DS` (default 30 = 3s) |
+| **Ctrl+Z** | Intended: suspend whole job (`fg`/`bg`). **Restore can still hang on some hosts** — fix tracked in phase 13 |
 
-Reinstall picker: numbered list under `-F`/`-T` (default top 10); **✓ already installed auto-skipped** (`LINUXBKUP_REINSTALL_FORCE=1` overrides); confirm screen lists **selected only**. Read-only check: `maintainer/temp/check-node-modules.sh`.
+## Known gaps (honest)
 
-Works across the backup path (copy, checksums, pack, summary, …). Mid-pack Ctrl+C can retry `tar|zstd` without killing the run. `rsync` exit 20 is interrupt, not a soft-skip. Progress paints on stderr; cursor always restored on exit.
+| Gap | Status |
+|-----|--------|
+| Stage/extract path not always printed; naming differs backup vs restore/verify | Phase 13 **A** |
+| Ctrl+Z restore hang | Phase 13 **B** |
+| GNU-only tar/rsync/sha flags on BusyBox/iSH | Phase 13 **C** |
+| Partial archive on crash (need tmp+rename) | Phase 13 **D** |
+| `deps` bootstrap via apk/apt/pacman one-shot | Phase 13 **D** |
+| Full end-user docs site | Phases 06–07 |
 
 ## Logging
 

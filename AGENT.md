@@ -15,11 +15,11 @@ Scaffolded via `@zamdevio/scaffolder` (`cli` preset), then **pivoted to Bash**. 
 
 1. Read this file.
 2. Read [`maintainer/phases/focus.md`](maintainer/phases/focus.md) (max 3 Focus items).
-3. For redesign work: [`maintainer/phases/redesign.md`](maintainer/phases/redesign.md) + open phase docs named in [`roadmap.md`](maintainer/phases/roadmap.md) (05–07, 10, refactor).
+3. Redesign umbrella: [`maintainer/phases/redesign.md`](maintainer/phases/redesign.md). Open phase docs only — listed in [`roadmap.md`](maintainer/phases/roadmap.md) (shipped phase docs are **deleted**; outcomes in `shipped/` + `systems/`).
 4. Map reality via [`maintainer/systems/`](maintainer/systems/) and [`maintainer/shipped/`](maintainer/shipped/).
 5. Architecture / git gates: [`maintainer/agents/`](maintainer/agents/).
-6. Large-file budget + subdir split + smoke suite split: [`maintainer/phases/refactor.md`](maintainer/phases/refactor.md) (soft ≤250 / hard 400; parallel track).
-7. Shipped phases are folded (docs deleted) — outcomes live in `shipped/` + `systems/`.
+6. Large-file budget + smoke split: [`maintainer/phases/refactor.md`](maintainer/phases/refactor.md) (soft ≤250 / hard 400; parallel).
+7. **Next product phase:** [`maintainer/phases/13-platform-compat.md`](maintainer/phases/13-platform-compat.md) — compat layer, Ctrl+Z restore, stage paths, atomic archives.
 
 `maintainer/temp/` is scratch (gitignored).
 
@@ -28,7 +28,7 @@ Scaffolded via `@zamdevio/scaffolder` (`cli` preset), then **pivoted to Bash**. 
 | Path | Role |
 |------|------|
 | `linuxbkup` | CLI entry (bin) |
-| `lib/core/` | Shared plumbing (common, safety, context, help) |
+| `lib/core/` | common, safety, interrupt, context, help |
 | `lib/core/terminal/` | style (logging/UI), OSC 8 links, control seqs |
 | `lib/core/platform/` | Host detect, dest paths, Windows mount helpers, fs space |
 | `lib/cmd/` | One script per CLI command |
@@ -36,26 +36,26 @@ Scaffolded via `@zamdevio/scaffolder` (`cli` preset), then **pivoted to Bash**. 
 | `lib/fs/` | Size / `du` scans |
 | `lib/classify/` | Classification (reads constraints) |
 | `lib/constraints/` | Built-in path lists + `--full`/`--top` policy |
-| `lib/backup/` | Staging + home copy |
+| `lib/backup/` | Staging + home copy + `reinstall/*.sh` |
 | `lib/archive/` | tar.zst pack + checksums |
-| `lib/tools/` | Tool checks + install How-To |
+| `lib/tools/` | Tool checks + install How-To + lean compat probes |
 | `guides/tools/` | Per-tool `.guide` install snippets |
-| `modules/` | Package-manager / subsystem modules (phased) |
-| `tests/` | Smoke / regression scripts |
-| `docs/` | End-user docs (VitePress content; site in phase 07) |
-| `apps/docs/` | **planned** — VitePress → https://linuxbkup.pages.dev |
+| `modules/` | Package-manager / subsystem modules |
+| `tests/` | Smoke — thin runner `tests/smoke.sh` |
+| `docs/` | End-user docs |
 | `maintainer/` | Control plane (phases, systems, agents, shipped, temp) |
 
 ## Rules
 
-1. Bash-first; no Node/Python runtime required for the **core CLI**. Docs site (`apps/docs`) may use Node — CLI must not depend on it.
+1. Bash-first; no Node/Python runtime required for the **core CLI**. Docs site may use Node — CLI must not depend on it.
 2. `maintainer/*` is control plane — not product code.
 3. `maintainer/temp` is scratch; never commit its contents.
 4. Active focus: `maintainer/phases/focus.md` (max 3).
 5. Read `maintainer/agents/architecture.md` and `maintainer/agents/git.md`.
-6. Phase by phase — implement only what Focus opens; fold into `shipped/` + `systems/` when done.
+6. Phase by phase — implement only what Focus opens; fold into `shipped/` + `systems/` then **delete** the phase doc.
 7. **Do not commit or push unless the user explicitly asks.**
 8. Examples/placeholders: generic only (`/home/user`, `~/Backups/linuxbkup/…`).
+9. Do not assume GNU flags; prefer wrappers (phase 13) when touching tar/rsync/zstd/sha256sum.
 
 ## Commands
 

@@ -1,12 +1,18 @@
 # linuxbkup
 
-Safe, reconstructable, **Bash-first** backup and restore for Linux (desktop, VPS, and WSL).
+Safe, reconstructable, **Bash-first** backup and restore for Linux (desktop, VPS, WSL, Alpine/iSH, Termux — portability in progress).
 
 > Back up what cannot be reliably regenerated. Record what can.
 
 ## Status
 
-Early development. `inspect`, `backup` (v1), `verify`, and `deps` are live. Redesign track under `maintainer/phases/`.
+**Live commands:** `inspect`, `plan`, `backup`, `verify`, `restore` (files + Node reinstalls), `list`, `deps`.
+
+**Recent (phases 11–12):** reinstall picker v2, interrupt parity + soft-quit, workspace-root installs, nm auto-skip, prefix-tolerant archive extract.
+
+**Next (phase 13):** platform/tool compat layer, Ctrl+Z restore/backup, stage-path printing, atomic archives — see [`maintainer/phases/13-platform-compat.md`](maintainer/phases/13-platform-compat.md).
+
+**Docs site (06–07):** planned — `docs/` is the content source until VitePress ships.
 
 ## Quick start
 
@@ -23,37 +29,43 @@ Optional PATH install:
 ln -sf "$PWD/linuxbkup" ~/.local/bin/linuxbkup
 ```
 
+```bash
+./linuxbkup -y backup
+./linuxbkup -k -f restore ~/Backups/linuxbkup/<archive>.tar.zst
+./linuxbkup deps
+```
+
 ## Defaults (locked)
 
 - Archive default: `~/Backups/linuxbkup/<distro>-<timestamp>.tar.zst` (native), or Windows Downloads when a mount is available
 - Override with `-o` / `--output`
 - Secrets: passphrase via `age` (subset); `--yes` does not silently skip encryption
 - Overwrite on restore requires `--force-overwrite` (not implied by `--yes`)
+- Env prefix: `LINUXBKUP_*` only. WSL is one environment, not the brand.
 
 ## Layout
 
 ```text
-linuxbkup           CLI entry
-lib/core/           common, safety, context, help
-lib/core/terminal/  style, OSC 8 links, control
-lib/core/platform/  detect, paths, windows mount, fs space
-lib/cmd/            inspect, backup, restore, verify, list, deps
-lib/constraints/    built-in path lists + list policy
-lib/tools/          checks + catalog + install helpers
-guides/tools/       install How-To per tool
-lib/env/ fs/ classify/
-modules/            apt, … (phased)
-tests/              smoke tests — thin runner `tests/smoke.sh` + suites in `tests/smoke/` (split: [`refactor.md`](maintainer/phases/refactor.md))
-docs/               end-user docs
-maintainer/         agent control plane
+linuxbkup                 CLI entry
+lib/core/                 common, safety, interrupt, context, help
+lib/core/terminal/        style, OSC 8 links, control, progress, events
+lib/core/platform/        detect, paths, windows mount, fs space
+lib/cmd/                  inspect, plan, backup, restore, verify, list, deps
+lib/backup/               staging, home copy, restore, reinstall/*.sh
+lib/archive/              tar.zst pack, checksums, verify
+lib/constraints/          path lists + list policy (-F/-T)
+lib/env/ lib/fs/ lib/classify/ lib/tools/
+modules/                  apt, node, …
+guides/tools/             install How-To per tool
+tests/                    thin runner tests/smoke.sh
+docs/                     end-user docs (cli.md today)
+maintainer/               agent control plane (phases, systems, shipped)
 ```
 
-Useful flags: `--include` / `--exclude` (regex), `--no-defaults`, `-F/--full`, `-T/--top <n>`, `--no-color`, `--no-links`.
+## Hosts & tools (honest)
 
-```bash
-linuxbkup deps                 # status
-linuxbkup deps install         # install missing core tools
-linuxbkup -y deps install age  # one optional tool
-```
+Assumes **Linux-like** hosts with `tar`, `zstd`, `rsync`, `sha256sum` (or close). GNU coreutils is the happy path. BusyBox/iSH/Termux/old distros may lack flags or binaries — **compat layer is phase 13**, not finished. Run `linuxbkup deps` first.
 
-See [`AGENT.md`](./AGENT.md) for contributor/agent entry.
+Useful flags: `--include` / `--exclude` (regex), `--no-defaults`, `-F/--full`, `-T/--top <n>`, `--no-color`, `--no-links`, `-k/--keep-stage`, `-a/--ask`, `-y/--yes`.
+
+See [`AGENT.md`](./AGENT.md) for contributor/agent entry and [`docs/cli.md`](./docs/cli.md) for the CLI reference.

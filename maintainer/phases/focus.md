@@ -4,7 +4,7 @@
 
 **Standing (not a Focus slot):** [`10-pm-tools-research.md`](./10-pm-tools-research.md) stays **open** — use it as a guide anytime; do not fold until research is done.
 
-**Parallel (not a Focus slot):** [`refactor.md`](./refactor.md) stays **open** — layout splits only; do not block product Focus on it. **R-SMOKE** still open. **R1 done**.
+**Parallel (not a Focus slot):** [`refactor.md`](./refactor.md) stays **open** — layout splits only. **R-SMOKE** still open. **R1 done**.
 
 **Fold rule:** shipped phases are deleted; outcomes live in [`../shipped/`](../shipped/) + [`../systems/`](../systems/). Open phase docs keep **remaining slices only**.
 
@@ -13,9 +13,9 @@
 
 | Priority | Vertical | Notes |
 |----------|----------|-------|
-| 1 | Node reinstalls | PM status + list policy + picker; **Kali soak next** (phases 11–12 shipped) |
-| 2 | Phases 06–07 docs site | End-user docs + VitePress |
-| 3 | Restore / reinstall | Soak 140-project archive; fix any remaining workspace/PM gaps |
+| 1 | **Phase 13** platform compat | [`13-platform-compat.md`](./13-platform-compat.md) — stage paths (A), Ctrl+Z restore/backup (B), tar/sha/rsync compat (C), atomic/bootstrap (D) |
+| 2 | Restore soak | Kali + iSH/Termux after 13.A–B land; workspace gaps already documented |
+| 3 | Phases 06–07 docs site | Content rewrite **after** 13 so docs describe shipped behavior |
 
 ## Parallel — refactor (open)
 | Slice | Target |
@@ -32,8 +32,8 @@
 | — | Capture modules (mise/pip freeze) | Pull from phase 10 when Node done |
 | — | Schema field docs | Fold into phase 06 (05 code already shipped) |
 
-**Just folded:** Phases 00–04, 08, 09, 11, 12 (docs deleted; outcomes in shipped/ + systems/). Phase 05 trimmed to docs-only leftover.
+**Just folded:** Phases 00–04, 08, 09, 11, 12. Phase 05 = docs-only leftover. **Opened:** Phase 13 (platform compat + restore hardening) from Minis/iSH audit.
 
-**Locked:** Fail-fast doctrine (09 shipped). Standing PM/tools research in [`10-pm-tools-research.md`](./10-pm-tools-research.md). Regenerable reinstall doctrine: source PM recipe; `-y` = all; `--skip-reinstall` = none. Layout budget in [`refactor.md`](./refactor.md).
+**Locked:** Fail-fast doctrine (09 shipped). Standing PM/tools research in [`10-pm-tools-research.md`](./10-pm-tools-research.md). Regenerable reinstall doctrine: source PM recipe; `-y` = all; `--skip-reinstall` = none. Layout budget in [`refactor.md`](./refactor.md). **Host is untrusted** — prefer compat wrappers over raw GNU flags (13).
 
 Umbrella: [`redesign.md`](./redesign.md).

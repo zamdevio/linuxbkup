@@ -25,6 +25,7 @@ After implementation lands, fold outcomes into [`../shipped/`](../shipped/) and 
 | Doc | Topic | State |
 |-----|--------|-------|
 | [`05-space-schema.md`](./05-space-schema.md) | Schema field docs → fold into 06 | remaining: docs only |
+| [`13-platform-compat.md`](./13-platform-compat.md) | Compat layer, Ctrl+Z restore, stage paths, atomic archives | **next Focus** |
 | [`06-docs-content.md`](./06-docs-content.md) | `docs/*.md` ready for VitePress | planned |
 | [`07-vitepress.md`](./07-vitepress.md) | `apps/docs` → https://linuxbkup.pages.dev | planned |
 | [`10-pm-tools-research.md`](./10-pm-tools-research.md) | **Standing** PM/tools keep/strip/manifest map | open standing |
