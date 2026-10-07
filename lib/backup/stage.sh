@@ -1,21 +1,19 @@
 # shellcheck shell=bash
 # Backup staging directory lifecycle.
 
+# shellcheck source=lib/core/compat/compat.sh
+[[ -n "${LINUXBKUP_ROOT:-}" ]] && source "${LINUXBKUP_ROOT}/lib/core/compat/compat.sh"
+
 backup_stage_create() {
-  local prefix base parent
+  local base parent
   if [[ -n "${LINUXBKUP_STAGE_DIR:-}" ]]; then
     parent="${LINUXBKUP_STAGE_DIR}"
     mkdir -p "${parent}" || {
       log_fatal "cannot create --stage-dir: ${parent}"
       return 1
     }
-    prefix="${parent%/}/linuxbkup"
-  elif declare -F platform_staging_prefix >/dev/null 2>&1; then
-    prefix="$(platform_staging_prefix)"
-  else
-    prefix="${TMPDIR:-/tmp}/linuxbkup"
   fi
-  base="${prefix}.$$.$RANDOM"
+  base="$(compat_stage_path backup)"
   mkdir -p "${base}"/{metadata,packages,services,config,home,secrets} || {
     log_fatal "cannot create staging: ${base}"
     return 1
@@ -26,12 +24,16 @@ backup_stage_create() {
 # True if path looks like a linuxbkup staging dir we may remove.
 backup_stage_is_ours() {
   local stage="$1"
+  if declare -F compat_stage_is_ours >/dev/null 2>&1; then
+    compat_stage_is_ours "${stage}"
+    return $?
+  fi
   case "${stage}" in
-    /tmp/linuxbkup.*|"${TMPDIR:-/tmp}"/linuxbkup.*) return 0 ;;
+    /tmp/linuxbkup*|"${TMPDIR:-/tmp}"/linuxbkup*) return 0 ;;
   esac
   if [[ -n "${LINUXBKUP_STAGE_DIR:-}" ]]; then
     case "${stage}" in
-      "${LINUXBKUP_STAGE_DIR%/}"/linuxbkup.*) return 0 ;;
+      "${LINUXBKUP_STAGE_DIR%/}"/linuxbkup*) return 0 ;;
     esac
   fi
   return 1
@@ -43,6 +45,11 @@ backup_stage_cleanup() {
 
   if [[ "${LINUXBKUP_KEEP_STAGE:-0}" -eq 1 ]]; then
     log_info "keeping staging (--keep-stage): ${stage}"
+    if declare -F compat_print_stage_path >/dev/null 2>&1; then
+      compat_print_stage_path "Stage" "${stage}"
+    elif declare -F ui_kv_path >/dev/null 2>&1; then
+      ui_kv_path "Stage" "${stage}"
+    fi
     return 0
   fi
 

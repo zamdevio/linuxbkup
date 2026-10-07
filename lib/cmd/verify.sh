@@ -15,6 +15,8 @@ linuxbkup_cmd_verify() {
 
   # shellcheck source=lib/core/context.sh
   source "${LINUXBKUP_ROOT}/lib/core/context.sh"
+  # shellcheck source=lib/core/compat/compat.sh
+  source "${LINUXBKUP_ROOT}/lib/core/compat/compat.sh"
   # shellcheck source=lib/archive/verify.sh
   source "${LINUXBKUP_ROOT}/lib/archive/verify.sh"
 
@@ -62,14 +64,30 @@ linuxbkup_cmd_verify() {
     if [[ "${target}" != *.tar.zst && "${target}" != *.tzst ]]; then
       log_warn "unexpected extension — attempting tar.zst read anyway"
     fi
-    tmp="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-verify.XXXXXX")"
+    tmp="$(compat_stage_path verify)"
+    mkdir -p "${tmp}" || {
+      log_fatal "cannot create verify extract dir: ${tmp}"
+      return 1
+    }
     # EXIT only — INT stays with safety_on_int (menu); cleanup on quit via EXIT
     trap 'rm -rf "'"${tmp}"'"' EXIT
     ui_section "Extract (temp)"
+    # Phase 13 A2 — print extract path before unpack
+    if declare -F compat_print_stage_path >/dev/null 2>&1; then
+      compat_print_stage_path "Extract" "${tmp}"
+    else
+      ui_kv_path "Extract" "${tmp}"
+    fi
     linuxbkup_op_begin "verify-extract" "${target}" 0 1
     set +e
-    zstd -dcq "${target}" | tar --warning=no-timestamp -C "${tmp}" -xf -
-    local extract_rc=$?
+    if declare -F compat_tar_extract_stream >/dev/null 2>&1; then
+      compat_zstd_decompress "${target}" | compat_tar_extract_stream "${tmp}"
+      local extract_rc=$?
+    else
+      # Portable fallback (no GNU --warning)
+      zstd -dcq "${target}" 2>/dev/null | tar -C "${tmp}" -xf -
+      local extract_rc=$?
+    fi
     set -e
     if linuxbkup_interrupt_pending || [[ "${extract_rc}" -ne 0 && "${LINUXBKUP_WAS_INTERRUPTED:-0}" -eq 1 ]]; then
       LINUXBKUP_WAS_INTERRUPTED=1
@@ -118,12 +136,20 @@ linuxbkup_cmd_verify() {
   archive_print_verify_summary "${root}"
   archive_verify_schema "${root}"
 
-  if [[ -n "${tmp}" ]]; then
+  if [[ -n "${tmp:-}" ]]; then
     rm -rf "${tmp}"
     trap - EXIT
   fi
 
   printf '\n'
+  ui_section "Verify paths"
+  if [[ "${kind}" == "staging" ]]; then
+    ui_kv_path "Stage" "${target}"
+  else
+    # Phase 13 A2 — extract path always printed for archive verify
+    ui_kv_path "Extract" "${tmp:-}"
+    ui_kv_path "Archive" "${target}"
+  fi
   linuxbkup_op_end
   log_ok "verify complete"
 }

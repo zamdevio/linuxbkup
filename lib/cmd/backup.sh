@@ -185,6 +185,12 @@ linuxbkup_cmd_backup() {
   LINUXBKUP_BACKUP_OK=0
   log_ok "staging: ${stage}"
   log_debug "staging created at ${stage}"
+  # Phase 13 A2 — stage path always printed (kept under -k via cleanup too)
+  if declare -F compat_print_stage_path >/dev/null 2>&1; then
+    compat_print_stage_path "Stage" "${stage}"
+  else
+    ui_kv_path "Stage" "${stage}"
+  fi
 
   # Persist events into the stage (lands in the archive via pack).
   mkdir -p "${stage}/metadata"

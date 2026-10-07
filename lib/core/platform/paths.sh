@@ -51,6 +51,26 @@ platform_staging_prefix() {
   printf '%s/linuxbkup\n' "${TMPDIR:-/tmp}"
 }
 
+# Shared stage/extract path (phase 13 A). Same naming family for backup,
+# restore extract, and verify extract.
+# Prefer lib/core/compat/compat.sh when loaded; else define here.
+if ! declare -F compat_stage_path >/dev/null 2>&1; then
+  compat_stage_path() {
+    local kind="${1:-backup}" parent ts
+    if [[ -n "${LINUXBKUP_STAGE_DIR:-}" ]]; then
+      parent="${LINUXBKUP_STAGE_DIR%/}"
+    else
+      parent="${TMPDIR:-/tmp}"
+    fi
+    ts="$(date +%Y%m%d-%H%M%S 2>/dev/null || printf 'ts')"
+    if [[ "${kind}" == "backup" ]]; then
+      printf '%s/linuxbkup.%s.%s\n' "${parent}" "$$" "${RANDOM}"
+    else
+      printf '%s/linuxbkup-%s-%s.%s\n' "${parent}" "${kind}" "${ts}" "$$"
+    fi
+  }
+fi
+
 # Inspect / plan UI for default destination.
 platform_print_backup_destination() {
   local dir name full kind

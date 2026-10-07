@@ -15,6 +15,8 @@ linuxbkup_cmd_restore() {
 
   # shellcheck source=lib/core/context.sh
   source "${LINUXBKUP_ROOT}/lib/core/context.sh"
+  # shellcheck source=lib/core/compat/compat.sh
+  source "${LINUXBKUP_ROOT}/lib/core/compat/compat.sh"
   # shellcheck source=lib/archive/verify.sh
   source "${LINUXBKUP_ROOT}/lib/archive/verify.sh"
   # shellcheck source=lib/backup/secrets_crypt.sh
@@ -96,6 +98,7 @@ linuxbkup_cmd_restore() {
     root="${backup}"
     ui_step_event 1 "${steps}" "extract" "extract — unpack archive"
     log_ok "using staging directory — no extract"
+    compat_print_stage_path "Stage" "${root}"
     linuxbkup_event skip extract "reason=staging"
   else
     if [[ "${LINUXBKUP_DRY_RUN:-0}" -eq 1 ]]; then
@@ -104,13 +107,18 @@ linuxbkup_cmd_restore() {
       linuxbkup_op_end
       return 0
     fi
-    tmp="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-restore.XXXXXX")"
+    # Phase 13 A1 — same naming family as backup staging
+    tmp="$(compat_stage_path restore)"
+    mkdir -p "${tmp}" || {
+      log_fatal "cannot create extract dir: ${tmp}"
+      return 1
+    }
     LINUXBKUP_RESTORE_TMP="${tmp}"
     _linuxbkup_restore_on_exit() {
       declare -F linuxbkup_tty_restore >/dev/null 2>&1 && linuxbkup_tty_restore
       if [[ "${LINUXBKUP_KEEP_STAGE:-0}" -eq 1 ]]; then
         [[ -n "${LINUXBKUP_RESTORE_TMP:-}" && -d "${LINUXBKUP_RESTORE_TMP}" ]] \
-          && log_info "keeping extract: ${LINUXBKUP_RESTORE_TMP}"
+          && log_info "keeping extract (--keep-stage): ${LINUXBKUP_RESTORE_TMP}"
         return 0
       fi
       rm -rf "${LINUXBKUP_RESTORE_TMP:-}"
@@ -118,6 +126,8 @@ linuxbkup_cmd_restore() {
     trap '_linuxbkup_restore_on_exit' EXIT
 
     ui_step_event 1 "${steps}" "extract" "extract — unpack archive"
+    # Phase 13 A3 — extract path logged for the duration of the run
+    compat_print_stage_path "Extract" "${tmp}"
     linuxbkup_op_begin "restore-extract" "${backup}" 0 1
     set +e
     if [[ "${reinstall_only}" -eq 1 ]]; then
@@ -125,8 +135,10 @@ linuxbkup_cmd_restore() {
       reinstall_extract_manifest "${backup}" "${tmp}"
       extract_rc=$?
     else
+      # Compat wrappers: BusyBox tar has no --warning; flags come from probe
       linuxbkup_without_monitor bash -c \
-        "zstd -dcq \"${backup}\" | tar --warning=no-timestamp -C \"${tmp}\" -xf -"
+        "source \"${LINUXBKUP_ROOT}/lib/core/compat/compat.sh\"; \
+         compat_zstd_decompress \"${backup}\" | compat_tar_extract_stream \"${tmp}\""
       extract_rc=$?
     fi
     set -e
@@ -236,6 +248,9 @@ linuxbkup_cmd_restore() {
   fi
   if [[ -n "${tmp:-}" && "${LINUXBKUP_KEEP_STAGE:-0}" -eq 1 ]]; then
     ui_kv_path "Extract kept" "${tmp}"
+  elif [[ -n "${tmp:-}" ]]; then
+    # Phase 13 A2 — always print extract path (even when not kept)
+    ui_kv_path "Extract" "${tmp}"
   fi
 
   linuxbkup_event ok report
