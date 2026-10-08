@@ -14,7 +14,7 @@
 | Priority | Vertical | Notes |
 |----------|----------|-------|
 | 1 | Restore soak | Kali + iSH/Termux — checklist `maintainer/temp/13-soak-checklist.md`; workspace gaps already documented |
-| 2 | Docs site 07 | `docs/*` content **landed** (phase 06 tree). Scaffold `apps/docs` VitePress (`srcDir: docs/`) → https://linuxbkup.pages.dev |
+| 2 | Docs site 07 | **Scaffold landed** — `apps/docs` VitePress, `srcDir` → repo `docs/`, build green. Remaining: `wrangler login` + deploy to https://linuxbkup.pages.dev, then public repo |
 | 3 | — | (slot free until soak / site ship) |
 
 ## Parallel — refactor (open)

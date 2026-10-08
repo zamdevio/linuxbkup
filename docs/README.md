@@ -2,6 +2,9 @@
 
 End-user documentation for the Bash-first Linux backup/restore CLI.
 
+**Site:** [linuxbkup.pages.dev](https://linuxbkup.pages.dev) (VitePress; content is this folder).
+**VitePress home:** [`index.md`](./index.md) · **This file:** GitHub folder index only.
+
 Works on most Linux distros — **desktop, VPS, and WSL**. Alpine / iSH / Termux are best-effort via the compat layer and `linuxbkup deps`.
 
 ## Start here

@@ -12,3 +12,9 @@
 maintainer/temp/**
 !maintainer/temp/
 !maintainer/temp/.gitkeep
+
+# VitePress docs app (apps/docs)
+apps/docs/node_modules/
+apps/docs/.vitepress/dist/
+apps/docs/.vitepress/cache/
+apps/docs/.wrangler/

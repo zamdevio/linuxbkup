@@ -16,7 +16,8 @@
     without a Node/Python runtime, a backup daemon, or a distro-specific fork.
   </p>
   <p>
-    <a href="./docs/README.md">Docs</a> ·
+    <a href="https://linuxbkup.pages.dev">Docs site</a> ·
+    <a href="./docs/README.md">Docs (repo)</a> ·
     <a href="./docs/guide.md">Guide</a> ·
     <a href="./docs/cli.md">CLI</a> ·
     <a href="./docs/install.md">Install</a> ·

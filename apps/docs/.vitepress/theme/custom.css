@@ -1,0 +1,105 @@
+/**
+ * linuxbkup docs chrome — slate surfaces, terminal-green accent.
+ * Not purple-on-white. Light + dark.
+ */
+
+:root {
+  --lb-docs-radius: 0.75rem;
+
+  --vp-c-bg: hsl(220 18% 98%);
+  --vp-c-bg-alt: hsl(220 16% 96%);
+  --vp-c-bg-elv: hsl(0 0% 100%);
+  --vp-c-bg-soft: hsl(220 14% 93%);
+
+  --vp-c-text-1: hsl(222 35% 11%);
+  --vp-c-text-2: hsl(220 12% 42%);
+  --vp-c-text-3: hsl(220 10% 55%);
+
+  --vp-c-border: hsl(220 14% 82%);
+  --vp-c-divider: hsl(220 14% 88%);
+  --vp-c-gutter: hsl(220 14% 88%);
+
+  --vp-c-brand-1: hsl(142 70% 28%);
+  --vp-c-brand-2: hsl(142 65% 34%);
+  --vp-c-brand-3: hsl(142 60% 40%);
+  --vp-c-brand-soft: hsl(142 60% 40% / 0.12);
+
+  --lb-docs-amber: hsl(38 92% 48%);
+
+  --vp-nav-bg-color: color-mix(in hsl, hsl(220 18% 98%) 88%, transparent);
+  --vp-nav-screen-bg-color: var(--vp-c-bg);
+  --vp-local-nav-bg-color: color-mix(in hsl, hsl(220 18% 98%) 92%, transparent);
+  --vp-sidebar-bg-color: hsl(220 16% 96%);
+
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(
+    135deg,
+    hsl(142 70% 36%) 0%,
+    hsl(155 55% 42%) 55%,
+    hsl(38 92% 48%) 100%
+  );
+}
+
+.dark {
+  --vp-c-bg: hsl(222 28% 5%);
+  --vp-c-bg-alt: hsl(222 26% 7%);
+  --vp-c-bg-elv: hsl(222 24% 9%);
+  --vp-c-bg-soft: hsl(222 22% 11%);
+
+  --vp-c-text-1: hsl(220 15% 95%);
+  --vp-c-text-2: hsl(220 12% 68%);
+  --vp-c-text-3: hsl(220 10% 50%);
+
+  --vp-c-border: hsl(222 18% 18%);
+  --vp-c-divider: hsl(222 12% 12%);
+  --vp-c-gutter: hsl(222 20% 9%);
+
+  --vp-c-brand-1: hsl(142 65% 55%);
+  --vp-c-brand-2: hsl(142 60% 48%);
+  --vp-c-brand-3: hsl(142 55% 44%);
+  --vp-c-brand-soft: hsl(142 55% 50% / 0.14);
+
+  --lb-docs-amber: hsl(38 100% 58%);
+
+  --vp-nav-bg-color: color-mix(in hsl, hsl(222 28% 5%) 86%, transparent);
+  --vp-nav-screen-bg-color: var(--vp-c-bg);
+  --vp-local-nav-bg-color: color-mix(in hsl, hsl(222 28% 5%) 90%, transparent);
+  --vp-sidebar-bg-color: hsl(222 26% 7%);
+
+  --vp-home-hero-name-background: linear-gradient(
+    135deg,
+    hsl(142 65% 52%) 0%,
+    hsl(155 50% 48%) 55%,
+    hsl(38 100% 58%) 100%
+  );
+}
+
+.VPNavBar {
+  backdrop-filter: saturate(1.2) blur(12px);
+  -webkit-backdrop-filter: saturate(1.2) blur(12px);
+}
+
+.VPHomeHero .text {
+  background: var(--vp-home-hero-name-background);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+.vp-doc h1,
+.vp-doc h2 {
+  letter-spacing: -0.02em;
+}
+
+.vp-doc div[class*='language-'] {
+  border-radius: var(--lb-docs-radius);
+}
+
+.VPButton.brand {
+  background-color: var(--vp-c-brand-1);
+  border-color: var(--vp-c-brand-1);
+}
+
+.VPButton.brand:hover {
+  background-color: var(--vp-c-brand-2);
+  border-color: var(--vp-c-brand-2);
+}
