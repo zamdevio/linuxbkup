@@ -2,43 +2,87 @@
 
 ```bash
 linuxbkup --help
-linuxbkup help plan
+linuxbkup help <command>
 linuxbkup version
 ```
+
+Env prefix: **`LINUXBKUP_*` only**. Examples use generic paths (`/home/user`, `~/Backups/linuxbkup/…`).
 
 ## Commands
 
 | Command | Purpose |
 |---------|---------|
-| `inspect` | Read-only environment scan |
-| `plan` | What backup would include/skip (no writes) |
-| `backup` | Create archive |
-| `restore` | Extract → decrypt secrets → rsync home/config (needs `-f` to overwrite). `sudo` targets `SUDO_USER` home, not `/root`. Node reinstalls from manifest. |
-| `verify` | Integrity check (archive or staging dir) |
-| `list` | High-level archive listing |
+| `inspect` | Read-only environment scan + default destination |
+| `plan` | What backup would include/skip (no writes); `--json` |
+| `backup` | Scan → stage → checksum → atomic `tar.zst` |
+| `restore` | Extract → secrets → home/config rsync → Node reinstalls |
+| `verify` | Integrity check (archive **or** staging dir) |
+| `list` | High-level archive listing (thin) |
 | `deps` | Tool status / install / How-To / one-command bootstrap |
+| `help` / `version` | Help and version |
 
-## Plan
+## Global flags
+
+| Flag | Role |
+|------|------|
+| `-y, --yes` | Safe defaults (not destructive overwrite) |
+| `-a, --ask` | Interactive decisions (wins over `--yes`) |
+| `-p, --profile` | `easy` \| `balanced` \| `strict` |
+| `-n, --dry-run` | Plan only |
+| `-v` / `-d` / `-q` | Verbose / debug (implies `-v`) / quiet |
+| `-o, --output` | Archive path |
+| `-u, --user` | Target home owner |
+| `-k, --keep-stage` | Keep stage/extract dir (path printed) |
+| `-S, --stage-dir` | Parent directory for staging |
+| `-m, --max-size` | Abort if staging exceeds SIZE (e.g. `2G`) |
+| `-w, --workers` | Parallelism cap (default 4) |
+| `-r` / `-R` | Reclaim regenerables interactively / all |
+| `-i` / `-e` | Include / exclude ERE (repeatable) |
+| `-j, --json` | Machine-readable (`plan --json`) |
+| `-f, --force-overwrite` | Allow restore overwrites |
+| `-F` / `-T` | List full / top-N |
+| `--skip-reinstall` | Skip Node reinstalls on restore |
+| `--reinstall-only` | Manifest + installs only |
+| `--mark-secret` | Treat path as secret (repeatable) |
+| `--no-secrets` / `--secrets-plain` | Exclude secrets / include unencrypted |
+| `--no-defaults` | Ignore built-in path rules |
+| `--no-gitignore` | Do not honor per-directory `.gitignore` |
+| `--no-color` / `--no-links` | Disable ANSI / OSC 8 |
+
+## inspect
+
+```bash
+linuxbkup inspect
+linuxbkup inspect -F
+linuxbkup -v inspect
+```
+
+## plan
 
 ```bash
 linuxbkup plan
 linuxbkup plan -F
 linuxbkup plan --json
 linuxbkup -y plan
-linuxbkup -v plan
+linuxbkup -v plan          # per-path sizes (slower)
 ```
 
-## Backup
+Unexpected paths: auto-include under `-y` / non-TTY; interactive under `--ask`.
+
+## backup
 
 ```bash
 linuxbkup -y backup
 linuxbkup -o ~/Backups/linuxbkup/host.tar.zst backup
-linuxbkup -k backup        # keep staging after success (path always printed)
+linuxbkup -k backup
+linuxbkup -y -p strict -m 2G -w 8 backup
 ```
 
-Staging lives under `linuxbkup.<pid>.<rand>` (same family as restore extract). Archives are **atomic**: pack to `*.tar.zst.tmp` → integrity check → rename.
+- Stage path always printed; kept with `-k`
+- Atomic pack: `*.tar.zst.tmp` → verify → final name
+- Secrets: see [secrets.md](./secrets.md)
 
-## Restore
+## restore
 
 ```bash
 linuxbkup -k -f restore ~/Backups/linuxbkup/host.tar.zst
@@ -48,72 +92,52 @@ linuxbkup -y -f restore ~/Backups/linuxbkup/host.tar.zst
 linuxbkup -y --reinstall-only restore ~/Backups/linuxbkup/host.tar.zst
 ```
 
-Passphrase via `LINUXBKUP_SECRETS_PASS` / `_PASS_FILE` or TTY prompt. Existing files need `-f` (or `-a/--ask`).
+- Overwrite requires `-f` (or `-a` in a TTY) — never implied by `-y`
+- Extract path printed; kept with `-k`
+- Node reinstalls from `packages/reinstalls.json`; failures skip, never abort the run
+- TTY picker: `e` exclude · `i` include-only · `p` PM · `g` grep · `f` fzf · `n` none · `u` undo · Enter=all
 
-Backup writes `packages/reinstalls.json` for workspace roots / lockfile dirs. Restore peeks `packages/reinstalls.tsv` and lists required PMs with resolved Linux paths. Reinstalls skip failed projects. TTY picker v2 + soft-quit batch (`q`) unchanged.
+## verify
 
-## Dependencies
+```bash
+linuxbkup verify ~/Backups/linuxbkup/host.tar.zst
+linuxbkup verify /tmp/linuxbkup.<pid>.<rand>
+```
+
+Payload checksum mismatches **fail**. Missing `schema.json` / events drift → soft warnings.
+
+## deps
 
 ```bash
 linuxbkup deps
-linuxbkup deps install          # missing core (one-command bootstrap when 2+ missing)
+linuxbkup deps status
+linuxbkup deps install
 linuxbkup -y deps install all
-linuxbkup deps howto fzf
+linuxbkup deps howto zstd
 ```
 
-Bootstrap detects **apk | apt | pacman | pkg (Termux) | dnf | yum | brew**.
+Bootstrap families: **apk · apt · pacman · pkg (Termux) · dnf · yum · brew**.
 
-## Supported hosts
-
-| Host | Notes |
-|------|-------|
-| GNU Linux (desktop / VPS / WSL) | Happy path |
-| Alpine / BusyBox | tar flag fallbacks; `deps` + `zstd` required; sha via shasum/openssl if needed |
-| iSH / Termux | Best-effort — no FHS assumptions; run `deps` first |
-| FAT / exFAT / NTFS / 9p mounts | rsync **metadata mode** — no hard-fail on chmod/symlink |
-
-**Checksum providers:** `sha256sum` | `shasum -a 256` | `openssl dgst`.
-
-**Tar:** impl probed (`gnu` / `busybox` / `bsd`); GNU-only flags omitted where unsupported.
-
-## Stage paths
+## Stage / extract paths
 
 | Command | Path |
 |---------|------|
 | `backup` | `…/linuxbkup.<pid>.<rand>` |
-| `backup -k` | same — **path printed** |
-| `restore` (archive) | `…/linuxbkup-restore-<ts>.<pid>` — **path printed**; kept with `-k` |
-| `verify` (archive) | `…/linuxbkup-verify-<ts>.<pid>` — **path printed** |
+| `backup -k` | printed on success |
+| `restore` (archive) | `…/linuxbkup-restore-<ts>.<pid>` — printed; kept with `-k` |
+| `verify` (archive) | `…/linuxbkup-verify-<ts>.<pid>` — printed |
 
-Parent: `-S/--stage-dir` if set, else `${TMPDIR:-/tmp}`.
-
-## Path filters
-
-```bash
-linuxbkup inspect --exclude '\.cache' -T 5
-linuxbkup -y backup --include /home/user/extra-pattern
-```
-
-Unexpected auto-includes with `-y` or non-TTY.
+Parent: `-S` or `${TMPDIR:-/tmp}`.
 
 ## Signals (TTY)
 
 | Key | Behavior |
 |-----|----------|
-| **Ctrl+C** | `[INT]` notice → TERM→wait→KILL → menu on `/dev/tty`. Mid-reinstall: `q` = soft-quit batch. Wait: `LINUXBKUP_INT_STOP_WAIT_DS` (default 30 = 3s) |
-| **Ctrl+Z** | Suspend whole job (`fg`/`bg`) on **backup and restore** (extract / rsync / reinstall). Children STOPped first, then process group |
+| **Ctrl+C** | `[INT]` notice → children stop → menu (`r`/`s`/`c`/`q`/`x`). Mid-reinstall `q` = soft-quit batch |
+| **Ctrl+Z** | Suspend whole job on backup **and** restore (`fg`/`bg`) |
 
-## Logging
+Wait after Ctrl+C: `LINUXBKUP_INT_STOP_WAIT_DS` (default 30 = 3s).
 
-| Flag | Role |
-|------|------|
-| `-v` / `--verbose` | Human detail |
-| `-d` / `--debug` | Forensic why/commands on stderr (implies `-v`) |
+## Hosts (summary)
 
-## Known remaining gaps
-
-| Gap | Status |
-|-----|--------|
-| Full end-user docs site | Phases 06–07 |
-| Real iSH/Termux/Kali soak | Checklist only — hardware run pending |
-| Python / Go reinstall arrays | Queued (same JSON pattern) |
+GNU Linux happy path; Alpine/BusyBox/iSH/Termux best-effort via compat + `deps`. External FAT/exFAT/NTFS/9p: rsync metadata mode. Full matrix: [platforms.md](./platforms.md).

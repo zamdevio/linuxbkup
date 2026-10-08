@@ -13,9 +13,9 @@
 
 | Priority | Vertical | Notes |
 |----------|----------|-------|
-| 1 | Restore soak | Kali + iSH/Termux after 13 landed — checklist `maintainer/temp/13-soak-checklist.md`; workspace gaps already documented |
-| 2 | Phases 06–07 docs site | Content rewrite **now that 13 shipped** — docs describe shipped behavior |
-| 3 | — | (slot free until soak/docs land) |
+| 1 | Restore soak | Kali + iSH/Termux — checklist `maintainer/temp/13-soak-checklist.md`; workspace gaps already documented |
+| 2 | Docs site 07 | `docs/*` content **landed** (phase 06 tree). Scaffold `apps/docs` VitePress (`srcDir: docs/`) → https://linuxbkup.pages.dev |
+| 3 | — | (slot free until soak / site ship) |
 
 ## Parallel — refactor (open)
 

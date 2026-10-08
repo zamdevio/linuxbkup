@@ -1,19 +1,39 @@
 # Docs — linuxbkup
 
-End-user documentation for the Linux backup/restore CLI (desktop, VPS, WSL; Alpine/iSH/Termux portability in progress).
+End-user documentation for the Bash-first Linux backup/restore CLI.
 
-Keep this free of sprint language and `maintainer/` links.
+Works on most Linux distros — **desktop, VPS, and WSL**. Alpine / iSH / Termux are best-effort via the compat layer and `linuxbkup deps`.
 
-## Available
+## Start here
 
-- [`cli.md`](./cli.md) — commands, restore/reinstalls, deps, filters, signals, known gaps
+| Doc | Read this when |
+|-----|----------------|
+| [Install](./install.md) | Getting the binary on a machine |
+| [Concepts](./concepts.md) | What gets backed up, what is skipped, how safety works |
+| [Guide](./guide.md) | First full run: plan → backup → verify → restore |
+| [Platforms](./platforms.md) | Host matrix, package managers, external mounts |
+| [Schema](./schema.md) | Archive layout, `schema.json`, checksums |
+| [Secrets](./secrets.md) | `age` encryption, passphrase, `--yes` rules |
+| [Troubleshooting](./troubleshooting.md) | When something fails |
+| [CLI reference](./cli.md) | Every command and global flag |
 
-## Planned topics (phase 06+)
+## Thirty-second version
 
-- Install / PATH
-- `inspect` → `backup` → `restore` workflow
-- Default archive location (`~/Backups/linuxbkup/` or Windows Downloads when mounted)
-- Secrets passphrase (`age`) and `--yes` rules
-- Per-ecosystem regenerables (venv, node_modules, …)
-- Supported hosts matrix (GNU vs BusyBox) once phase 13 lands
-- Schema / archive layout
+```bash
+./linuxbkup deps
+./linuxbkup plan
+./linuxbkup -y backup
+./linuxbkup verify ~/Backups/linuxbkup/<archive>.tar.zst
+./linuxbkup -k -f restore ~/Backups/linuxbkup/<archive>.tar.zst
+```
+
+No Node, no Python, no daemon. One Bash binary plus tools you already have (`tar`, `zstd`, `rsync`, `du`, `find`, optional `age`).
+
+## Principles
+
+1. **Back up what cannot be reliably regenerated.** Config, dotfiles, selected data — not whole disks, not `/usr`.
+2. **Safety by default.** Overwrite needs `-f`. `--yes` never silently skips secrets.
+3. **Portable archives.** Atomic `tar.zst` + checksums; restore on another distro.
+4. **Honest hosts.** GNU Linux is the happy path; other hosts get explicit compat behavior, not silent breakage.
+
+Generic paths only in examples: `/home/user`, `~/Backups/linuxbkup/archive.tar.zst`.
