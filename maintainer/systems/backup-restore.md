@@ -13,9 +13,11 @@
 | Verify | `lib/cmd/verify.sh` — **archive** (`*.tar.zst`) **or staging directory** with `checksums.sha256` |
 | Profiles / ask | `lib/core/profile.sh` + `lib/ask/select.sh` |
 | Failure UX | Staging kept if pack fails; INDEX write ignores `find\|head` SIGPIPE |
-| Compat layer | `lib/core/compat/compat.sh` — tar/sha/rsync/numfmt wrappers + stage paths |
+| Compat layer | `lib/core/compat/compat.sh` — tar/sha/rsync/find/numfmt wrappers + stage paths |
 
 Home/config from **full-home classification**. Decisions: `--ask` interactive (unexpected + large); `--yes` uses profile large defaults; non-TTY ≈ `--yes`. Regenerables skipped (rsync filter stack + expanded language/framework/PM globs + `*.pyc` etc.). Per-directory `.gitignore` honored unless `--no-gitignore`.
+
+**BusyBox/iSH harden (soak):** checksums + INDEX use `compat_find_rel_files` (GNU `-printf` or `cd`+`sed`); classify/plan/json/home/restore/node/sizes/compat rsync args avoid bash process substitution (temp files — `/dev/fd` missing on some iSH hosts); `deps` bootstrap/install omit `sudo` when already root.
 
 **Fail-fast (phase 09):** secrets mode + disk floor checked in Preflight **before** snapshot/copy; passphrase required under `--yes` before any heavy work. Preflight banner shows profile / gitignore / max-size / secrets at a glance (`backup_preflight_banner`). Backup prints `ui_step` labels: preflight → detect → capture → stage → seal → pack → summary. Estimates use byte-accurate filtered `du`. Space gate (`lib/backup/preflight.sh`) re-checks with estimate+10% before rsync confirm.
 

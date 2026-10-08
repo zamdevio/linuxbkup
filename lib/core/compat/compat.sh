@@ -499,7 +499,13 @@ compat_rsync_copy() {
   local src="$1" dest="$2"
   shift 2 || true
   local -a built=()
-  mapfile -t built < <(compat_rsync_args_for "${dest}" "$@")
+  local _rtmp
+  _rtmp="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-rsyncargs.XXXXXX")" || _rtmp=""
+  if [[ -n "${_rtmp}" ]]; then
+    compat_rsync_args_for "${dest}" "$@" >"${_rtmp}" || true
+    mapfile -t built <"${_rtmp}"
+    rm -f "${_rtmp}"
+  fi
   [[ "${#built[@]}" -gt 0 ]] || built=(-a)
   rsync "${built[@]}" -- "${src}/" "${dest}/"
 }

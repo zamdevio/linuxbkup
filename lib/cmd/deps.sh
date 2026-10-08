@@ -209,11 +209,14 @@ _deps_status() {
   fi
 
   local has_extra=0
+  local _cat_all
+  _cat_all="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-tools.XXXXXX")" || return 0
+  tools_catalog_all >"${_cat_all}" || true
   while IFS= read -r tool; do
     [[ "$(tools_dep_tier "${tool}")" == "extra" ]] || continue
     has_extra=1
     break
-  done < <(tools_catalog_all)
+  done <"${_cat_all}"
 
   if [[ "${has_extra}" -eq 1 ]]; then
     printf '\n'
@@ -228,7 +231,7 @@ _deps_status() {
         lines+=("$(printf '  %s-%s %s' \
           "${UI_DIM:-}" "${UI_RESET:-}" "${tool}")")
       fi
-    done < <(tools_catalog_all)
+    done <"${_cat_all}"
     if [[ "${#lines[@]}" -gt 0 ]]; then
       printf '%s\n' "${lines[@]}" | constraints_list_apply
       if declare -F constraints_list_footer >/dev/null 2>&1; then
@@ -236,6 +239,7 @@ _deps_status() {
       fi
     fi
   fi
+  rm -f "${_cat_all}"
 
   printf '\n'
   if [[ "${DEPS_MISSING_CORE}" -gt 0 ]]; then

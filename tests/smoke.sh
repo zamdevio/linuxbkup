@@ -1788,17 +1788,32 @@ else
   bad "compat_find_rel_files missing"
 fi
 
-# iSH soak harden: no process substitution in hot detect/classify paths
+# iSH soak harden: no process substitution in hot detect/classify/backup paths
 # (ignore comment lines that mention the pattern)
-if grep -v '^[[:space:]]*#' "${ROOT}/lib/core/platform/detect.sh" | grep -q '< <('; then
-  bad "detect.sh still uses process substitution (/dev/fd)"
-else
-  ok "detect.sh avoids process substitution"
-fi
-if grep -v '^[[:space:]]*#' "${ROOT}/lib/classify/scan.sh" | grep -q '< <('; then
-  bad "classify/scan.sh still uses process substitution"
-else
-  ok "classify/scan.sh avoids process substitution"
+_hot_ps_files=(
+  "${ROOT}/lib/core/platform/detect.sh"
+  "${ROOT}/lib/classify/scan.sh"
+  "${ROOT}/lib/classify/plan.sh"
+  "${ROOT}/lib/classify/json.sh"
+  "${ROOT}/lib/backup/home.sh"
+  "${ROOT}/lib/backup/stage.sh"
+  "${ROOT}/lib/backup/restore_files.sh"
+  "${ROOT}/lib/archive/checksums.sh"
+  "${ROOT}/lib/core/compat/compat.sh"
+  "${ROOT}/lib/env/users.sh"
+  "${ROOT}/lib/fs/sizes.sh"
+  "${ROOT}/modules/node.sh"
+)
+_hot_ps_bad=0
+for _hf in "${_hot_ps_files[@]}"; do
+  if grep -v '^[[:space:]]*#' "${_hf}" 2>/dev/null | grep -q '< <('; then
+    bad "process substitution remains: ${_hf#${ROOT}/}"
+    grep -n '< <(' "${_hf}" | grep -v '^[[:space:]]*[0-9]*:[[:space:]]*#' || true
+    _hot_ps_bad=1
+  fi
+done
+if [[ "${_hot_ps_bad}" -eq 0 ]]; then
+  ok "no process substitution in hot backup/restore/scan paths"
 fi
 
 # iSH soak harden: deps bootstrap omits sudo when already root

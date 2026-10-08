@@ -5,18 +5,24 @@
 restore_files_conflict_count() {
   local src="$1"
   local dest="$2"
-  local n=0 rel f
+  local n=0 rel f _ctmp
   [[ -d "${src}" ]] || {
     printf '%s\n' "0"
     return 0
   }
+  _ctmp="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-rfc.XXXXXX")" || {
+    printf '%s\n' "0"
+    return 0
+  }
+  find "${src}" -type f -print0 2>/dev/null >"${_ctmp}" || true
   while IFS= read -r -d '' f; do
     rel="${f#"${src}"/}"
     [[ -z "${rel}" ]] && continue
     if [[ -e "${dest}/${rel}" ]]; then
       n=$((n + 1))
     fi
-  done < <(find "${src}" -type f -print0 2>/dev/null || true)
+  done <"${_ctmp}"
+  rm -f "${_ctmp}"
   printf '%s\n' "${n}"
 }
 
@@ -76,7 +82,15 @@ restore_files_copy_tree() {
   chown_arg="$(restore_files_chown_args "${dest_user}")"
   # Compat layer: -a vs metadata mode on non-Linux mounts (FAT/exFAT/NTFS/9p)
   if declare -F compat_rsync_args_for >/dev/null 2>&1; then
-    mapfile -t rargs < <(compat_rsync_args_for "${dest}" ${chown_arg:+"${chown_arg}"})
+    local _rrtmp
+    _rrtmp="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-rr.XXXXXX")" || _rrtmp=""
+    if [[ -n "${_rrtmp}" ]]; then
+      compat_rsync_args_for "${dest}" ${chown_arg:+"${chown_arg}"} >"${_rrtmp}" || true
+      mapfile -t rargs <"${_rrtmp}"
+      rm -f "${_rrtmp}"
+    else
+      rargs=(-a)
+    fi
     if [[ "${LINUXBKUP_COMPAT_RSYNC_META:-0}" -eq 1 ]]; then
       log_warn "destination filesystem lacks chmod/symlink — rsync metadata mode"
       ui_kv "Rsync" "metadata mode (no chmod/symlink hard-fail)"

@@ -324,7 +324,12 @@ backup_copy_home() {
     raw_ranked+=("$(printf '%s\t%s\t%s\t%s' "${bytes}" "${human}" "${class}" "${p}")")
   done
   if [[ "${#raw_ranked[@]}" -gt 0 ]]; then
-    mapfile -t ranked < <(printf '%s\n' "${raw_ranked[@]}" | sort -t$'\t' -k1,1nr)
+    # Temp file, not process substitution — /dev/fd missing on some iSH hosts.
+    local _rank_tmp
+    _rank_tmp="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-rank.XXXXXX")" || return 1
+    printf '%s\n' "${raw_ranked[@]}" | sort -t$'\t' -k1,1nr >"${_rank_tmp}" || true
+    mapfile -t ranked <"${_rank_tmp}"
+    rm -f "${_rank_tmp}"
   fi
   paths=()
   for row in "${ranked[@]+"${ranked[@]}"}"; do

@@ -73,6 +73,9 @@ env_print_users() {
   fi
 
   ui_item note "Homes under /home:"
+  local _hometmp
+  _hometmp="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-homes.XXXXXX")" || return 0
+  env_list_home_users >"${_hometmp}" || true
   while IFS= read -r u; do
     [[ -z "${u}" ]] && continue
     count=$((count + 1))
@@ -81,7 +84,8 @@ env_print_users() {
     else
       ui_item off "${u}"
     fi
-  done < <(env_list_home_users)
+  done <"${_hometmp}"
+  rm -f "${_hometmp}"
 
   if [[ "${count}" -eq 0 ]]; then
     ui_item note "(none)"

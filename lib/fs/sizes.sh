@@ -147,6 +147,9 @@ fs_home_large_dirs() {
     fi | awk -v min="${min_kb}" -v root="${root}" '$1 >= min && $2 != root {print}' | sort -nr
   }
 
+  local _du_tmp
+  _du_tmp="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-du.XXXXXX")" || return 0
+  _fs_du_depth1_sorted "${home}" >"${_du_tmp}" 2>/dev/null || true
   while read -r kb path; do
     [[ -z "${path:-}" ]] && continue
     if constraints_path_excluded "${path}"; then
@@ -156,13 +159,14 @@ fs_home_large_dirs() {
     printf '%s\t%s\n' "${human}" "${path}"
     top_paths+=("${path}")
     [[ "${#top_paths[@]}" -ge "${top_n}" ]] && break
-  done < <(_fs_du_depth1_sorted "${home}")
+  done <"${_du_tmp}"
 
   local child child_n=6
   [[ "${limit}" != "full" && "${top_n}" -lt 6 ]] && child_n="${top_n}"
   for child in "${top_paths[@]+"${top_paths[@]}"}"; do
     [[ -d "${child}" ]] || continue
     local n=0
+    _fs_du_depth1_sorted "${child}" >"${_du_tmp}" 2>/dev/null || true
     while read -r kb path; do
       [[ -z "${path:-}" ]] && continue
       if constraints_path_excluded "${path}"; then
@@ -172,8 +176,9 @@ fs_home_large_dirs() {
       printf '%s\t%s\n' "${human}" "${path}"
       n=$((n + 1))
       [[ "${n}" -ge "${child_n}" ]] && break
-    done < <(_fs_du_depth1_sorted "${child}")
+    done <"${_du_tmp}"
   done
+  rm -f "${_du_tmp}"
 }
 
 # Parallel du of independent paths. Fills named array with "HUMAN\tPATH" lines.
@@ -233,12 +238,16 @@ fs_du_paths_parallel() {
     ) &
   done
   wait || true
+  local _dusorted
+  _dusorted="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-du-sort.XXXXXX")" || { rm -rf "${work}"; return 0; }
+  cat "${work}"/r.* 2>/dev/null | sort -t$'\t' -k2,2 >"${_dusorted}" || true
   while IFS= read -r line; do
     [[ -z "${line}" ]] && continue
     IFS=$'\t' read -r size p <<<"${line}" || true
     [[ -n "${p:-}" ]] || continue
     eval "${__out}+=(\"\$(printf '%s\t%s' \"\${size}\" \"\${p}\")\")"
-  done < <(cat "${work}"/r.* 2>/dev/null | sort -t$'\t' -k2,2)
+  done <"${_dusorted}"
+  rm -f "${_dusorted}"
   rm -rf "${work}"
 }
 
@@ -252,10 +261,14 @@ fs_print_filesystem() {
 
   if [[ "${LINUXBKUP_INSPECT_QUICK:-0}" -eq 1 ]]; then
     ui_item note "sizes skipped — LINUXBKUP_INSPECT_QUICK=1"
+    local _tq
+    _tq="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-tq.XXXXXX")" || return 0
+    fs_collect_size_targets "${home}" >"${_tq}" || true
     while IFS= read -r path; do
       [[ -z "${path}" ]] && continue
       rows+=("  ·  $(term_path_link "${path}")")
-    done < <(fs_collect_size_targets "${home}")
+    done <"${_tq}"
+    rm -f "${_tq}"
     printf '%s\n' "${rows[@]+"${rows[@]}"}" | constraints_list_apply
     constraints_list_footer "targets"
     printf '\n'
@@ -264,10 +277,15 @@ fs_print_filesystem() {
     return 0
   fi
 
+  local _tt _tl
+  _tt="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-tt.XXXXXX")" || return 0
+  _tl="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-tl.XXXXXX")" || { rm -f "${_tt}"; return 0; }
+  fs_collect_size_targets "${home}" >"${_tt}" || true
   while IFS= read -r path; do
     [[ -z "${path}" ]] && continue
     paths+=("${path}")
-  done < <(fs_collect_size_targets "${home}")
+  done <"${_tt}"
+  rm -f "${_tt}"
 
   fs_du_paths_parallel sized "${paths[@]+"${paths[@]}"}"
   local line
@@ -288,10 +306,12 @@ fs_print_filesystem() {
   printf '\n'
   ui_section "Large items under home (≥ ~100MB, shallow, filter stack)"
   rows=()
+  fs_home_large_dirs "${home}" >"${_tl}" || true
   while IFS=$'\t' read -r size path; do
     [[ -z "${path:-}" ]] && continue
     rows+=("$(printf '  %8s  %s' "${size}" "$(term_path_link "${path}")")")
-  done < <(fs_home_large_dirs "${home}")
+  done <"${_tl}"
+  rm -f "${_tl}"
 
   if [[ "${#rows[@]}" -eq 0 ]]; then
     ui_item note "none above threshold, or home unreadable"

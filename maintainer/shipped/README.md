@@ -50,12 +50,13 @@ What has actually landed (not aspirational). Binary: **`linuxbkup`**. Env: **`LI
 | Phase 05.5 | Schema fields documented in `docs/schema.md` (docs-only leftover of 05) |
 | Phase 06 | End-user docs tree `docs/` — install, concepts, guide, profiles, ask, platforms, schema, secrets, troubleshooting, cli; cross-links; PATH symlink note; generic paths only |
 | Phase 07 | VitePress site `apps/docs` → **https://linuxbkup.pages.dev** (CF Pages `linuxbkup`); srcDir → repo `docs/`; custom home; sidebar; slate/green theme; SEO (canonical, per-page description, OG/Twitter PNG card, JSON-LD, sitemap + robots); PATH-install + SEO commits public on GitHub |
+| Soak iSH iPhone | **PASS** after `07e1f28` — BusyBox/iSH harden: `compat_find_rel_files`/`compat_find_type` (no raw `find -printf` in checksums/INDEX); no process substitution on backup/restore/scan hot paths (temp files; `/dev/fd` ghosts closed); `deps` drops `sudo` when `EUID=0`. Host had GNU tar/find after manual install; backup/verify/restore+staging skip all OK. Termux/Samsung **not yet** (no hardware). Follow-up commit clears remaining home.sh/node.sh `/dev/fd` noise |
 
 ## Not shipped yet
 
 See [`../phases/roadmap.md`](../phases/roadmap.md).
 
-**Next:** restore soak on real iSH/Termux/Kali hardware (`maintainer/temp/13-soak-checklist.md`); PM research 10 (standing); refactor R-SMOKE/R2+.
+**Next:** PM research 10 (standing) after iSH soak fold; optional Termux soak when Samsung arrives; refactor R-SMOKE/R2+.
 
 Shipped phase docs are folded/deleted; outcomes live above.
 

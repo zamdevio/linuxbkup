@@ -156,6 +156,11 @@ node_scan_projects() {
   _out=()
   [[ -d "${root}" ]] || return 0
 
+  # Temp file + here-string — no bash process substitution (/dev/fd missing on iSH).
+  local _pkg_tmp _pm_line
+  _pkg_tmp="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-nscan.XXXXXX")" || return 0
+  find "${root}" -type f -name package.json \
+    ! -path '*/node_modules/*' -print0 2>/dev/null >"${_pkg_tmp}" || true
   while IFS= read -r -d '' pkg; do
     dir="$(dirname -- "${pkg}")"
     case "${dir}" in
@@ -182,11 +187,12 @@ node_scan_projects() {
     [[ -n "${seen[${rel}]+x}" ]] && continue
     seen["${rel}"]=1
 
-    IFS=$'\t' read -r pm lock cmd < <(node_detect_pm "${abs}") || true
+    _pm_line="$(node_detect_pm "${abs}")"
+    IFS=$'\t' read -r pm lock cmd <<<"${_pm_line}" || true
     [[ -n "${pm}" ]] || continue
     _out+=("${rel}"$'\t'"${pm}"$'\t'"${lock}"$'\t'"${cmd}")
-  done < <(find "${root}" -type f -name package.json \
-    ! -path '*/node_modules/*' -print0 2>/dev/null || true)
+  done <"${_pkg_tmp}"
+  rm -f "${_pkg_tmp}"
 }
 
 # Filter rows (path pm lock cmd) — drop noise + nested workspace members.
