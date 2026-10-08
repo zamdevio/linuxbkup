@@ -6,15 +6,16 @@ linuxbkup_print_version() {
   ui_heading "linuxbkup"
   ui_kv "Version" "${LINUXBKUP_VERSION}"
   ui_kv_path "Root" "${LINUXBKUP_ROOT}"
-  ui_item note "Bash-first Linux backup / restore"
-  ui_item note "Works on desktop Linux, VPS, and WSL"
+  ui_item note "Universal Linux backup — Bash + coreutils + small tools"
+  ui_item note "Works on desktop Linux, VPS, and WSL — Alpine/iSH/Termux best-effort"
   printf '\n'
 }
 
 linuxbkup_usage() {
   ui_heading "linuxbkup"
-  ui_item note "Safe, reconstructable Linux backup / restore"
-  ui_item note "Works on desktop Linux, VPS, and WSL"
+  ui_item note "Universal Linux backup / restore — Bash-first"
+  ui_item note "Works on desktop Linux, VPS, and WSL — Alpine/iSH/Termux best-effort"
+  ui_item note "Back up what cannot be reliably regenerated"
   printf '\n'
 
   ui_section "Usage"
