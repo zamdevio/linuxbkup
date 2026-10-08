@@ -1,4 +1,5 @@
 <div align="center">
+  <img src="https://linuxbkup.pages.dev/linuxbkup.svg" width="72" height="72" alt="linuxbkup logo" />
 
   <h1>linuxbkup</h1>
 
@@ -16,13 +17,9 @@
     without a Node/Python runtime, a backup daemon, or a distro-specific fork.
   </p>
   <p>
-    <a href="https://linuxbkup.pages.dev">Docs site</a> ·
-    <a href="./docs/README.md">Docs (repo)</a> ·
-    <a href="./docs/guide.md">Guide</a> ·
-    <a href="./docs/cli.md">CLI</a> ·
-    <a href="./docs/install.md">Install</a> ·
-    <a href="./docs/platforms.md">Platforms</a> ·
-    <a href="https://github.com/zamdevio/linuxbkup">GitHub</a>
+    <a href="https://linuxbkup.pages.dev">Docs</a> ·
+    <a href="https://github.com/zamdevio/linuxbkup">GitHub</a> ·
+    <a href="./docs/guide.md">Guide</a>
   </p>
 </div>
 
