@@ -19,13 +19,16 @@ classify_print_plan_json() {
   local -a entries=()
   local first=1
   local generated json_action=""
+  local _json_tmp
 
   generated="$(date -Iseconds 2>/dev/null || date)"
+  _json_tmp="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-planj.XXXXXX")" || return 1
 
   while true; do
     linuxbkup_op_begin "classify" "" 0 1
     entries=()
     n_un=0 n_in=0 n_sk=0 n_se=0 n_ask=0
+    classify_scan_home "${home}" >"${_json_tmp}" || true
     while IFS=$'\t' read -r path class action size reason; do
       [[ -z "${path:-}" ]] && continue
       case "${class}" in
@@ -60,7 +63,7 @@ classify_print_plan_json() {
           "$(_json_escape "${size_h}")" \
           "$(_json_escape "${reason}")")")
       fi
-    done < <(classify_scan_home "${home}")
+    done <"${_json_tmp}"
 
     if linuxbkup_interrupt_resolve; then
       json_action="${LINUXBKUP_INTERRUPT_RESULT}"
@@ -71,6 +74,7 @@ classify_print_plan_json() {
           ;;
         *)
           linuxbkup_op_end
+          rm -f "${_json_tmp}"
           return 1
           ;;
       esac
@@ -78,6 +82,7 @@ classify_print_plan_json() {
     linuxbkup_op_end
     break
   done
+  rm -f "${_json_tmp}"
 
   printf '{\n'
   printf '  "schema": "linuxbkup.plan/v1",\n'

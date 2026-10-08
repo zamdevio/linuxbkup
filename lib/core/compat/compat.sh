@@ -159,9 +159,10 @@ compat_probe_all() {
   compat_tar_type >/dev/null
   compat_sha_tool >/dev/null
   compat_rsync_feat >/dev/null
+  compat_find_type >/dev/null
   compat_zstd_ok || true
   if [[ -n "${LINUXBKUP_COMPAT_TAR_TYPE:-}" ]]; then
-    log_verbose "compat: tar=${LINUXBKUP_COMPAT_TAR_TYPE} sha=${LINUXBKUP_COMPAT_SHA_TOOL:-none} rsync=[${LINUXBKUP_COMPAT_RSYNC_FEAT:-}] zstd=${LINUXBKUP_COMPAT_ZSTD_OK:-0}"
+    log_verbose "compat: tar=${LINUXBKUP_COMPAT_TAR_TYPE} sha=${LINUXBKUP_COMPAT_SHA_TOOL:-none} rsync=[${LINUXBKUP_COMPAT_RSYNC_FEAT:-}] find=${LINUXBKUP_COMPAT_FIND_TYPE:-unknown} zstd=${LINUXBKUP_COMPAT_ZSTD_OK:-0}"
   fi
   return 0
 }
@@ -173,7 +174,59 @@ compat_print_capabilities() {
     ui_kv "Tar" "${LINUXBKUP_COMPAT_TAR_TYPE:-unknown}"
     ui_kv "Checksum" "${LINUXBKUP_COMPAT_SHA_TOOL:-none}"
     ui_kv "Rsync" "${LINUXBKUP_COMPAT_RSYNC_FEAT:-n/a}"
+    ui_kv "Find" "${LINUXBKUP_COMPAT_FIND_TYPE:-unknown}"
   fi
+}
+
+# --- find wrappers -----------------------------------------------------------
+
+# find impl: gnu | busybox | bsd | unknown (BusyBox find has no -printf).
+compat_find_type() {
+  if [[ -n "${LINUXBKUP_COMPAT_FIND_TYPE:-}" ]]; then
+    printf '%s\n' "${LINUXBKUP_COMPAT_FIND_TYPE}"
+    return 0
+  fi
+  local f type="unknown" out=""
+  f="$(command -v find 2>/dev/null || true)"
+  [[ -n "${f}" ]] || { printf '%s\n' "unknown"; return 0; }
+  out="$("${f}" --version 2>&1 || true)"
+  if printf '%s' "${out}" | grep -qi 'busybox'; then
+    type="busybox"
+  elif printf '%s' "${out}" | grep -qiE 'gnu findutils|GNU findutils|GNU find'; then
+    type="gnu"
+  else
+    # Capability probe: GNU -printf
+    local probe
+    probe="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-find.XXXXXX")" || { printf '%s\n' "unknown"; return 0; }
+    printf 'x\n' >"${probe}/f"
+    if "${f}" "${probe}" -mindepth 1 -printf '%P\n' >/dev/null 2>&1; then
+      type="gnu"
+    else
+      type="unknown"
+    fi
+    rm -rf "${probe}"
+  fi
+  LINUXBKUP_COMPAT_FIND_TYPE="${type}"
+  export LINUXBKUP_COMPAT_FIND_TYPE
+  printf '%s\n' "${type}"
+}
+
+# List files under root as paths relative to root (no leading ./).
+# GNU: find -printf '%P\n'; BusyBox/other: (cd root && find .) + sed strip.
+# Extra find args (e.g. -type f ! -name 'x') are appended before the print form.
+# Args: root [find-args...]
+compat_find_rel_files() {
+  local root="${1:-}"
+  shift || true
+  [[ -n "${root}" && -d "${root}" ]] || return 0
+  if [[ "$(compat_find_type 2>/dev/null || echo unknown)" == "gnu" ]]; then
+    find "${root}" -mindepth 1 "$@" -printf '%P\n' 2>/dev/null || true
+    return 0
+  fi
+  (
+    cd "${root}" || exit 1
+    find . -mindepth 1 "$@" 2>/dev/null | sed 's|^\./||'
+  ) || true
 }
 
 # --- tar wrappers ------------------------------------------------------------

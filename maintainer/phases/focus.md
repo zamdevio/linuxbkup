@@ -13,13 +13,15 @@
 
 | Priority | Vertical | Notes |
 |----------|----------|-------|
-| 1 | Restore soak | Kali + iSH/Termux — checklist `maintainer/temp/13-soak-checklist.md`; workspace gaps already documented |
-| 2 | — | (slot free — docs site 06–07 **shipped**; optional site polish parked) |
+| 1 | Restore soak | **Agent pack ready:** `maintainer/temp/soak-agent-pack.md` — paste into iSH (iPhone) + Termux (Samsung) agents. After reports: fold into shipped/systems |
+| 2 | PM research | **Next after soak reports** — standing doc [`10-pm-tools-research.md`](./10-pm-tools-research.md); pull implementation slices into Focus when ready |
 | 3 | — | (slot free) |
 
-**Just shipped:** docs content (06) + VitePress site (07) → **https://linuxbkup.pages.dev**. Outcomes in [`../shipped/`](../shipped/) + [`../systems/docs-site.md`](../systems/docs-site.md). Schema field docs (05.5) landed in `docs/schema.md`.
+**Shipped:** docs content (06) + VitePress site (07) → **https://linuxbkup.pages.dev**. Outcomes in [`../shipped/`](../shipped/) + [`../systems/docs-site.md`](../systems/docs-site.md). Schema field docs (05.5) in `docs/schema.md`.
 
-Optional parked (not Focus): `/overview` page for `docs/README.md`; further SEO/content polish.
+**Dropped:** `/overview` site page — not wanted.
+
+**Soak flow:** user runs phone agents with the pack → paste reports back here → we fold results → then PM research becomes the implementation Focus (capture/reinstall modules pull from phase 10).
 
 ## Parallel — refactor (open)
 
@@ -34,7 +36,7 @@ Optional parked (not Focus): `/overview` page for `docs/README.md`; further SEO/
 | # | Item | Why parked |
 |---|------|------------|
 | — | Python / Go reinstall slices | Same JSON pattern after Node hardens |
-| — | Capture modules (mise/pip freeze) | Pull from phase 10 when Node done |
+| — | Capture modules (mise/pip freeze) | Pull from phase 10 when soak/PM Focus opens |
 
 **Just folded:** Phases 00–04, 05 docs leftover, 06, 07, 08, 09, 11, 12, **13**.
 

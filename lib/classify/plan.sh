@@ -49,7 +49,7 @@ classify_print_plan() {
   local -a unexpected=() include_rows=() skip_rows=() secret_rows=()
   local n_un=0 n_in=0 n_sk=0 n_se=0
   local b_in=0 b_se=0 b_sk=0 b_un=0 b_copy=0
-  local plan_action=""
+  local plan_action="" _plan_tmp
 
   ui_section "Home classification plan"
   ui_item note "Shallow scan of \$HOME + ~/.local/* — what backup would copy"
@@ -60,11 +60,15 @@ classify_print_plan() {
     ui_item note "sizes omitted (pass -v for filter-aware sizes)"
   fi
 
+  # Temp file, not process substitution — /dev/fd missing on some iSH hosts.
+  _plan_tmp="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-plan.XXXXXX")" || return 1
+
   while true; do
     linuxbkup_op_begin "classify" "" 0 1
     unexpected=() include_rows=() skip_rows=() secret_rows=()
     n_un=0 n_in=0 n_sk=0 n_se=0
     b_in=0 b_se=0 b_sk=0 b_un=0 b_copy=0
+    classify_scan_home "${home}" >"${_plan_tmp}" || true
     while IFS=$'\t' read -r path class action size reason; do
       [[ -z "${path:-}" ]] && continue
       log_debug "plan row class=${class} action=${action} path=${path} reason=${reason}"
@@ -94,7 +98,7 @@ classify_print_plan() {
       if [[ "${action}" == "include" ]] || [[ "${action}" == "ask" && ( "${LINUXBKUP_YES:-0}" -eq 1 || ! -t 0 ) ]]; then
         b_copy=$((b_copy + CLASSIFY_LAST_BYTES))
       fi
-    done < <(classify_scan_home "${home}")
+    done <"${_plan_tmp}"
 
     if linuxbkup_interrupt_resolve; then
       plan_action="${LINUXBKUP_INTERRUPT_RESULT}"
@@ -106,6 +110,7 @@ classify_print_plan() {
           ;;
         *)
           linuxbkup_op_end
+          rm -f "${_plan_tmp}"
           return 1
           ;;
       esac
@@ -113,6 +118,7 @@ classify_print_plan() {
     linuxbkup_op_end
     break
   done
+  rm -f "${_plan_tmp}"
 
   printf '  Known include (%d):\n' "${n_in}"
   _classify_plan_print_sorted include_rows "known include"
@@ -152,6 +158,10 @@ classify_print_backup_summary() {
   local path class action size reason
   local n_un=0 n_in=0 n_sk=0 n_se=0 n_copy=0
 
+  ui_section "Backup summary"
+  local _sum_tmp
+  _sum_tmp="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-sum.XXXXXX")" || return 0
+  classify_scan_home "${home}" >"${_sum_tmp}" || true
   while IFS=$'\t' read -r path class action size reason; do
     [[ -z "${path:-}" ]] && continue
     case "${class}" in
@@ -161,9 +171,8 @@ classify_print_backup_summary() {
       include) n_in=$((n_in + 1)) ;;
     esac
     [[ "${action}" == "include" || ( "${action}" == "ask" && "${LINUXBKUP_CLASSIFY_INCLUDE_ASK:-0}" -eq 1 ) ]] && n_copy=$((n_copy + 1))
-  done < <(classify_scan_home "${home}")
-
-  ui_section "Backup summary"
+  done <"${_sum_tmp}"
+  rm -f "${_sum_tmp}"
   ui_kv "Copy candidates" "${n_copy}"
   ui_kv "Known include" "${n_in}"
   ui_kv "Secrets" "${n_se}"

@@ -200,15 +200,17 @@ backup_copy_home() {
 
   # Full home scan — Ctrl+C mid-scan must retry (partial path lists are unsafe).
   local -a scan_rows=()
-  local scan_action=""
+  local scan_action="" _scan_tmp
+  _scan_tmp="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-hscan.XXXXXX")" || return 1
   while true; do
     linuxbkup_op_begin "classify" "" 0 1
     scan_rows=()
+    classify_scan_home "${home}" >"${_scan_tmp}" || true
     while IFS=$'\t' read -r p class action size reason; do
       [[ -z "${p:-}" ]] && continue
       log_debug "scan ${class}/${action} ${p}"
       scan_rows+=("$(printf '%s\t%s\t%s\t%s\t%s' "${p}" "${class}" "${action}" "${size}" "${reason}")")
-    done < <(classify_scan_home "${home}")
+    done <"${_scan_tmp}"
 
     if linuxbkup_interrupt_resolve; then
       scan_action="${LINUXBKUP_INTERRUPT_RESULT}"
@@ -220,6 +222,7 @@ backup_copy_home() {
           ;;
         *)
           linuxbkup_op_end
+          rm -f "${_scan_tmp}"
           return 1
           ;;
       esac
@@ -227,6 +230,7 @@ backup_copy_home() {
     linuxbkup_op_end
     break
   done
+  rm -f "${_scan_tmp}"
 
   # Build decide set + default includes (profile + --ask / --yes rules).
   for row in "${scan_rows[@]+"${scan_rows[@]}"}"; do

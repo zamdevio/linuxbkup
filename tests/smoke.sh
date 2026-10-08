@@ -1762,6 +1762,75 @@ else
   bad "compat rsync metadata probe missing"
 fi
 
+# iSH soak harden: portable find rel-list (BusyBox has no -printf)
+if declare -F compat_find_rel_files >/dev/null 2>&1 || grep -q 'compat_find_rel_files' "${ROOT}/lib/core/compat/compat.sh"; then
+  # shellcheck source=/dev/null
+  source "${ROOT}/lib/core/compat/compat.sh"
+  _ff="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-smoke-find.XXXXXX")"
+  mkdir -p "${_ff}/home/sub" "${_ff}/metadata"
+  printf 'a\n' >"${_ff}/home/a.txt"
+  printf 'b\n' >"${_ff}/home/sub/b.txt"
+  printf 'm\n' >"${_ff}/metadata/backup.env"
+  _flist="$(compat_find_rel_files "${_ff}" -type f 2>/dev/null | sort | tr '\n' ' ')"
+  if [[ "${_flist}" == *"home/a.txt"* && "${_flist}" == *"metadata/backup.env"* && "${_flist}" != *"../"* ]]; then
+    ok "compat find rel-files portable list"
+  else
+    bad "compat find rel-files (${_flist})"
+  fi
+  _ftype="$(compat_find_type 2>/dev/null || echo unknown)"
+  if [[ "${_ftype}" == "gnu" || "${_ftype}" == "busybox" || "${_ftype}" == "bsd" || "${_ftype}" == "unknown" ]]; then
+    ok "compat find impl probe (${_ftype})"
+  else
+    bad "compat find impl probe (${_ftype})"
+  fi
+  rm -rf "${_ff}"
+else
+  bad "compat_find_rel_files missing"
+fi
+
+# iSH soak harden: no process substitution in hot detect/classify paths
+# (ignore comment lines that mention the pattern)
+if grep -v '^[[:space:]]*#' "${ROOT}/lib/core/platform/detect.sh" | grep -q '< <('; then
+  bad "detect.sh still uses process substitution (/dev/fd)"
+else
+  ok "detect.sh avoids process substitution"
+fi
+if grep -v '^[[:space:]]*#' "${ROOT}/lib/classify/scan.sh" | grep -q '< <('; then
+  bad "classify/scan.sh still uses process substitution"
+else
+  ok "classify/scan.sh avoids process substitution"
+fi
+
+# iSH soak harden: deps bootstrap omits sudo when already root
+if grep -q '_deps_sudo_prefix' "${ROOT}/lib/cmd/deps.sh"; then
+  # shellcheck source=/dev/null
+  source "${ROOT}/lib/cmd/deps.sh" 2>/dev/null || true
+  _sudopre="$(_deps_sudo_prefix 2>/dev/null || true)"
+  if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
+    if [[ -z "${_sudopre}" ]]; then
+      ok "deps sudo prefix empty as root"
+    else
+      bad "deps sudo prefix should be empty as root (got '${_sudopre}')"
+    fi
+  else
+    if [[ "${_sudopre}" == "sudo " || -z "${_sudopre}" ]]; then
+      ok "deps sudo prefix as non-root (${_sudopre:-empty})"
+    else
+      bad "deps sudo prefix unexpected (${_sudopre})"
+    fi
+  fi
+else
+  bad "deps _deps_sudo_prefix missing"
+fi
+
+# iSH soak harden: checksums/INDEX must go through compat find when available
+if grep -q 'compat_find_rel_files' "${ROOT}/lib/archive/checksums.sh" \
+  && grep -q 'compat_find_rel_files' "${ROOT}/lib/backup/stage.sh"; then
+  ok "checksums+INDEX use compat find rel-files"
+else
+  bad "checksums/INDEX not wired to compat_find_rel_files"
+fi
+
 rm -rf "${fake_home}"
 
 exit "${fail}"

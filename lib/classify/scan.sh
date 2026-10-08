@@ -151,6 +151,7 @@ classify_one_path() {
 classify_scan_home() {
   local home="$1"
   local p child inc expanded
+  local _scan_tmp
 
   [[ -d "${home}" ]] || return 0
 
@@ -163,16 +164,21 @@ classify_scan_home() {
     return 0
   fi
 
+  # Temp files, not process substitution — /dev/fd missing on some iSH hosts.
+  _scan_tmp="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-scan.XXXXXX")" || return 0
+  find "${home}" -mindepth 1 -maxdepth 1 -print0 2>/dev/null >"${_scan_tmp}" || true
   while IFS= read -r -d '' p; do
     [[ "$(basename "${p}")" == ".local" && -d "${p}" ]] && continue
     classify_one_path "${p}" "${home}"
-  done < <(find "${home}" -mindepth 1 -maxdepth 1 -print0 2>/dev/null)
+  done <"${_scan_tmp}"
 
   if [[ -d "${home}/.local" ]]; then
+    find "${home}/.local" -mindepth 1 -maxdepth 1 -print0 2>/dev/null >"${_scan_tmp}" || true
     while IFS= read -r -d '' child; do
       classify_one_path "${child}" "${home}"
-    done < <(find "${home}/.local" -mindepth 1 -maxdepth 1 -print0 2>/dev/null)
+    done <"${_scan_tmp}"
   fi
+  rm -f "${_scan_tmp}"
 
   for p in "${CONSTRAINTS_RULE_ETC[@]+"${CONSTRAINTS_RULE_ETC[@]}"}"; do
     [[ -e "${p}" ]] || continue
@@ -184,6 +190,9 @@ classify_scan_home() {
 classify_plan_include_paths() {
   local home="$1"
   local path class action size reason
+  local _inc_tmp
+  _inc_tmp="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-inc.XXXXXX")" || return 0
+  classify_scan_home "${home}" >"${_inc_tmp}" || true
   while IFS=$'\t' read -r path class action size reason; do
     [[ -z "${path:-}" ]] && continue
     case "${action}" in
@@ -194,5 +203,6 @@ classify_plan_include_paths() {
         fi
         ;;
     esac
-  done < <(classify_scan_home "${home}")
+  done <"${_inc_tmp}"
+  rm -f "${_inc_tmp}"
 }

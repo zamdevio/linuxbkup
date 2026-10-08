@@ -45,7 +45,7 @@ Clean `linuxbkup` / `LINUXBKUP_*` identity (phase 00 — folded).
 
 Later product phases: language modules (Python/Go reinstall), systemd/`/etc`, Docker — re-queue in focus when ready.
 
-Optional parked: `/overview` site page for `docs/README.md`; further docs/SEO polish.
+Optional parked: ~~`/overview`~~ **dropped — do not build**. Further docs/SEO polish only if soak or PM work exposes a gap.
 
 ## Definition of done (Near-full)
 

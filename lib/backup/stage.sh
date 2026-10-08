@@ -111,7 +111,11 @@ backup_write_index() {
     printf 'version=%s\n' "${LINUXBKUP_VERSION}"
     printf 'created=%s\n' "$(date -Iseconds)"
     printf '\ncontents (first 500 paths, unsorted sample):\n'
-    find "${stage}" -mindepth 1 -printf '%P\n' 2>/dev/null | head -n 500 || true
+    if declare -F compat_find_rel_files >/dev/null 2>&1; then
+      compat_find_rel_files "${stage}" | head -n 500 || true
+    else
+      find "${stage}" -mindepth 1 -printf '%P\n' 2>/dev/null | head -n 500 || true
+    fi
   } >"${index}" || {
     log_fatal "failed to write INDEX at ${index}"
     return 1

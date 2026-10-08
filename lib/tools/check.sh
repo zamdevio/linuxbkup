@@ -271,6 +271,10 @@ tools_install_one() {
     ui_kv "Status" "missing"
     [[ -n "${TOOLS_GUIDE_PKG}" ]] && ui_kv "Package" "${TOOLS_GUIDE_PKG}"
   fi
+  # Root hosts (iSH/Termux): guides often say `sudo …` — sudo may be absent.
+  if [[ "${EUID:-$(id -u 2>/dev/null || echo 1000)}" -eq 0 ]]; then
+    how="${how//sudo /}"
+  fi
   ui_item note "Command: ${how}"
 
   if [[ "${LINUXBKUP_DRY_RUN:-0}" -eq 1 ]]; then

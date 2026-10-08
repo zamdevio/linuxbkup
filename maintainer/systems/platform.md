@@ -36,9 +36,10 @@ Print contract: `backup -k` / `restore -k` / `verify` always `ui_kv_path` the st
 | `compat_tar_type` | `gnu` \| `busybox` \| `bsd` \| `unknown` |
 | `compat_sha_tool` | `sha256sum` \| `shasum -a 256` \| `openssl dgst` |
 | `compat_rsync_feat` | `filter exclude` [+ `chown`] [+ `progress`] |
+| `compat_find_type` | `gnu` \| `busybox` \| `bsd` \| `unknown` (BusyBox has no `-printf`) |
 | `compat_zstd_ok` | compress/test probe |
 
-Wrappers: `compat_tar_{pack,extract,list,member}_stream` (drop GNU `--warning` when unsupported), `compat_zstd_{compress,decompress}`, `compat_sha256_{hash,check_file}`, `compat_rsync_args_for` / `compat_rsync_needs_meta` (FAT/exFAT/NTFS/9p → metadata mode: `-rlt --no-perms --no-group --no-owner`, no chmod/symlink hard-fail), `compat_numfmt_human` (numfmt or pure-bash IEC), `compat_schema_gate` (soft-warn unknown schema/tool version).
+Wrappers: `compat_tar_{pack,extract,list,member}_stream` (drop GNU `--warning` when unsupported), `compat_zstd_{compress,decompress}`, `compat_sha256_{hash,check_file}`, `compat_rsync_args_for` / `compat_rsync_needs_meta` (FAT/exFAT/NTFS/9p → metadata mode: `-rlt --no-perms --no-group --no-owner`, no chmod/symlink hard-fail), `compat_numfmt_human` (numfmt or pure-bash IEC), `compat_schema_gate` (soft-warn unknown schema/tool version), `compat_find_rel_files` (relative path list; GNU `-printf` or `cd`+`sed` strip).
 
 Context banner prints Tar/Checksum/Rsync capability matrix after probes.
 
@@ -59,7 +60,7 @@ Context banner prints Tar/Checksum/Rsync capability matrix after probes.
 |------|--------|
 | GNU Linux (desktop/VPS/WSL) | Happy path |
 | Alpine / BusyBox tar | Pack/extract/verify via flag fallbacks; `deps` + zstd required |
-| iSH / Termux | Best-effort after soak; `pkg`/`apk` bootstrap; no FHS assumptions |
+| iSH / Termux | Best-effort after soak; `pkg`/`apk` bootstrap; no FHS assumptions; no `sudo` when already root; no `find -printf`; no process substitution in detect/classify hot paths |
 | External FAT/exFAT/NTFS/9p mounts | rsync metadata mode — no hard-fail on chmod/symlink |
 
 Until soak lands on real iSH/Termux hardware: treat those as best-effort. Gate remains `linuxbkup deps` + compat probes.

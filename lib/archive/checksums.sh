@@ -1,6 +1,9 @@
 # shellcheck shell=bash
 # Parallel sha256 under staging (worker policy from lib/core/workers.sh).
 
+# shellcheck source=lib/core/compat/compat.sh
+[[ -n "${LINUXBKUP_ROOT:-}" ]] && source "${LINUXBKUP_ROOT}/lib/core/compat/compat.sh"
+
 # Tear down checksum workers quietly (TERM then KILL — never SIGINT).
 # SIGINT teardown + monitor mode re-raises INT to the parent → fake quit.
 _checksum_kill_workers() {
@@ -52,10 +55,17 @@ archive_write_checksums() {
   list="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-cksum.XXXXXX")"
   # Exclude checksums.sha256 itself and events.jsonl (step telemetry may still
   # append after seal; payload integrity must not depend on it).
-  find "${stage}" -type f \
-    ! -name 'checksums.sha256' \
-    ! -path '*/metadata/events.jsonl' \
-    -printf '%P\n' >"${list}" || true
+  # Compat: GNU find -printf '%P' is unavailable on BusyBox (iSH/Alpine/Termux).
+  if declare -F compat_find_rel_files >/dev/null 2>&1; then
+    compat_find_rel_files "${stage}" -type f \
+      ! -name 'checksums.sha256' \
+      ! -path '*/metadata/events.jsonl' >"${list}" || true
+  else
+    find "${stage}" -type f \
+      ! -name 'checksums.sha256' \
+      ! -path '*/metadata/events.jsonl' \
+      -printf '%P\n' >"${list}" || true
+  fi
   total="$(wc -l <"${list}" | tr -d ' ')"
   : >"${out}"
   if [[ "${total}" -eq 0 ]]; then

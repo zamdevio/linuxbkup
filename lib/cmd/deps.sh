@@ -114,11 +114,24 @@ _deps_banner() {
   printf '\n'
 }
 
+# Prefix for PM bootstrap: empty when already root (iSH/Termux often are).
+# Prints "sudo " or "".
+_deps_sudo_prefix() {
+  local euid="${EUID:-$(id -u 2>/dev/null || echo 1000)}"
+  if [[ "${euid}" -eq 0 ]]; then
+    return 0
+  fi
+  if command -v sudo >/dev/null 2>&1; then
+    printf 'sudo '
+  fi
+}
+
 # One-command install for a set of tools on the detected package family.
 # Args: tool…  → prints command or empty.
 _deps_bootstrap_command() {
-  local family pkgs=() tool pkg
+  local family pkgs=() tool pkg pre
   family="$(tools_pkg_family)"
+  pre="$(_deps_sudo_prefix)"
   for tool in "$@"; do
     tools_guide_pkg_how "${tool}"
     pkg="${TOOLS_GUIDE_PKG:-}"
@@ -128,22 +141,22 @@ _deps_bootstrap_command() {
   [[ "${#pkgs[@]}" -gt 0 ]] || return 0
   case "${family}" in
     apt)
-      printf 'sudo apt update && sudo apt install -y %s\n' "${pkgs[*]}"
+      printf '%sapt update && %sapt install -y %s\n' "${pre}" "${pre}" "${pkgs[*]}"
       ;;
     dnf)
-      printf 'sudo dnf install -y %s\n' "${pkgs[*]}"
+      printf '%sdnf install -y %s\n' "${pre}" "${pkgs[*]}"
       ;;
     yum)
-      printf 'sudo yum install -y %s\n' "${pkgs[*]}"
+      printf '%syum install -y %s\n' "${pre}" "${pkgs[*]}"
       ;;
     pacman)
-      printf 'sudo pacman -S --needed %s\n' "${pkgs[*]}"
+      printf '%spacman -S --needed %s\n' "${pre}" "${pkgs[*]}"
       ;;
     apk)
-      printf 'sudo apk add %s\n' "${pkgs[*]}"
+      printf '%sapk add %s\n' "${pre}" "${pkgs[*]}"
       ;;
     pkg)
-      # Termux
+      # Termux — pkg is already user-level; never sudo
       printf 'pkg install -y %s\n' "${pkgs[*]}"
       ;;
     brew)

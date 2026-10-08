@@ -49,15 +49,18 @@ platform_path_is_windows_interop() {
 # Prints absolute path; returns 1 if none.
 platform_linux_command() {
   local name="$1"
-  local cand=""
+  local cand="" out=""
   local -a cands=()
 
   [[ -n "${name}" ]] || return 1
-  mapfile -t cands < <(type -aP "${name}" 2>/dev/null || true)
-  if [[ "${#cands[@]}" -eq 0 ]]; then
+  # Avoid bash process substitution — /dev/fd is missing on some iSH hosts.
+  out="$(type -aP "${name}" 2>/dev/null || true)"
+  if [[ -z "${out}" ]]; then
     cand="$(command -v "${name}" 2>/dev/null || true)"
-    [[ -n "${cand}" ]] && cands=("${cand}")
+    [[ -n "${cand}" ]] && out="${cand}"
   fi
+  [[ -n "${out}" ]] || return 1
+  mapfile -t cands <<<"${out}"
   for cand in "${cands[@]+"${cands[@]}"}"; do
     [[ -n "${cand}" ]] || continue
     if platform_path_is_windows_interop "${cand}"; then
