@@ -13,7 +13,7 @@
 
 | Priority | Vertical | Notes |
 |----------|----------|-------|
-| 1 | Restore soak | **Agent pack ready:** `maintainer/temp/soak-agent-pack.md` — paste into iSH (iPhone) + Termux (Samsung) agents. After reports: fold into shipped/systems |
+| 1 | Restore soak | **iPhone/iSH only for now** — Samsung/Termux later. Agent pack: `maintainer/temp/soak-agent-pack.md`; verify-after-pull prompt is chat-only. After iSH report: fold into shipped/systems |
 | 2 | PM research | **Next after soak reports** — standing doc [`10-pm-tools-research.md`](./10-pm-tools-research.md); pull implementation slices into Focus when ready |
 | 3 | — | (slot free) |
 
@@ -21,7 +21,7 @@
 
 **Dropped:** `/overview` site page — not wanted.
 
-**Soak flow:** user runs phone agents with the pack → paste reports back here → we fold results → then PM research becomes the implementation Focus (capture/reinstall modules pull from phase 10).
+**Soak flow:** **iPhone (iSH) first** — Samsung/Termux not available yet. User runs the phone agent with the pack → paste report back here → fold results → then PM research becomes the implementation Focus (capture/reinstall modules pull from phase 10).
 
 ## Parallel — refactor (open)
 
