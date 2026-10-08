@@ -2,8 +2,30 @@
 # linuxbkup — Bash-first Linux backup / restore CLI
 set -Eeuo pipefail
 
-LINUXBKUP_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Resolve symlink → real checkout (PATH install: ln -s …/linuxbkup ~/.local/bin/…).
+# Without this, LINUXBKUP_ROOT becomes ~/.local/bin and lib/ is not found.
+_lb_src="${BASH_SOURCE[0]}"
+_lb_resolved=""
+if command -v readlink >/dev/null 2>&1; then
+  _lb_resolved="$(readlink -f -- "${_lb_src}" 2>/dev/null || true)"
+elif command -v realpath >/dev/null 2>&1; then
+  _lb_resolved="$(realpath -- "${_lb_src}" 2>/dev/null || true)"
+fi
+if [[ -n "${_lb_resolved}" && -f "${_lb_resolved}" ]]; then
+  _lb_src="${_lb_resolved}"
+fi
+LINUXBKUP_ROOT="$(cd "$(dirname -- "${_lb_src}")" && pwd)"
 export LINUXBKUP_ROOT
+unset _lb_src _lb_resolved
+
+# Fail fast with a clear message if lib/ is missing next to the real script
+# (e.g. a bare copy of the bin without the repo tree).
+if [[ ! -f "${LINUXBKUP_ROOT}/lib/core/common.sh" ]]; then
+  printf 'linuxbkup: cannot find lib/ under %s\n' "${LINUXBKUP_ROOT}" >&2
+  printf '  Run from a full checkout, or re-link:\n' >&2
+  printf '  ln -sf /path/to/linuxbkup/linuxbkup ~/.local/bin/linuxbkup\n' >&2
+  exit 1
+fi
 
 # shellcheck source=lib/core/common.sh
 source "${LINUXBKUP_ROOT}/lib/core/common.sh"

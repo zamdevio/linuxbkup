@@ -34,6 +34,16 @@ ln -sf "$PWD/linuxbkup" ~/.local/bin/linuxbkup
 linuxbkup --help
 ```
 
+The symlink must point at the **real repo binary**. `linuxbkup` resolves `readlink -f` so `LINUXBKUP_ROOT` is the checkout (where `lib/` lives), not `~/.local/bin`.
+
+Copying only the `linuxbkup` file without `lib/` fails fast:
+
+```text
+linuxbkup: cannot find lib/ under /path/to/wherever
+```
+
+Keep the full tree (git clone) and re-link if you move it.
+
 ## First commands
 
 ```bash

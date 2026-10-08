@@ -48,11 +48,15 @@ git clone https://github.com/zamdevio/linuxbkup.git && cd linuxbkup
 ./linuxbkup -k -f restore ~/Backups/linuxbkup/<archive>.tar.zst
 ```
 
-Optional on `PATH`:
+Optional on `PATH` (symlink into a **full checkout** — the CLI resolves the real path to find `lib/`):
 
 ```bash
 ln -sf "$PWD/linuxbkup" ~/.local/bin/linuxbkup
+# ensure ~/.local/bin is on PATH
+linuxbkup --help
 ```
+
+If you only copy the `linuxbkup` file without the repo tree, it exits with `cannot find lib/…` and prints the re-link hint.
 
 | Command | What it does |
 |---------|----------------|

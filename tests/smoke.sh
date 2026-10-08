@@ -133,6 +133,32 @@ else
   bad "native backup dir under Backups/linuxbkup"
 fi
 
+# PATH install via symlink must resolve LINUXBKUP_ROOT to the real checkout
+_lb_tmpbin="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-smoke-pathbin.XXXXXX")"
+ln -sfn "${CLI}" "${_lb_tmpbin}/linuxbkup"
+_lb_path_out="$(PATH="${_lb_tmpbin}:${PATH}" "${_lb_tmpbin}/linuxbkup" --no-color version 2>&1)" || true
+if [[ "${_lb_path_out}" == *"${ROOT}"* && "${_lb_path_out}" == *"Version"* ]]; then
+  ok "symlink PATH install resolves repo ROOT"
+else
+  bad "symlink PATH install resolves repo ROOT (out=${_lb_path_out})"
+fi
+rm -rf "${_lb_tmpbin}"
+
+# Bare bin copy without lib/ must fail with a clear message (not a raw source error)
+_lb_bare="$(mktemp -d "${TMPDIR:-/tmp}/linuxbkup-smoke-bare.XXXXXX")"
+cp "${CLI}" "${_lb_bare}/linuxbkup"
+chmod +x "${_lb_bare}/linuxbkup"
+set +e
+_lb_bare_err="$("${_lb_bare}/linuxbkup" version 2>&1)"
+_lb_bare_rc=$?
+set -e
+if [[ "${_lb_bare_rc}" -ne 0 && "${_lb_bare_err}" == *"cannot find lib/"* ]]; then
+  ok "bare bin without lib/ fails with clear message"
+else
+  bad "bare bin without lib/ guard (rc=${_lb_bare_rc} err=${_lb_bare_err})"
+fi
+rm -rf "${_lb_bare}"
+
 # Portable rules: no host-shaped project dirnames in shipped defaults
 # shellcheck source=/dev/null
 source "${ROOT}/lib/constraints/base.sh"
