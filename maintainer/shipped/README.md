@@ -30,7 +30,7 @@ What has actually landed (not aspirational). Binary: **`linuxbkup`**. Env: **`LI
 | UX | Regenerables: Python/JS/wrangler/PM/IDE caches + `*.pyc` |
 | Phase 05.3–05.4 | `schema.json` + `decisions.tsv`; verify soft-checks |
 | Phase 10 | Standing PM/tools path research (open until done) |
-| UX | Strip `.tmp` / mise installs|downloads; keep mise state/config |
+| UX | Strip `.tmp` / mise installs\|downloads; keep mise state/config |
 | UX | `-w/--workers` parallel checksums/du/verify + zstd -T + ETA |
 | UX | Lean op compat probes (`lib/tools/compat.sh`) after presence checks |
 | UX | Central interrupt API; rsync rc=20; Ctrl+Z process-group suspend |
@@ -47,12 +47,15 @@ What has actually landed (not aspirational). Binary: **`linuxbkup`**. Env: **`LI
 | Phase 13 B | Ctrl+Z parity restore **and** backup — children STOP then process group; CONT re-asserts `set -m`; extract/rsync/reinstall covered |
 | Phase 13 C | Compat layer `lib/core/compat/compat.sh` — tar GNU/BusyBox flags; sha256sum\|shasum\|openssl; rsync metadata mode on non-Linux mounts; numfmt fallback; pack/extract/verify/checksum/restore wired through wrappers |
 | Phase 13 D | Atomic archives (tmp → verify → mv); `deps` one-command bootstrap (apk/apt/pacman/pkg/dnf/yum/brew); schema/tool version soft-gate; zero hardcoded `/usr/bin` tool paths in `lib/` |
+| Phase 05.5 | Schema fields documented in `docs/schema.md` (docs-only leftover of 05) |
+| Phase 06 | End-user docs tree `docs/` — install, concepts, guide, profiles, ask, platforms, schema, secrets, troubleshooting, cli; cross-links; PATH symlink note; generic paths only |
+| Phase 07 | VitePress site `apps/docs` → **https://linuxbkup.pages.dev** (CF Pages `linuxbkup`); srcDir → repo `docs/`; custom home; sidebar; slate/green theme; SEO (canonical, per-page description, OG/Twitter PNG card, JSON-LD, sitemap + robots); PATH-install + SEO commits public on GitHub |
 
 ## Not shipped yet
 
 See [`../phases/roadmap.md`](../phases/roadmap.md).
 
-**Next:** docs site 06–07; real iSH/Termux/Kali soak (`maintainer/temp/13-soak-checklist.md`); PM research 10 (standing); refactor R-SMOKE/R2+.
+**Next:** restore soak on real iSH/Termux/Kali hardware (`maintainer/temp/13-soak-checklist.md`); PM research 10 (standing); refactor R-SMOKE/R2+.
 
 Shipped phase docs are folded/deleted; outcomes live above.
 

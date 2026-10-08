@@ -1,3 +1,7 @@
+---
+description: Mark secret paths, encrypt with age, exclude, or skip secrets. --yes never silently skips encryption.
+---
+
 # Secrets
 
 Secrets are a **subset** of the backup — not a full home dump of every credential store by default.

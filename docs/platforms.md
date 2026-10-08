@@ -1,3 +1,7 @@
+---
+description: Desktop, VPS, WSL happy path; Alpine, iSH, Termux best-effort via compat layer and linuxbkup deps.
+---
+
 # Platforms
 
 One binary. Same commands. Different hosts, different tool reality.

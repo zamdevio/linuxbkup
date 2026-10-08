@@ -128,7 +128,7 @@ Checksums accept `sha256sum` **or** `shasum -a 256` **or** `openssl dgst`. Tar i
 | [`docs/troubleshooting.md`](./docs/troubleshooting.md) | Common failures |
 | [`docs/cli.md`](./docs/cli.md) | Full command reference |
 
-A hosted docs site (VitePress → Cloudflare Pages) is planned; this repo’s `docs/` is the source of truth.
+A hosted docs site (VitePress → Cloudflare Pages) is **live**: [linuxbkup.pages.dev](https://linuxbkup.pages.dev). This repo’s [`docs/`](./docs/README.md) is the source of truth.
 
 ## Layout
 

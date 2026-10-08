@@ -1,3 +1,7 @@
+---
+description: Command reference for inspect, plan, backup, restore, verify, deps, and global linuxbkup flags.
+---
+
 # CLI reference
 
 ```bash

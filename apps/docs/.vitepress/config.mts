@@ -9,6 +9,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 // Content source of truth: repository docs/ (single source — no sync copy).
 const srcDir = resolve(__dirname, '../../../docs')
 const publicDir = resolve(__dirname, '../public')
+// Absolute site URL for sitemap + seo.ts (VitePress 2 alpha has no UserConfig.site).
 const SITE_URL = 'https://linuxbkup.pages.dev'
 
 export default defineConfig({
@@ -22,7 +23,6 @@ export default defineConfig({
   srcExclude: ['**/README.md'],
   cleanUrls: true,
   ignoreDeadLinks: true,
-  site: SITE_URL,
   sitemap: {
     hostname: SITE_URL,
   },

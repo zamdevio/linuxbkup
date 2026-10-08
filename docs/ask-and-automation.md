@@ -1,3 +1,7 @@
+---
+description: How --ask, --yes, and non-TTY defaults decide include/skip, overwrite, and secrets during backup and restore.
+---
+
 # Ask, yes, and automation
 
 How linuxbkup behaves when a human is (or is not) at the keyboard.

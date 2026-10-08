@@ -1,3 +1,7 @@
+---
+description: What linuxbkup backs up, what it skips as regenerable, safety defaults, and the portable restore contract.
+---
+
 # Concepts
 
 What linuxbkup backs up, what it refuses to treat as precious, and how safety and portability actually work.

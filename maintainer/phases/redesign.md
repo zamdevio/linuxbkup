@@ -24,16 +24,12 @@ After implementation lands, fold outcomes into [`../shipped/`](../shipped/) and 
 
 | Doc | Topic | State |
 |-----|--------|-------|
-| [`05-space-schema.md`](./05-space-schema.md) | Schema field docs → fold into 06 | remaining: docs only |
-| [`13-platform-compat.md`](./13-platform-compat.md) | Compat layer, Ctrl+Z restore, stage paths, atomic archives | **next Focus** |
-| [`06-docs-content.md`](./06-docs-content.md) | `docs/*.md` ready for VitePress | planned |
-| [`07-vitepress.md`](./07-vitepress.md) | `apps/docs` → https://linuxbkup.pages.dev | planned |
 | [`10-pm-tools-research.md`](./10-pm-tools-research.md) | **Standing** PM/tools keep/strip/manifest map | open standing |
 | [`refactor.md`](./refactor.md) | Layout hygiene — large files → subdirs + thin barrels | open (parallel) |
 | [`focus.md`](./focus.md) | Active Focus (max 3) | — |
 | [`roadmap.md`](./roadmap.md) | Shipped table + remaining only | — |
 
-Shipped phases (00–04, 08, 09, 11, 12, …) are **folded** — outcomes live in `shipped/` + `systems/`.
+Shipped phases (00–09, 11–13) + docs site 05–07 are **folded** — outcomes live in `shipped/` + `systems/` (site: [`../systems/docs-site.md`](../systems/docs-site.md)). Phase docs deleted per fold rule.
 
 ## Discovery → backup (target)
 

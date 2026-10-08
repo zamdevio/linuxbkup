@@ -25,8 +25,8 @@ lib/
 guides/tools/
 modules/                # apt, … (more phased)
 tests/
-docs/                   # end-user md (VitePress content)
-apps/docs/              # PLANNED 07 — site → linuxbkup.pages.dev
+docs/                   # end-user md (VitePress content + site home)
+apps/docs/              # Live — VitePress site → linuxbkup.pages.dev (Node only here)
 maintainer/             # phases, systems, agents, shipped, temp
 AGENT.md
 ```

@@ -1,3 +1,7 @@
+---
+description: Clone the repo, check dependencies, optionally put linuxbkup on PATH, then run your first plan or backup.
+---
+
 # Install
 
 linuxbkup is a single Bash binary. No `npm install`, no virtualenv, no compile step for the CLI itself.

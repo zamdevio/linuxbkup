@@ -101,4 +101,4 @@ Never silent “Continuing…”. Trap stops children (rsync/du/workers), then m
 
 ## Known gaps → done in phase 13
 
-Stage/extract path printing + shared naming, Ctrl+Z restore hang, GNU-only tar/rsync/sha flags on BusyBox/iSH, atomic archives, deps bootstrap — **shipped** in phase 13 (see [`../shipped/`](../shipped/) + [`platform.md`](./platform.md)). Remaining: real iSH/Termux soak (hardware) + docs site 06–07.
+Stage/extract path printing + shared naming, Ctrl+Z restore hang, GNU-only tar/rsync/sha flags on BusyBox/iSH, atomic archives, deps bootstrap — **shipped** in phase 13 (see [`../shipped/`](../shipped/) + [`platform.md`](./platform.md)). Remaining: real iSH/Termux soak (hardware). Docs site 06–07 shipped → https://linuxbkup.pages.dev ([`docs-site.md`](./docs-site.md)).

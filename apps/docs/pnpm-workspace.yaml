@@ -1,3 +1,5 @@
-onlyBuiltDependencies:
-  - esbuild
-  - workerd
+# Docs app workspace (apps/docs). pnpm ≥12 settings live here, not package.json.
+# allowBuilds is a map (package → true/false). Only VitePress/esbuild + wrangler/workerd.
+allowBuilds:
+  esbuild: true
+  workerd: true

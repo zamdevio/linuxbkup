@@ -15,6 +15,7 @@
     "vitepress": "2.0.0-alpha.17"
   },
   "devDependencies": {
+    "@types/node": "^24.0.0",
     "vue": "^3.5.27",
     "wrangler": "^4.54.0"
   }

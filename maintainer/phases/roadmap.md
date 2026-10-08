@@ -25,6 +25,9 @@ Clean `linuxbkup` / `LINUXBKUP_*` identity (phase 00 — folded).
 | 02 | Home scan + classify | Full-home scan; unexpected auto-include |
 | 03 | Profiles / ask / flags | `--profile`, `--ask`>`--yes`, short aliases |
 | 04 | Reclaim + secrets | age encrypt/decrypt; home/config rsync |
+| 05 | Space + schema | Space gate + `schema.json` / `decisions.tsv`; **05.5 schema field docs** in `docs/schema.md` |
+| 06 | Docs content | `docs/` end-user tree for linuxbkup (install → cli) |
+| 07 | VitePress site | `apps/docs` → **https://linuxbkup.pages.dev** (see [`../systems/docs-site.md`](../systems/docs-site.md)) |
 | 08 | Terminal UX | Progress, notify, tips, events.jsonl |
 | 09 | UX fail-fast | Secrets preflight, byte estimates, banner, `ui_step` |
 | 11 | Restore UX | Soft-quit reinstall batch, picker v2, failure re-run, R1 split |
@@ -35,15 +38,14 @@ Clean `linuxbkup` / `LINUXBKUP_*` identity (phase 00 — folded).
 
 | Phase | Doc | Remaining |
 |-------|-----|-----------|
-| 05 | [`05-space-schema.md`](./05-space-schema.md) | **Docs only:** schema fields → fold into phase 06 |
-| 06 | [`06-docs-content.md`](./06-docs-content.md) | Rewrite `docs/*` **now that 13 shipped** — content matches shipped behavior |
-| 07 | [`07-vitepress.md`](./07-vitepress.md) | `apps/docs` VitePress → https://linuxbkup.pages.dev |
 | 10 | [`10-pm-tools-research.md`](./10-pm-tools-research.md) | **OPEN standing** — keep/strip/manifest guide (do not fold early) |
 | R | [`refactor.md`](./refactor.md) | **open (parallel)** — R-SMOKE then R2–R9; soft ≤250 / hard 400 |
 
 **Soak (not a phase doc):** real iSH/Termux/Kali hardware run — checklist `maintainer/temp/13-soak-checklist.md`.
 
 Later product phases: language modules (Python/Go reinstall), systemd/`/etc`, Docker — re-queue in focus when ready.
+
+Optional parked: `/overview` site page for `docs/README.md`; further docs/SEO polish.
 
 ## Definition of done (Near-full)
 

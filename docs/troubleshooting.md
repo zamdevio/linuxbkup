@@ -1,3 +1,7 @@
+---
+description: Missing tools, slow plans, pack/restore failures, secrets issues, and BusyBox/iSH quirks — what to run.
+---
+
 # Troubleshooting
 
 Short failures → what to check. Run with `-v` (and `-d` for forensic stderr) when you need more detail.

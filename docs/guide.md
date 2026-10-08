@@ -1,3 +1,7 @@
+---
+description: First-run walkthrough — inspect, plan, backup, verify, and restore on a normal Linux box.
+---
+
 # Guide
 
 A first run on a normal Linux box: inspect → plan → backup → verify → restore.

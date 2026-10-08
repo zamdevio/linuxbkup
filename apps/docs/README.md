@@ -21,10 +21,21 @@ cd apps/docs
 pnpm install
 pnpm dev          # http://localhost:8283
 pnpm build        # → .vitepress/dist
+pnpm typecheck
 pnpm deploy       # wrangler pages deploy .vitepress/dist --project-name=linuxbkup
 ```
 
 Production URL: **https://linuxbkup.pages.dev** (Cloudflare Pages project `linuxbkup`)
+
+## Social card
+
+`public/og.png` (1200×630) is the Open Graph / Twitter image. Regenerate:
+
+```bash
+python3 scripts/make-og.py   # needs Pillow
+```
+
+Favicon/logo stays `public/linuxbkup.svg`.
 
 ## Rules
 

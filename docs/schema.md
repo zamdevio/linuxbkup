@@ -1,3 +1,7 @@
+---
+description: Single tar.zst with metadata, checksums, schema.json; atomic pack; verify and restore contract.
+---
+
 # Schema & archive layout
 
 What a linuxbkup archive contains, how it is sealed, and how verify interprets it.

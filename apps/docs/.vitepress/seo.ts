@@ -5,7 +5,8 @@ const SITE_NAME = 'linuxbkup'
 const SITE_TITLE = 'linuxbkup — Universal Linux backup'
 const DEFAULT_DESCRIPTION =
   'Universal Linux backup — Bash + coreutils + small tools. Desktop, VPS, WSL; Alpine/iSH/Termux best-effort. Atomic tar.zst, classify-not-dump, secrets with age.'
-const OG_IMAGE = `${DOCS_URL}/linuxbkup.svg`
+// PNG social card (1200×630). SVG stays the favicon/logo; scrapers handle PNG better.
+const OG_IMAGE = `${DOCS_URL}/og.png`
 const GITHUB_URL = 'https://github.com/zamdevio/linuxbkup'
 
 type DocsPageData = {
@@ -14,14 +15,18 @@ type DocsPageData = {
   relativePath: string
 }
 
+/**
+ * Canonical paths match `sitemap.xml` + `cleanUrls: true` — no trailing slash
+ * except site root (`https://linuxbkup.pages.dev/`).
+ */
 function docsPageUrl(relativePath: string): string {
   const slug = relativePath
     .replace(/(^|\/)index\.md$/, '$1')
     .replace(/README\.md$/, '')
     .replace(/\.md$/, '')
     .replace(/\/+$/, '')
-  const path = slug.length > 0 ? `/${slug}/` : '/'
-  return `${DOCS_URL}${path === '//' ? '/' : path}`
+  if (slug.length === 0 || slug === '.') return `${DOCS_URL}/`
+  return `${DOCS_URL}/${slug}`
 }
 
 function isHome(relativePath: string): boolean {
@@ -41,7 +46,8 @@ function serializeJsonLd(value: Record<string, unknown>): string {
 export function transformDocsHead(ctx: { pageData: DocsPageData }): HeadConfig[] {
   const { pageData } = ctx
   const home = isHome(pageData.relativePath)
-  const description = pageData.description ?? DEFAULT_DESCRIPTION
+  // `??` is not enough — VitePress often yields '' when frontmatter omits description.
+  const description = (pageData.description ?? '').trim() || DEFAULT_DESCRIPTION
   const url = docsPageUrl(pageData.relativePath)
 
   const headline = home
@@ -116,14 +122,16 @@ export function transformDocsHead(ctx: { pageData: DocsPageData }): HeadConfig[]
     ['meta', { property: 'og:description', content: description }],
     ['meta', { property: 'og:url', content: url }],
     ['meta', { property: 'og:image', content: OG_IMAGE }],
-    ['meta', { property: 'og:image:alt', content: `${SITE_NAME} logo` }],
+    ['meta', { property: 'og:image:alt', content: `${SITE_NAME} — backup what can't be regenerated` }],
+    ['meta', { property: 'og:image:width', content: '1200' }],
+    ['meta', { property: 'og:image:height', content: '630' }],
     // Twitter
-    ['meta', { name: 'twitter:card', content: 'summary' }],
+    ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
     ['meta', { name: 'twitter:site', content: '@zamdevio' }],
     ['meta', { name: 'twitter:title', content: headline }],
     ['meta', { name: 'twitter:description', content: description }],
     ['meta', { name: 'twitter:image', content: OG_IMAGE }],
-    ['meta', { name: 'twitter:image:alt', content: `${SITE_NAME} logo` }],
+    ['meta', { name: 'twitter:image:alt', content: `${SITE_NAME} — backup what can't be regenerated` }],
     ['script', { type: 'application/ld+json' }, serializeJsonLd(jsonLd)],
   ]
 }

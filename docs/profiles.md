@@ -1,3 +1,7 @@
+---
+description: easy, balanced, and strict profiles tune large-path include/skip suggestions without changing safety.
+---
+
 # Profiles
 
 Profiles tune how aggressively large or unexpected paths are included — without changing the safety model.
