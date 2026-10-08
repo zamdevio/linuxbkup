@@ -1,9 +1,9 @@
 {
-  "name": "@zamdevio/linuxbkup-docs",
+  "name": "@linuxbkup/docs",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Documentation site (VitePress). Content lives in repository docs/ (srcDir).",
+  "description": "linuxbkup docs site (VitePress). Content lives in repository docs/ (srcDir). Deployed at https://linuxbkup.pages.dev",
   "scripts": {
     "dev": "vitepress dev . --host 0.0.0.0 --port 8283",
     "build": "vitepress build .",

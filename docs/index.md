@@ -1,8 +1,8 @@
 ---
 layout: home
 
-title: linuxbkup
-description: Universal Linux backup — Bash + coreutils + small tools. Desktop, VPS, WSL; Alpine/iSH/Termux best-effort.
+title: linuxbkup — Universal Linux backup
+description: Backup what can't be regenerated — Bash-first Linux backup/restore with coreutils and small tools. Desktop, VPS, WSL; Alpine/iSH/Termux best-effort. Atomic tar.zst, classify-not-dump, secrets with age.
 
 hero:
   name: linuxbkup
