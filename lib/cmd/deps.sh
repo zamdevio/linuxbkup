@@ -150,7 +150,7 @@ _deps_bootstrap_command() {
       printf '%syum install -y %s\n' "${pre}" "${pkgs[*]}"
       ;;
     pacman)
-      printf '%spacman -S --needed %s\n' "${pre}" "${pkgs[*]}"
+      printf '%spacman -S --needed --noconfirm %s\n' "${pre}" "${pkgs[*]}"
       ;;
     apk)
       printf '%sapk add %s\n' "${pre}" "${pkgs[*]}"

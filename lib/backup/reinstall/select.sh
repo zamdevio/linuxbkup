@@ -4,6 +4,9 @@
 # Enter/a = all (current behavior). u = undo last mode. q = skip step.
 # Nameref rule: always pass the caller's variable *name*.
 
+# shellcheck source=lib/core/compat/compat.sh
+[[ -n "${LINUXBKUP_ROOT:-}" ]] && source "${LINUXBKUP_ROOT}/lib/core/compat/compat.sh"
+
 # Display line for one row.
 # Args: index1 pm path cmd
 reinstall_picker_line() {
@@ -32,7 +35,11 @@ reinstall_picker_counts() {
     cnt["${pm}"]=$((${cnt["${pm}"]:-0} + 1))
   done
   if [[ "${#cnt[@]}" -gt 0 ]]; then
-    mapfile -t pm_keys < <(printf '%s\n' "${!cnt[@]}" | sort)
+    local _pc_keys_tmp
+    _pc_keys_tmp="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-keys.XXXXXX")"
+    printf '%s\n' "${!cnt[@]}" | sort >"${_pc_keys_tmp}"
+    mapfile -t pm_keys <"${_pc_keys_tmp}"
+    rm -f "${_pc_keys_tmp}"
     for p in "${pm_keys[@]}"; do
       [[ -n "${p}" ]] || continue
       parts="${parts:+${parts}, }${p} ${cnt[${p}]}"
@@ -50,20 +57,23 @@ reinstall_picker_apply_indices() {
   local -n _pa_want="${want_name}"
   local i
   _pa_want=()
+  local _pa_tmp
+  _pa_tmp="$(compat_run_to_tmp ask_parse_selection "${n}" "${text}")"
   if [[ "${mode}" == "include" ]]; then
     while IFS= read -r i; do
       [[ -z "${i}" ]] && continue
       i=$((i - 1))
       [[ "${i}" -ge 0 && "${i}" -lt "${n}" ]] && _pa_want["${i}"]=1
-    done < <(ask_parse_selection "${n}" "${text}")
+    done <"${_pa_tmp}"
   else
     for ((i = 0; i < n; i++)); do _pa_want["${i}"]=1; done
     while IFS= read -r i; do
       [[ -z "${i}" ]] && continue
       i=$((i - 1))
       [[ "${i}" -ge 0 && "${i}" -lt "${n}" ]] && unset "_pa_want[${i}]"
-    done < <(ask_parse_selection "${n}" "${text}")
+    done <"${_pa_tmp}"
   fi
+  rm -f "${_pa_tmp}"
 }
 
 # Apply PM filter → want-set (rows matching PM only).
@@ -121,11 +131,13 @@ reinstall_picker_fzf() {
     IFS=$'\t' read -r path pm lock cmd <<<"${_fzf_rows[i]}" || true
     fzf_in+=("$(printf '%d\t%s\t%s\t%s' "$((i + 1))" "${pm}" "${path}" "${cmd}")")
   done
-  mapfile -t fzf_out < <(
-    printf '%s\n' "${fzf_in[@]}" | fzf -m \
-      --header="TAB select · Enter confirm · Esc abort" \
-      --with-nth=2,3,4 --delimiter=$'\t' || true
-  )
+  local _fzf_tmp
+  _fzf_tmp="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-fzf.XXXXXX")"
+  printf '%s\n' "${fzf_in[@]}" | fzf -m \
+    --header="TAB select · Enter confirm · Esc abort" \
+    --with-nth=2,3,4 --delimiter=$'\t' >"${_fzf_tmp}" 2>/dev/null || true
+  mapfile -t fzf_out <"${_fzf_tmp}"
+  rm -f "${_fzf_tmp}"
   if [[ "${#fzf_out[@]}" -eq 0 ]]; then
     for ((i = 0; i < n; i++)); do _fzf_want["${i}"]=1; done
     return 0

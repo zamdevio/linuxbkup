@@ -1803,6 +1803,12 @@ _hot_ps_files=(
   "${ROOT}/lib/env/users.sh"
   "${ROOT}/lib/fs/sizes.sh"
   "${ROOT}/modules/node.sh"
+  "${ROOT}/lib/ask/select.sh"
+  "${ROOT}/lib/backup/reinstall/preflight.sh"
+  "${ROOT}/lib/backup/reinstall/select.sh"
+  "${ROOT}/lib/backup/reinstall/pm.sh"
+  "${ROOT}/lib/backup/reinstall/run_one.sh"
+  "${ROOT}/lib/backup/reinstall/manifest.sh"
 )
 _hot_ps_bad=0
 for _hf in "${_hot_ps_files[@]}"; do
@@ -1844,6 +1850,103 @@ if grep -q 'compat_find_rel_files' "${ROOT}/lib/archive/checksums.sh" \
   ok "checksums+INDEX use compat find rel-files"
 else
   bad "checksums/INDEX not wired to compat_find_rel_files"
+fi
+
+# --- BUG fixes from Termux/iSH handoff --------------------------------------
+
+# BUG 1: verify honors --keep-stage (shared keep-stage contract with restore)
+if grep -q 'LINUXBKUP_KEEP_STAGE' "${ROOT}/lib/cmd/verify.sh" \
+  && grep -q '_linuxbkup_verify_on_exit' "${ROOT}/lib/cmd/verify.sh" \
+  && grep -q 'Extract kept' "${ROOT}/lib/cmd/verify.sh"; then
+  ok "verify honors --keep-stage (shared cleanup helper)"
+else
+  bad "verify --keep-stage not wired"
+fi
+# restore and verify must both gate cleanup on the same flag
+if grep -q 'LINUXBKUP_KEEP_STAGE' "${ROOT}/lib/cmd/restore.sh" \
+  && grep -q 'LINUXBKUP_KEEP_STAGE' "${ROOT}/lib/cmd/verify.sh"; then
+  ok "restore+verify share keep-stage flag"
+else
+  bad "restore/verify keep-stage divergence"
+fi
+
+# BUG 2: home resolution prefers $HOME (Termux/PREFIX) before /home/$USER
+if grep -q '\${PREFIX:-}' "${ROOT}/lib/env/users.sh" \
+  && grep -q '\${HOME:-}' "${ROOT}/lib/env/users.sh" \
+  && grep -q 'id -un' "${ROOT}/lib/env/users.sh"; then
+  ok "env_user_home prefers \$HOME / PREFIX (Termux remap)"
+else
+  bad "env_user_home Termux/PREFIX fallback missing"
+fi
+# shellcheck source=/dev/null
+source "${ROOT}/lib/env/users.sh"
+_home_now="$(env_user_home "$(id -un 2>/dev/null || echo root)" 2>/dev/null || true)"
+if [[ -n "${HOME:-}" && "${_home_now}" == "${HOME}" ]]; then
+  ok "env_user_home resolves current user to \$HOME (${_home_now})"
+else
+  bad "env_user_home current user mismatch (got '${_home_now}' HOME='${HOME}')"
+fi
+
+# BUG 3: destination-side rsync failures are detected, not soft-skipped
+if grep -q 'LINUXBKUP_PERM_DEST_FAIL' "${ROOT}/lib/core/safety.sh"; then
+  ok "safety.sh detects destination-side rsync failure"
+else
+  bad "destination-side rsync failure detection missing"
+fi
+if grep -q 'LINUXBKUP_RSYNC_STRICT' "${ROOT}/lib/core/safety.sh" \
+  && grep -q 'LINUXBKUP_RSYNC_STRICT' "${ROOT}/lib/backup/restore_files.sh"; then
+  ok "restore uses strict rsync mode (no soft-skip on failure)"
+else
+  bad "restore strict rsync mode missing"
+fi
+if grep -q 'LINUXBKUP_RESTORE_DEST_FAILS' "${ROOT}/lib/backup/restore_files.sh" \
+  && grep -q 'not writable' "${ROOT}/lib/backup/restore_files.sh"; then
+  ok "restore hard-fails on unwritable target + tracks dest failures"
+else
+  bad "restore unwritable-target hard-fail missing"
+fi
+# [OK] must not print unconditionally for the restore copy tree
+if grep -q 'destination-side rsync failure' "${ROOT}/lib/backup/restore_files.sh"; then
+  ok "restore reports dest failure explicitly (no misleading [OK])"
+else
+  bad "restore misleading [OK] guard missing"
+fi
+
+# REQUEST: deps install is non-interactive by default (--interactive opt-out)
+if grep -q 'LINUXBKUP_DEPS_INTERACTIVE' "${ROOT}/lib/tools/check.sh" \
+  && grep -q 'LINUXBKUP_DEPS_INTERACTIVE' "${ROOT}/lib/core/common.sh" \
+  && grep -q -- '--interactive' "${ROOT}/lib/core/common.sh"; then
+  ok "deps install non-interactive by default (--interactive opt-out)"
+else
+  bad "deps non-interactive default / --interactive flag missing"
+fi
+if grep -q 'pacman -S --needed --noconfirm' "${ROOT}/lib/cmd/deps.sh"; then
+  ok "deps bootstrap pacman uses --noconfirm"
+else
+  bad "pacman --noconfirm missing in bootstrap"
+fi
+
+# PORTABLE: process-substitution replacement helpers exist
+if declare -F compat_run_to_tmp >/dev/null 2>&1 \
+  && declare -F compat_lines_to_tmp >/dev/null 2>&1; then
+  ok "compat process-substitution helpers present"
+else
+  bad "compat_run_to_tmp / compat_lines_to_tmp missing"
+fi
+# repo-wide: no live process substitution outside comments
+_ps_all=0
+_ps_scan="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-ps.XXXXXX")"
+grep -rn '< <(' "${ROOT}/lib" "${ROOT}/modules" "${ROOT}/linuxbkup" 2>/dev/null >"${_ps_scan}" || true
+while IFS=: read -r _pf _pl _ptext; do
+  [[ -n "${_pf}" ]] || continue
+  [[ "${_ptext}" =~ ^[[:space:]]*# ]] && continue
+  [[ "${_ptext}" == *"never"* ]] && continue
+  bad "live process substitution: ${_pf#${ROOT}/}:${_pl}"
+  _ps_all=1
+done <"${_ps_scan}"
+rm -f "${_ps_scan}"
+if [[ "${_ps_all}" -eq 0 ]]; then
+  ok "no live process substitution anywhere in runtime paths"
 fi
 
 rm -rf "${fake_home}"

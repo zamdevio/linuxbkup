@@ -26,12 +26,29 @@ env_sudo_user_remap() {
 
 env_user_home() {
   local user="$1"
-  local home
+  local home=""
+
+  # Termux / non-FHS prefixes: $HOME is authoritative. There is no getent(1)
+  # and the real home is not under /home (BUG 2 / Termux remap).
+  if [[ -n "${PREFIX:-}" && -n "${HOME:-}" && -d "${HOME}" \
+    && "${user}" == "$(id -un 2>/dev/null || true)" ]]; then
+    printf '%s\n' "${HOME}"
+    return 0
+  fi
+
   home="$(getent passwd "${user}" 2>/dev/null | cut -d: -f6 || true)"
   if [[ -n "${home}" && -d "${home}" ]]; then
     printf '%s\n' "${home}"
     return 0
   fi
+
+  # Current user's $HOME — covers Termux and minimal containers with no getent.
+  if [[ -n "${HOME:-}" && -d "${HOME}" \
+    && "${user}" == "$(id -un 2>/dev/null || true)" ]]; then
+    printf '%s\n' "${HOME}"
+    return 0
+  fi
+
   if [[ -d "/home/${user}" ]]; then
     printf '%s\n' "/home/${user}"
     return 0

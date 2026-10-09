@@ -1,6 +1,9 @@
 # shellcheck shell=bash
 # Numbered multi-select (fzf optional) for backup path decisions.
 
+# shellcheck source=lib/core/compat/compat.sh
+[[ -n "${LINUXBKUP_ROOT:-}" ]] && source "${LINUXBKUP_ROOT}/lib/core/compat/compat.sh"
+
 # Parse selection text into 1-based indices (stdout, one per line).
 # Supports: 1,2,4-6  a=all  n=none  empty=accept suggestions
 # Args: max_index  selection_text  [mode=toggle|accept]
@@ -104,10 +107,12 @@ ask_select_backup_paths() {
         IFS=$'\t' read -r path human class suggested <<<"${_in_rows[i]}" || true
         fzf_in+=("$(printf '%d\t%8s\t%-12s\t%s\t%s' "$((i + 1))" "${human}" "${class}" "${suggested}" "${path}")")
       done
-      mapfile -t fzf_out < <(
-        printf '%s\n' "${fzf_in[@]}" | fzf -m --header="TAB select · Enter confirm · Esc abort" \
-          --with-nth=1,2,3,4 --delimiter=$'\t' || true
-      )
+      local _s_fzf_tmp
+      _s_fzf_tmp="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-fzf.XXXXXX")"
+      printf '%s\n' "${fzf_in[@]}" | fzf -m --header="TAB select · Enter confirm · Esc abort" \
+        --with-nth=1,2,3,4 --delimiter=$'\t' >"${_s_fzf_tmp}" 2>/dev/null || true
+      mapfile -t fzf_out <"${_s_fzf_tmp}"
+      rm -f "${_s_fzf_tmp}"
       if [[ "${#fzf_out[@]}" -eq 0 ]]; then
         # Esc / empty → accept suggestions (same as Enter)
         :
@@ -138,11 +143,14 @@ ask_select_backup_paths() {
             IFS=$'\t' read -r path human class suggested <<<"${_in_rows[i]}" || true
             [[ "${suggested}" == "include" ]] && want["${i}"]=1
           done
+          local _s_sel_tmp
+          _s_sel_tmp="$(compat_run_to_tmp ask_parse_selection "${n}" "${pick}")"
           while IFS= read -r i; do
             [[ -z "${i}" ]] && continue
             i=$((i - 1))
             want["${i}"]=1
-          done < <(ask_parse_selection "${n}" "${pick}")
+          done <"${_s_sel_tmp}"
+          rm -f "${_s_sel_tmp}"
           # Also: if user typed only numbers, those are additive to suggestions per spec.
           # Spec again: "Select to BACKUP (others keep suggestion)" — so numbers ADD include, don't clear skips.
           ;;

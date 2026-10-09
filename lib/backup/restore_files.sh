@@ -78,7 +78,13 @@ restore_files_copy_tree() {
     esac
   fi
 
-  mkdir -p "${dest}"
+  mkdir -p "${dest}" 2>/dev/null || true
+  if [[ ! -d "${dest}" || ! -w "${dest}" ]]; then
+    log_fatal "target ${label} dir is not writable: ${dest}"
+    log_info "read-only or missing parent — use \$HOME or pass -u <user> / --target-home"
+    LINUXBKUP_RESTORE_DEST_FAILS=$(( ${LINUXBKUP_RESTORE_DEST_FAILS:-0} + 1 ))
+    return 1
+  fi
   chown_arg="$(restore_files_chown_args "${dest_user}")"
   # Compat layer: -a vs metadata mode on non-Linux mounts (FAT/exFAT/NTFS/9p)
   if declare -F compat_rsync_args_for >/dev/null 2>&1; then
@@ -104,12 +110,24 @@ restore_files_copy_tree() {
   rargs+=("${src}/" "${dest}/")
 
   linuxbkup_op_begin "restore-${label}" "${src}" 0 1
+  # Strict mode: a restore copy is not a backup scan — never soft-skip a real
+  # rsync failure (BUG 3). The dest precheck above still gives the clearest msg.
+  LINUXBKUP_RSYNC_STRICT=1
   while true; do
     set +e
+    LINUXBKUP_PERM_DEST_FAIL=0
     backup_rsync_run "${rargs[@]}"
     rc=$?
     set -e
     if [[ "${rc}" -eq 0 ]]; then
+      if [[ "${LINUXBKUP_PERM_DEST_FAIL:-0}" -eq 1 ]]; then
+        linuxbkup_op_end
+        log_fatal "${label}: destination-side rsync errors (read-only / unwritable target)"
+        ui_kv_path "Target" "${dest}"
+        [[ -s "${LINUXBKUP_PERM_DEST_ERR:-}" ]] && ui_item note "$(head -n 3 "${LINUXBKUP_PERM_DEST_ERR}")"
+        LINUXBKUP_RESTORE_DEST_FAILS=$(( ${LINUXBKUP_RESTORE_DEST_FAILS:-0} + 1 ))
+        return 1
+      fi
       linuxbkup_op_end
       log_ok "${label} → ${dest}/"
       return 0
@@ -134,7 +152,18 @@ restore_files_copy_tree() {
           ;;
       esac
     fi
+    # rc != 0 and not an interrupt: if the failure was destination-side,
+    # hard-fail instead of the misleading soft-skip (BUG 3).
+    if [[ "${LINUXBKUP_PERM_DEST_FAIL:-0}" -eq 1 ]]; then
+      linuxbkup_op_end
+      log_fatal "${label}: destination-side rsync failure (rc=${rc}) — target not writable"
+      ui_kv_path "Target" "${dest}"
+      [[ -s "${LINUXBKUP_PERM_DEST_ERR:-}" ]] && ui_item note "$(head -n 3 "${LINUXBKUP_PERM_DEST_ERR}")"
+      LINUXBKUP_RESTORE_DEST_FAILS=$(( ${LINUXBKUP_RESTORE_DEST_FAILS:-0} + 1 ))
+      return 1
+    fi
     linuxbkup_op_end
+    log_warn "${label}: copy failed (rc=${rc})"
     return 1
   done
 }
@@ -175,6 +204,7 @@ restore_files_apply() {
 
   # home/
   set +e
+  LINUXBKUP_RSYNC_STRICT=1
   restore_files_copy_tree "${root}/home" "${home}" "home" "${dest_user}"
   rc=$?
   set -e
@@ -217,6 +247,14 @@ restore_files_apply() {
       ui_item note "Re-run with sudo to apply /etc (home still targets SUDO_USER, not /root):"
       ui_item note "  sudo -E ./linuxbkup -u <user> -k -f restore <archive>"
     fi
+  fi
+
+  # Destination-side failures (read-only / unwritable target) abort the step
+  # with a non-zero exit, even after a soft "any applied" path (BUG 3).
+  if [[ "${LINUXBKUP_RESTORE_DEST_FAILS:-0}" -gt 0 ]]; then
+    log_fatal "${LINUXBKUP_RESTORE_DEST_FAILS} destination failure(s) — restore files step aborted"
+    log_info "target home was ${home} — check it is writable, or pass -u <user>"
+    return 1
   fi
 
   if [[ "${any}" -eq 0 && "${LINUXBKUP_DRY_RUN:-0}" -ne 1 ]]; then

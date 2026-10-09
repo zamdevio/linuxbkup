@@ -44,9 +44,9 @@ Commands call `cmd_context_begin` with `--required` / `--optional` tools before 
 | Termux `pkg` | `pkg install -y <pkgs>` |
 | Alpine `apk` | `sudo apk add <pkgs>` |
 | Debian/Ubuntu `apt` | `sudo apt update && sudo apt install -y <pkgs>` |
-| `pacman` | `sudo pacman -S --needed <pkgs>` |
+| `pacman` | `sudo pacman -S --needed --noconfirm <pkgs>` |
 | dnf/yum/brew | analogous |
 
-TTY: confirm before running. `-y` / non-TTY: documented non-interactive path (`LINUXBKUP_YES=1`). Dry-run prints the command only. Fallback: per-tool `tools_install_one` (unchanged).
+**Non-interactive by default:** `deps install` does **not** prompt per tool — invoking the `deps` subcommand is itself the consent (`LINUXBKUP_DEPS_INTERACTIVE=0`). Pass `--interactive` to opt back into a per-tool confirm (ad-hoc `tools_install_one` adheres to this flag). TTY: confirm before running. `-y` / non-TTY: documented non-interactive path (`LINUXBKUP_YES=1`). Dry-run prints the command only. Fallback: per-tool `tools_install_one`.
 
 Optional later: `fzf` for ask UI (shipped phase 03) — never required.

@@ -5,6 +5,9 @@
 # Interrupt-proof: pending check before work + around PM spawn; workspace
 # checks run under op_begin so a ^C lands on the menu, not mid-read.
 
+# shellcheck source=lib/core/compat/compat.sh
+[[ -n "${LINUXBKUP_ROOT:-}" ]] && source "${LINUXBKUP_ROOT}/lib/core/compat/compat.sh"
+
 REINSTALL_LAST_RC=0
 REINSTALL_LAST_REASON=""
 REINSTALL_LAST_LOG=""
@@ -123,10 +126,13 @@ reinstall_run_one() {
   # Missing members = sources not in target home → need full restore, not reinstall-only.
   if [[ "${pm}" == "pnpm" || "${pm}" == "npm" ]]; then
     local -a wmiss=()
+    local _w_tmp
     if declare -F linuxbkup_interrupt_disarm >/dev/null 2>&1; then
       linuxbkup_interrupt_disarm
     fi
-    mapfile -t wmiss < <(reinstall_workspace_missing "${dir}" || true)
+    _w_tmp="$(compat_run_to_tmp reinstall_workspace_missing "${dir}")"
+    mapfile -t wmiss <"${_w_tmp}"
+    rm -f "${_w_tmp}"
     if declare -F linuxbkup_interrupt_arm >/dev/null 2>&1; then
       linuxbkup_interrupt_arm
     fi
@@ -191,7 +197,10 @@ reinstall_run_one() {
     return 0
   fi
 
-  mapfile -t env_args < <(reinstall_child_env_args)
+  local _env_tmp
+  _env_tmp="$(compat_run_to_tmp reinstall_child_env_args)"
+  mapfile -t env_args <"${_env_tmp}"
+  rm -f "${_env_tmp}"
   log_file="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-reinstall.XXXXXX.log")"
   REINSTALL_LAST_LOG="${log_file}"
 

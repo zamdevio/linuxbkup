@@ -44,6 +44,31 @@ compat_print_stage_path() {
   fi
 }
 
+# Portable replacements for bash process substitution `< <(...)`.
+# Minimal kernels (iSH / no /dev/fd) fail with `/dev/fd/63: No such file or
+# directory`, so hot paths use temp files instead. Doctrine: never `< <(...)`.
+# Args: helper_name [args…]  → prints lines to stdout.
+compat_run_to_tmp() {
+  local helper="$1"
+  shift || true
+  local tmp
+  tmp="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-out.XXXXXX")" || return 1
+  "${helper}" "$@" >"${tmp}" 2>/dev/null || true
+  printf '%s\n' "${tmp}"
+}
+
+# Args: lines… → prints a temp file path containing the lines.
+compat_lines_to_tmp() {
+  local tmp
+  tmp="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-out.XXXXXX")" || return 1
+  if [[ "$#" -gt 0 ]]; then
+    printf '%s\n' "$@" >"${tmp}"
+  else
+    : >"${tmp}"
+  fi
+  printf '%s\n' "${tmp}"
+}
+
 # True if path looks like a linuxbkup stage/extract we may remove.
 compat_stage_is_ours() {
   local stage="$1"

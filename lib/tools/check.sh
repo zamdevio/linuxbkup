@@ -282,9 +282,11 @@ tools_install_one() {
     return 0
   fi
 
-  if ! safety_confirm "Run install for ${tool}?" "y"; then
-    log_skip "install cancelled: ${tool}"
-    return 1
+  if [[ "${LINUXBKUP_DEPS_INTERACTIVE:-0}" -eq 1 ]]; then
+    if ! safety_confirm "Run install for ${tool}?" "y"; then
+      log_skip "install cancelled: ${tool}"
+      return 1
+    fi
   fi
 
   # Final check right before executing

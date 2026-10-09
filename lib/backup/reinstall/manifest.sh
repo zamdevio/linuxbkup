@@ -196,6 +196,8 @@ reinstall_workspace_expect() {
   local dir="$1"
   local pattern d name
   local -A seen_pat=()
+  local _ex_pat_tmp
+  _ex_pat_tmp="$(compat_run_to_tmp reinstall_workspace_patterns "${dir}")"
 
   while IFS= read -r pattern; do
     [[ -z "${pattern}" ]] && continue
@@ -204,7 +206,9 @@ reinstall_workspace_expect() {
     [[ -n "${seen_pat[${pattern}]+x}" ]] && continue
     seen_pat["${pattern}"]=1
     if [[ "${pattern}" == *[\*\?]* ]]; then
-      local matches=0 dname
+      local matches=0 dname _ex_g_tmp
+      _ex_g_tmp="$(mktemp "${TMPDIR:-/tmp}/linuxbkup-exg.XXXXXX")"
+      compgen -G "${dir}/${pattern}" >"${_ex_g_tmp}" 2>/dev/null || true
       while IFS= read -r d; do
         [[ -n "${d}" && -d "${d}" ]] || continue
         matches=$((matches + 1))
@@ -212,7 +216,8 @@ reinstall_workspace_expect() {
           name="$(reinstall_pkg_name "${d}")"
           [[ -n "${name}" ]] && printf '%s\tok\n' "${name}"
         fi
-      done < <(compgen -G "${dir}/${pattern}" 2>/dev/null || true)
+      done <"${_ex_g_tmp}"
+      rm -f "${_ex_g_tmp}"
       if [[ "${matches}" -eq 0 ]]; then
         printf '%s\tmissing-dir\n' "${pattern}"
       fi
@@ -225,11 +230,15 @@ reinstall_workspace_expect() {
         [[ -n "${name}" ]] && printf '%s\tok\n' "${name}"
       fi
     fi
-  done < <(reinstall_workspace_patterns "${dir}")
+  done <"${_ex_pat_tmp}"
+  rm -f "${_ex_pat_tmp}"
 
+  local _ex_dep_tmp
+  _ex_dep_tmp="$(compat_run_to_tmp reinstall_workspace_dep_names "${dir}/package.json")"
   while IFS= read -r name; do
     [[ -n "${name}" ]] && printf '%s\tdep\n' "${name}"
-  done < <(reinstall_workspace_dep_names "${dir}/package.json")
+  done <"${_ex_dep_tmp}"
+  rm -f "${_ex_dep_tmp}"
 }
 
 # Names of package.json "name" fields anywhere under dir (excl. node_modules).
@@ -257,26 +266,35 @@ reinstall_workspace_missing() {
 
   [[ -d "${dir}" ]] || return 0
 
+  local _wm_exp_tmp
+  _wm_exp_tmp="$(compat_run_to_tmp reinstall_workspace_expect "${dir}")"
   while IFS=$'\t' read -r name kind; do
     [[ -z "${name}" ]] && continue
     case "${kind}" in
       missing-dir) missing_pat["${name}"]=1 ;;
       *) expected["${name}"]=1 ;;
     esac
-  done < <(reinstall_workspace_expect "${dir}")
+  done <"${_wm_exp_tmp}"
+  rm -f "${_wm_exp_tmp}"
 
   # workspace:* deps must exist even if not matched by a glob
+  local _wm_dep_tmp
+  _wm_dep_tmp="$(compat_run_to_tmp reinstall_workspace_dep_names "${dir}/package.json")"
   while IFS= read -r name; do
     [[ -n "${name}" ]] && expected["${name}"]=1
-  done < <(reinstall_workspace_dep_names "${dir}/package.json")
+  done <"${_wm_dep_tmp}"
+  rm -f "${_wm_dep_tmp}"
 
   if [[ "${#expected[@]}" -eq 0 && "${#missing_pat[@]}" -eq 0 ]]; then
     return 0
   fi
 
+  local _wm_fnd_tmp
+  _wm_fnd_tmp="$(compat_run_to_tmp reinstall_workspace_found_names "${dir}")"
   while IFS= read -r name; do
     [[ -n "${name}" ]] && found["${name}"]=1
-  done < <(reinstall_workspace_found_names "${dir}")
+  done <"${_wm_fnd_tmp}"
+  rm -f "${_wm_fnd_tmp}"
 
   for name in "${!expected[@]}"; do
     [[ -n "${found[${name}]+x}" ]] || printf '%s\n' "${name}"

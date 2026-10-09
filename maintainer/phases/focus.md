@@ -13,7 +13,7 @@
 
 | Priority | Vertical | Notes |
 |----------|----------|-------|
-| 1 | Restore soak | **iPhone/iSH — PASS** (`07e1f28` + follow-up PS cleanup). Folded in shipped/ + systems. Samsung/Termux later when hardware exists. Then **PM research** is next Focus |
+| 1 | Restore soak | **iPhone/iSH — PASS.** Termux blockers fixed (verify `-k`, `$HOME`/`$PREFIX` remap, dest-failure hard-fail, non-interactive `deps`, all PS removed) — **re-soak pending Termux hardware**. Then **PM research** is next Focus |
 | 2 | PM research | **Next after soak reports** — standing doc [`10-pm-tools-research.md`](./10-pm-tools-research.md); pull implementation slices into Focus when ready |
 | 3 | — | (slot free) |
 
@@ -21,7 +21,7 @@
 
 **Dropped:** `/overview` site page — not wanted.
 
-**Soak flow:** **iPhone/iSH PASS** (report folded). Samsung/Termux when hardware exists. Then PM research becomes the implementation Focus (capture/reinstall modules pull from phase 10).
+**Soak flow:** **iPhone/iSH PASS** (report folded). Termux code blockers fixed from the handoff report; **Samsung/Termux re-soak still required** before it counts as PASS. Then PM research becomes the implementation Focus (capture/reinstall modules pull from phase 10).
 
 ## Parallel — refactor (open)
 

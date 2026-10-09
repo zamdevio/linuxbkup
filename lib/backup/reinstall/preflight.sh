@@ -21,6 +21,8 @@ reinstall_preflight_guide() {
   [[ -n "${LINUXBKUP_ROOT:-}" ]] && source "${LINUXBKUP_ROOT}/lib/constraints/list.sh"
   # shellcheck source=lib/core/platform/detect.sh
   [[ -n "${LINUXBKUP_ROOT:-}" ]] && source "${LINUXBKUP_ROOT}/lib/core/platform/detect.sh"
+  # shellcheck source=lib/core/compat/compat.sh
+  [[ -n "${LINUXBKUP_ROOT:-}" ]] && source "${LINUXBKUP_ROOT}/lib/core/compat/compat.sh"
 
   reinstall_peek_from_backup "${backup}" "${kind}" rows
   if [[ "${#rows[@]}" -eq 0 ]]; then
@@ -28,10 +30,22 @@ reinstall_preflight_guide() {
     return 0
   fi
 
+  # Portable helper (no process substitution — iSH / no /dev/fd).
+  # Modifies caller locals `missing` / `missing_n` via bash dynamic scope.
+  _pf_missing_refresh() {
+    local _t
+    _t="$(compat_run_to_tmp reinstall_missing_pms "$@")"
+    mapfile -t missing <"${_t}"
+    rm -f "${_t}"
+    missing_n="${#missing[@]}"
+  }
+
   ui_section "Reinstall preflight"
   ui_item note "Checked packages/reinstalls.tsv without full archive extract"
   ui_kv "Node projects" "${#rows[@]}"
 
+  local _pf_counts_tmp
+  _pf_counts_tmp="$(compat_run_to_tmp reinstall_pm_counts rows)"
   while IFS=$'\t' read -r pm count; do
     [[ -z "${pm}" ]] && continue
     pms+=("${pm}")
@@ -39,7 +53,8 @@ reinstall_preflight_guide() {
     case "${pm}" in
       npm|pnpm|yarn) need_node=1 ;;
     esac
-  done < <(reinstall_pm_counts rows)
+  done <"${_pf_counts_tmp}"
+  rm -f "${_pf_counts_tmp}"
 
   printf '\n'
   ui_section "Package managers"
@@ -55,8 +70,7 @@ reinstall_preflight_guide() {
     reinstall_pm_recipe npm
   fi
 
-  mapfile -t missing < <(reinstall_missing_pms "${pms[@]}")
-  missing_n="${#missing[@]}"
+  _pf_missing_refresh "${pms[@]}"
   if [[ "${missing_n}" -eq 0 ]]; then
     log_ok "all required Node PMs are ready (Linux-native)"
     for pm in "${pms[@]}"; do
@@ -74,7 +88,7 @@ reinstall_preflight_guide() {
   done
 
   reinstall_try_corepack "${missing[@]}" || true
-  mapfile -t missing < <(reinstall_missing_pms "${pms[@]}")
+  _pf_missing_refresh "${pms[@]}"
   if [[ "${#missing[@]}" -eq 0 ]]; then
     log_ok "all required Node PMs are ready (Linux-native)"
     return 0
@@ -107,12 +121,15 @@ reinstall_preflight_guide() {
         ;;
       ""|r|R|retry|check)
         reinstall_try_corepack "${missing[@]}" || true
-        mapfile -t missing < <(reinstall_missing_pms "${pms[@]}")
+        _pf_missing_refresh "${pms[@]}"
         status=()
+        local _pf_ct2
+        _pf_ct2="$(compat_run_to_tmp reinstall_pm_counts rows)"
         for pm in "${pms[@]}"; do
-          count="$(reinstall_pm_counts rows | awk -F'\t' -v p="${pm}" '$1==p{print $2}')"
+          count="$(awk -F'\t' -v p="${pm}" '$1==p{print $2}' "${_pf_ct2}")"
           status+=("$(reinstall_pm_status_line "${pm}" "${count}")")
         done
+        rm -f "${_pf_ct2}"
         printf '\n'
         ui_section "Package managers (re-check)"
         reinstall_pm_status_list status

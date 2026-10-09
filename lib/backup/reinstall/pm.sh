@@ -6,6 +6,8 @@
 [[ -n "${LINUXBKUP_ROOT:-}" ]] && source "${LINUXBKUP_ROOT}/lib/core/platform/detect.sh"
 # shellcheck source=lib/constraints/list.sh
 [[ -n "${LINUXBKUP_ROOT:-}" ]] && source "${LINUXBKUP_ROOT}/lib/constraints/list.sh"
+# shellcheck source=lib/core/compat/compat.sh
+[[ -n "${LINUXBKUP_ROOT:-}" ]] && source "${LINUXBKUP_ROOT}/lib/core/compat/compat.sh"
 
 # Unique PMs + counts. Args: rows_array_name → prints pm<TAB>count
 reinstall_pm_counts() {
@@ -231,15 +233,20 @@ reinstall_ensure_pms() {
   local path pm lock cmd
   local -A need=()
   local -a missing=()
+  local _ens_tmp _ens_vals=()
 
   for row in "${_ens_rows[@]+"${_ens_rows[@]}"}"; do
     IFS=$'\t' read -r path pm lock cmd <<<"${row}" || true
     [[ -n "${pm}" ]] && need["${pm}"]=1
   done
-  mapfile -t missing < <(reinstall_missing_pms "${!need[@]}")
-  [[ "${#missing[@]}" -eq 0 ]] && return 0
+  _ens_vals=("${!need[@]}")
+  _ens_tmp="$(compat_run_to_tmp reinstall_missing_pms "${_ens_vals[@]}")"
+  mapfile -t missing <"${_ens_tmp}"
+  [[ "${#missing[@]}" -eq 0 ]] && { rm -f "${_ens_tmp}"; return 0; }
   reinstall_try_corepack "${missing[@]}" || true
-  mapfile -t missing < <(reinstall_missing_pms "${!need[@]}")
+  _ens_tmp="$(compat_run_to_tmp reinstall_missing_pms "${_ens_vals[@]}")"
+  mapfile -t missing <"${_ens_tmp}"
+  rm -f "${_ens_tmp}"
   [[ "${#missing[@]}" -eq 0 ]] && return 0
   log_warn "missing PMs for selected projects: ${missing[*]}"
   for pm in "${missing[@]}"; do

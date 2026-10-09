@@ -69,8 +69,19 @@ linuxbkup_cmd_verify() {
       log_fatal "cannot create verify extract dir: ${tmp}"
       return 1
     }
-    # EXIT only — INT stays with safety_on_int (menu); cleanup on quit via EXIT
-    trap 'rm -rf "'"${tmp}"'"' EXIT
+    # EXIT only — INT stays with safety_on_int (menu); cleanup on quit via EXIT.
+    # Honor --keep-stage exactly like restore (BUG 1: shared keep-stage contract).
+    LINUXBKUP_VERIFY_TMP="${tmp}"
+    _linuxbkup_verify_on_exit() {
+      declare -F linuxbkup_tty_restore >/dev/null 2>&1 && linuxbkup_tty_restore
+      if [[ "${LINUXBKUP_KEEP_STAGE:-0}" -eq 1 ]]; then
+        [[ -n "${LINUXBKUP_VERIFY_TMP:-}" && -d "${LINUXBKUP_VERIFY_TMP}" ]] \
+          && log_info "keeping extract (--keep-stage): ${LINUXBKUP_VERIFY_TMP}"
+        return 0
+      fi
+      rm -rf "${LINUXBKUP_VERIFY_TMP:-}"
+    }
+    trap '_linuxbkup_verify_on_exit' EXIT
     ui_section "Extract (temp)"
     # Phase 13 A2 — print extract path before unpack
     if declare -F compat_print_stage_path >/dev/null 2>&1; then
@@ -137,7 +148,11 @@ linuxbkup_cmd_verify() {
   archive_verify_schema "${root}"
 
   if [[ -n "${tmp:-}" ]]; then
-    rm -rf "${tmp}"
+    if [[ "${LINUXBKUP_KEEP_STAGE:-0}" -eq 1 ]]; then
+      log_info "keeping extract (--keep-stage): ${tmp}"
+    else
+      rm -rf "${tmp}"
+    fi
     trap - EXIT
   fi
 
@@ -147,7 +162,11 @@ linuxbkup_cmd_verify() {
     ui_kv_path "Stage" "${target}"
   else
     # Phase 13 A2 — extract path always printed for archive verify
-    ui_kv_path "Extract" "${tmp:-}"
+    if [[ "${LINUXBKUP_KEEP_STAGE:-0}" -eq 1 ]]; then
+      ui_kv_path "Extract kept" "${tmp:-}"
+    else
+      ui_kv_path "Extract" "${tmp:-}"
+    fi
     ui_kv_path "Archive" "${target}"
   fi
   linuxbkup_op_end

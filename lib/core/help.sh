@@ -54,6 +54,7 @@ linuxbkup_usage() {
   ui_kv "-f, --force-overwrite" "Allow overwriting conflicting files on restore"
   ui_kv "--skip-reinstall" "Skip regenerable reinstalls (node_modules, …) on restore"
   ui_kv "--reinstall-only" "Only run regenerable reinstalls (skip home/config copy)"
+  ui_kv "--interactive" "Prompt before each deps install (default: non-interactive)"
   ui_kv "--mark-secret" "Treat path as secret (repeatable; age-encrypted)"
   ui_kv "--no-secrets" "Exclude secrets from backup"
   ui_kv "--secrets-plain" "Include secrets unencrypted (explicit)"

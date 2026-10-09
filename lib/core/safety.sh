@@ -403,6 +403,9 @@ safety_permission_policy() {
 
 # Run rsync; treat partial transfer (23/24) as soft-skip, not fatal.
 # Returns: 0 ok, 1 hard fail, 20 interrupted (SIGINT / user menu pending).
+# Side effect: sets LINUXBKUP_PERM_DEST_FAIL=1 (and LINUXBKUP_PERM_DEST_ERR)
+# when stderr shows a destination-side failure, so restore can hard-fail
+# instead of soft-skipping (BUG 3).
 backup_rsync_run() {
   local -a args=("$@")
   local rc=0 err
@@ -431,12 +434,28 @@ backup_rsync_run() {
 
   local label="${args[$((${#args[@]} - 1))]:-rsync}"
 
+  # Destination-side failure detection (BUG 3): read-only / unwritable target
+  # must never be reported as a soft "unreadable source" skip.
+  # Sets LINUXBKUP_PERM_DEST_FAIL=1 for the caller; global default 0.
+  LINUXBKUP_PERM_DEST_FAIL=0
+  if grep -qiE 'read-only file system|no space left|destination.*(denied|not writable)|mkstemp.*failed|failed to open.*dest' "${err}" 2>/dev/null; then
+    LINUXBKUP_PERM_DEST_FAIL=1
+    LINUXBKUP_PERM_DEST_ERR="${err}"
+    log_debug "rsync rc=${rc} dest-side failure: $(tr '\n' ' ' <"${err}" | head -c 300)"
+    return "${rc}"
+  fi
+
   if [[ "${rc}" -eq 23 || "${rc}" -eq 24 ]]; then
     local sample
     sample="$(grep -i 'permission denied\|failed to open\|vanished' "${err}" 2>/dev/null | head -n 3 || true)"
     [[ -n "${sample}" ]] && log_verbose "rsync notes: ${sample}"
     log_debug "rsync rc=${rc} stderr=$(tr '\n' ' ' <"${err}" | head -c 400)"
     rm -f "${err}"
+    # Strict (restore): partial rsync is never recoverable — hard-fail.
+    if [[ "${LINUXBKUP_RSYNC_STRICT:-0}" -eq 1 ]]; then
+      log_warn "rsync partial copy (rc=${rc}) — failing (strict)"
+      return 1
+    fi
     local decision
     decision="$(safety_permission_policy "${label}" "rsync partial (rc=${rc})")"
     [[ "${decision}" == "abort" ]] && return 1
@@ -447,6 +466,10 @@ backup_rsync_run() {
   [[ -s "${err}" ]] && log_verbose "$(head -n 5 "${err}")"
   log_debug "rsync stderr: $(tr '\n' ' ' <"${err}" | head -c 400)"
   rm -f "${err}"
+  # Strict (restore): any non-interrupt failure is a hard failure — never soft-skip.
+  if [[ "${LINUXBKUP_RSYNC_STRICT:-0}" -eq 1 ]]; then
+    return 1
+  fi
   local decision
   decision="$(safety_permission_policy "${label}" "rsync failed rc=${rc}")"
   [[ "${decision}" == "abort" ]] && return 1
